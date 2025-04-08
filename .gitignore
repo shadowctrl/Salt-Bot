@@ -135,3 +135,6 @@ yarn.lock
 
 # vscode
 .vscode
+
+# Build
+build
