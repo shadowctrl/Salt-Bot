@@ -1,0 +1,37 @@
+{
+    "name": "salt-bot",
+    "version": "0.1.0",
+    "description": "A discord ticket bot",
+    "main": "./build/index.js",
+    "type": "commonjs",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/muralianand12345/Salt.git"
+    },
+    "author": "Murali Anand <71955467+muralianand12345@users.noreply.github.com>",
+    "keywords": [
+        "discordbot",
+        "ticket bot",
+        "discord.js",
+        "javascript"
+    ],
+    "bugs": {
+        "url": "https://github.com/muralianand12345/Salt/issues"
+    },
+    "devDependencies": {
+        "@types/node": "^22.14.0",
+        "husky": "^9.1.7"
+    },
+    "dependencies": {
+        "chalk": "4.1.2",
+        "discord.js": "^14.18.0",
+        "dotenv": "^16.4.7",
+        "path": "^0.12.7",
+        "yaml": "^2.7.1",
+        "zod": "^3.24.2"
+    },
+    "scripts": {
+        "prepare": "husky"
+    }
+}

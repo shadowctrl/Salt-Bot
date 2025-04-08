@@ -1,0 +1,25 @@
+bot:
+    owners: ["1234567890"]
+    presence:
+        enabled: true
+        status: dnd # online, idle, dnd, invisible
+        interval: 10000
+        activity: # PLAYING, LISTENING, WATCHING, STREAMING
+            [
+                { "name": "your Favorite Songs", "type": "PLAYING" },
+                { "name": "<clientname> Radio!", "type": "LISTENING" },
+                { "name": "<usersize> Users!", "type": "LISTENING" },
+                { "name": "version <version>", "type": "PLAYING" },
+                { "name": "with <guildsize> Servers!", "type": "PLAYING" },
+                { "name": "<channelsize> Channels!", "type": "WATCHING" },
+            ]
+    command:
+        prefix: "!"
+        disable_message: true
+        cooldown_message: You are on `<duration>` cooldown!
+        register_specific_commands:
+            enabled: true
+            commands: ["node"]
+    log:
+        command: "1234567890" # Command Log Channel ID
+        server: "1234567890" # New/Left Server Log Channel ID
