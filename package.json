@@ -7,7 +7,7 @@
     "license": "Apache-2.0",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/muralianand12345/Salt.git"
+        "url": "git+https://github.com/muralianand12345/Salt-Bot.git"
     },
     "author": "Murali Anand <71955467+muralianand12345@users.noreply.github.com>",
     "keywords": [
@@ -17,7 +17,7 @@
         "javascript"
     ],
     "bugs": {
-        "url": "https://github.com/muralianand12345/Salt/issues"
+        "url": "https://github.com/muralianand12345/Salt-Bot/issues"
     },
     "devDependencies": {
         "@types/node": "^22.14.0",
