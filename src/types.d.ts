@@ -130,16 +130,3 @@ export interface BotPresence {
     name: string;
     type: discord.ActivityType;
 }
-
-export interface IBlockUser {
-    id?: string;
-    userId: string;
-    status: boolean;
-    data: IBlockReason[];
-}
-
-export interface IBlockReason {
-    id?: string;
-    reason: string;
-    timestamp: Date;
-}
