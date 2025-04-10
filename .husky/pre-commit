@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # Check if VERSION file has been modified
 if git diff --cached --name-only | grep -q "VERSION"; then
   echo "📝 VERSION file changed, updating version across project files..."
@@ -10,3 +9,4 @@ if git diff --cached --name-only | grep -q "VERSION"; then
 fi
 
 exit 0
+EOF
