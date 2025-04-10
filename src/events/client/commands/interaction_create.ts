@@ -1,9 +1,11 @@
 import ms from "ms";
 import discord from "discord.js";
+import client from "../../../salt";
+import PremiumHandler from "../../../utils/premium_handler";
 import { EmbedTemplate, ButtonTemplate } from "../../../utils/embed_template";
 import { BlockedUserRepository } from "../../database/repo/blocked_users";
 import { BotEvent, SlashCommand } from "../../../types";
-import client from "../../../salt";
+
 
 const cooldown: discord.Collection<string, number> = new discord.Collection();
 
@@ -19,8 +21,27 @@ const checkBlockedStatus = async (userId: string): Promise<[boolean, string | nu
         }
 
         return [isBlocked, null];
-    } catch (error) {
+    } catch (error: Error | any) {
         client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
+        return [false, null];
+    }
+};
+
+const checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
+    try {
+        const premiumHandler = new PremiumHandler((client as any).dataSource);
+
+        const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(userId);
+
+        if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
+            await premiumHandler.revokePremium(userId);
+            client.logger.info(`[PREMIUM] User ${userId} premium expired. Revoked.`);
+            return [false, null];
+        }
+
+        return [isPremium, premiumExpire];
+    } catch (error: Error | any) {
+        client.logger.error(`[CHECK_PREMIUM] Error checking premium status: ${error}`);
         return [false, null];
     }
 };
@@ -71,6 +92,19 @@ const handleCommandPrerequisites = async (
                     }
                     return false;
                 }
+            }
+        }
+
+        if (command.premium) {
+            const [isPremium, _] = await checkPremiumStatus(interaction.user.id);
+            if (!isPremium) {
+                if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                    await interaction.reply({
+                        embeds: [new EmbedTemplate(client).error("🚫 This command is available to premium users only.")],
+                        flags: discord.MessageFlags.Ephemeral,
+                    });
+                }
+                return false;
             }
         }
 
