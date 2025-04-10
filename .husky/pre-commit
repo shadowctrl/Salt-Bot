@@ -1,11 +1,8 @@
-echo '#!/bin/sh
-# Check if VERSION file has been modified
+#!/bin/sh
 if git diff --cached --name-only | grep -q "VERSION"; then
-  echo "📝 VERSION file changed, updating version across project files..."
-  node scripts/updateVersion.js
-  
-  # Add the updated files to the commit
-  git add package.json README.md
+    echo "📝 VERSION file changed, updating version across project files..."
+    node scripts/updateVersion.js
+    git add package.json README.md
 fi
 
-exit 0' >.husky/pre-commit
+exit 0
