@@ -127,12 +127,7 @@ export interface BotEvent {
     execute: (...args) => void;
 }
 
-//-----------INTERFACE-----------//
-
-export interface BotPresence {
-    name: string;
-    type: discord.ActivityType;
-}
+//-----------DATABASE-----------//
 
 export interface IBlockUser {
     id?: string;
@@ -146,3 +141,29 @@ export interface IBlockReason {
     reason: string;
     timestamp: Date;
 }
+
+export interface IPremiumCoupon {
+    id?: string;
+    code: string;
+    userId: string;
+    status: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export interface IUserData {
+    id?: string;
+    userId: string;
+    premium: {
+        status: boolean;
+        expiresAt: Date | null;
+    }
+}
+
+//-----------INTERFACE-----------//
+
+export interface BotPresence {
+    name: string;
+    type: discord.ActivityType;
+}
+
