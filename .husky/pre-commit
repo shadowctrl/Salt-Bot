@@ -1,4 +1,4 @@
-echo '#!/bin/sh
+#!/bin/sh
 # Check if VERSION file has been modified
 if git diff --cached --name-only | grep -q "VERSION"; then
   echo "📝 VERSION file changed, updating version across project files..."
@@ -8,4 +8,4 @@ if git diff --cached --name-only | grep -q "VERSION"; then
   git add package.json README.md
 fi
 
-exit 0' >.husky/pre-commit
+exit 0
