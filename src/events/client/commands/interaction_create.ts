@@ -1,99 +1,128 @@
 import ms from "ms";
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { EmbedTemplate, ButtonTemplate } from "../../../utils/embed_template";
 import { BlockedUserRepository } from "../../database/repo/blocked_users";
-import { BotEvent, IBlockReason, SlashCommand } from "../../../types";
+import { BotEvent, SlashCommand } from "../../../types";
 import client from "../../../salt";
 
 const cooldown: discord.Collection<string, number> = new discord.Collection();
 
-const checkBlockedStatus = async (userId: string): Promise<[boolean, IBlockReason]> => {
-    const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
-    const data = await blockedUserRepo.findByUserId(userId);
-    if (!data) {
-        return [false, { id: userId, reason: "No reason provided", timestamp: new Date() }];
+const checkBlockedStatus = async (userId: string): Promise<[boolean, string | null]> => {
+    try {
+        const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
+
+        // Use the new method to get the most recent block reason
+        const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
+
+        if (isBlocked && recentReason) {
+            return [true, recentReason.reason];
+        }
+
+        return [isBlocked, null];
+    } catch (error) {
+        client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
+        return [false, null];
     }
-    return [data.status, data.data[0]];
-}
+};
 
 const handleCommandPrerequisites = async (
     client: discord.Client,
     interaction: discord.Interaction,
     command: SlashCommand
-) => {
+): Promise<boolean> => {
     if (!interaction.isChatInputCommand()) return false;
 
-    const [isBlocked, blockReason] = await checkBlockedStatus(interaction.user.id);
-    if (isBlocked) {
-        if (interaction.isRepliable() && !interaction.replied) {
-            await interaction.reply({
-                embeds: [new EmbedTemplate(client).error(`🚫 You are blocked from using this bot. Reason: ${blockReason.reason}`)],
-                flags: discord.MessageFlags.Ephemeral,
-            });
+    try {
+        // Check if user is blocked using the updated method
+        const [isBlocked, blockReason] = await checkBlockedStatus(interaction.user.id);
+
+        if (isBlocked) {
+            if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                const reasonText = blockReason
+                    ? `Reason: ${blockReason}`
+                    : 'No specific reason provided';
+
+                await interaction.reply({
+                    embeds: [new EmbedTemplate(client).error(`🚫 You are blocked from using this bot. \n**${reasonText}**`).setFooter({ text: "Join Salt support server and raise ticket for unblock." })],
+                    components: [new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new ButtonTemplate(client).supportButton())],
+                    flags: discord.MessageFlags.Ephemeral,
+                });
+            }
+            return false;
         }
-        return false;
-    }
 
-    if (command.cooldown) {
-        const cooldownKey = `${command.data.name}${interaction.user.id}`;
-        if (cooldown.has(cooldownKey)) {
-            const cooldownTime = cooldown.get(cooldownKey);
-            const remainingTime = cooldownTime ? cooldownTime - Date.now() : 0;
+        if (command.cooldown) {
+            const cooldownKey = `${command.data.name}${interaction.user.id}`;
+            if (cooldown.has(cooldownKey)) {
+                const cooldownTime = cooldown.get(cooldownKey);
+                const remainingTime = cooldownTime ? cooldownTime - Date.now() : 0;
 
-            const coolMsg = client.config.bot.command.cooldown_message.replace(
-                "<duration>",
-                ms(remainingTime)
-            );
+                const coolMsg = client.config.bot.command.cooldown_message.replace(
+                    "<duration>",
+                    ms(remainingTime)
+                );
 
-            if (remainingTime > 0) {
-                if (interaction.isRepliable() && !interaction.replied) {
+                if (remainingTime > 0) {
+                    if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                        await interaction.reply({
+                            embeds: [new EmbedTemplate(client).warning(coolMsg)],
+                            flags: discord.MessageFlags.Ephemeral,
+                        });
+                    }
+                    return false;
+                }
+            }
+        }
+
+        if (command.owner && !client.config.bot.owners.includes(interaction.user.id)) {
+            if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                await interaction.reply({
+                    embeds: [new EmbedTemplate(client).error("🚫 This command is restricted to bot owners only.")],
+                    flags: discord.MessageFlags.Ephemeral,
+                });
+            }
+            return false;
+        }
+
+        if (command.userPerms && interaction.guild) {
+            const member = await interaction.guild.members.fetch(interaction.user.id);
+            if (!member.permissions.has(command.userPerms)) {
+                if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                     await interaction.reply({
-                        embeds: [new EmbedTemplate(client).warning(coolMsg)],
+                        embeds: [new EmbedTemplate(client).error("🚫 You do not have permission to use this command.")],
                         flags: discord.MessageFlags.Ephemeral,
                     });
                 }
                 return false;
             }
         }
-    }
 
-    if (command.owner && !client.config.bot.owners.includes(interaction.user.id)) {
-        if (interaction.isRepliable() && !interaction.replied) {
+        if (command.botPerms && interaction.guild) {
+            const member = await interaction.guild.members.fetch(client.user?.id || "");
+            if (!member.permissions.has(command.botPerms)) {
+                if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                    await interaction.reply({
+                        embeds: [new EmbedTemplate(client).error("🚫 I do not have permission to execute this command.")],
+                        flags: discord.MessageFlags.Ephemeral,
+                    });
+                }
+                return false;
+            }
+        }
+
+        return true;
+    } catch (error) {
+        client.logger.error(`[CMD_PREREQ] Error in command prerequisites: ${error}`);
+
+        if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
             await interaction.reply({
-                embeds: [new EmbedTemplate(client).error("🚫 This command is restricted to bot owners only.")],
+                embeds: [new EmbedTemplate(client).error("An error occurred while processing your command.")],
                 flags: discord.MessageFlags.Ephemeral,
             });
         }
+
         return false;
     }
-
-    if (command.userPerms && interaction.guild) {
-        const member = await interaction.guild.members.fetch(interaction.user.id);
-        if (!member.permissions.has(command.userPerms)) {
-            if (interaction.isRepliable() && !interaction.replied) {
-                await interaction.reply({
-                    embeds: [new EmbedTemplate(client).error("🚫 You do not have permission to use this command.")],
-                    flags: discord.MessageFlags.Ephemeral,
-                });
-            }
-            return false;
-        }
-    }
-
-    if (command.botPerms && interaction.guild) {
-        const member = await interaction.guild.members.fetch(client.user?.id || "");
-        if (!member.permissions.has(command.botPerms)) {
-            if (interaction.isRepliable() && !interaction.replied) {
-                await interaction.reply({
-                    embeds: [new EmbedTemplate(client).error("🚫 I do not have permission to execute this command.")],
-                    flags: discord.MessageFlags.Ephemeral,
-                });
-            }
-            return false;
-        }
-    }
-
-    return true;
 };
 
 const executeCommand = async (
@@ -104,16 +133,19 @@ const executeCommand = async (
     if (!interaction.isChatInputCommand()) return;
 
     try {
+        // Execute the command
         await command.execute(interaction, client);
 
+        // Log the command execution
         await client.cmdLogger.log({
             client,
             commandName: `/${interaction.commandName}`,
             guild: interaction.guild,
             user: interaction.user,
-            channel: interaction.channel,
+            channel: interaction.channel as discord.TextChannel | null,
         });
 
+        // Set cooldown if applicable
         if (command.cooldown) {
             if (client.config.bot.owners.includes(interaction.user.id)) return;
             const cooldownKey = `${command.data.name}${interaction.user.id}`;
@@ -122,14 +154,25 @@ const executeCommand = async (
             cooldown.set(cooldownKey, Date.now() + cooldownAmount);
             setTimeout(() => cooldown.delete(cooldownKey), cooldownAmount);
         }
-
-    } catch (error: Error | any) {
+    } catch (error) {
         client.logger.error(`[INTERACTION_CREATE] Error executing command ${command.data.name}: ${error}`);
-        if (interaction.isRepliable() && !interaction.replied) {
-            await interaction.reply({
-                embeds: [new EmbedTemplate(client).error("🚫 An error occurred while executing the command.")],
-                flags: discord.MessageFlags.Ephemeral,
-            });
+
+        try {
+            // Check if we can still reply
+            if (interaction.isRepliable()) {
+                if (!interaction.deferred && !interaction.replied) {
+                    await interaction.reply({
+                        embeds: [new EmbedTemplate(client).error("🚫 An error occurred while executing the command.")],
+                        flags: discord.MessageFlags.Ephemeral,
+                    });
+                } else if (interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("🚫 An error occurred while executing the command.")]
+                    });
+                }
+            }
+        } catch (replyError) {
+            client.logger.error(`[INTERACTION_CREATE] Failed to send error response: ${replyError}`);
         }
     }
 };
@@ -138,35 +181,45 @@ const event: BotEvent = {
     name: discord.Events.InteractionCreate,
     execute: async (interaction: discord.Interaction, client: discord.Client): Promise<void> => {
         try {
+            // Handle autocomplete interactions
             if (interaction.isAutocomplete()) {
                 const command = client.slashCommands.get(interaction.commandName);
                 if (command?.autocomplete) {
                     try {
-                        command.autocomplete(interaction, client);
+                        await command.autocomplete(interaction, client);
                     } catch (error) {
-                        client.logger.warn(
-                            `[INTERACTION_CREATE] Autocomplete error: ${error}`
-                        );
+                        client.logger.warn(`[INTERACTION_CREATE] Autocomplete error: ${error}`);
                     }
                 }
                 return;
             }
 
+            // Only process chat input commands
             if (!interaction.isChatInputCommand()) return;
 
             const command = client.slashCommands.get(interaction.commandName);
-            if (!command) return client.logger.warn(`[INTERACTION_CREATE] Command ${interaction.commandName} not found.`);
+            if (!command) {
+                client.logger.warn(`[INTERACTION_CREATE] Command ${interaction.commandName} not found.`);
+                return;
+            }
 
+            // Check prerequisites and execute command
             if (await handleCommandPrerequisites(client, interaction, command)) {
                 await executeCommand(client, interaction, command);
             }
-        } catch (error: Error | any) {
+        } catch (error) {
             client.logger.error(`[INTERACTION_CREATE] Error processing interaction command: ${error}`);
-            if (interaction.isRepliable() && !interaction.replied) {
-                await interaction.reply({
-                    embeds: [new EmbedTemplate(client).error("🚫 An error occurred while processing the command.")],
-                    flags: discord.MessageFlags.Ephemeral,
-                });
+
+            try {
+                // Last resort error handling
+                if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                    await interaction.reply({
+                        embeds: [new EmbedTemplate(client).error("🚫 An unexpected error occurred while processing the command.")],
+                        flags: discord.MessageFlags.Ephemeral,
+                    });
+                }
+            } catch (replyError) {
+                client.logger.error(`[INTERACTION_CREATE] Failed to send error response: ${replyError}`);
             }
         }
     }

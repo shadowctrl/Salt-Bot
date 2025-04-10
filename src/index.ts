@@ -1,4 +1,5 @@
 import path from "path";
+import 'reflect-metadata';
 import discord from "discord.js";
 import Logger from "./utils/logger";
 import { ConfigManager } from "./utils/config";

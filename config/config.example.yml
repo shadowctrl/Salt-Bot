@@ -1,13 +1,15 @@
 bot:
     owners: ["1234567890"]
+    support:
+        link: "https://discord.gg/XzE9hSbsNb"
     presence:
         enabled: true
-        status: dnd # online, idle, dnd, invisible
+        status: idle # online, idle, dnd, invisible
         interval: 10000
         activity: # PLAYING, LISTENING, WATCHING, STREAMING
             [
-                { "name": "your Favorite Songs", "type": "PLAYING" },
-                { "name": "<clientname> Radio!", "type": "LISTENING" },
+                { "name": "your queries and questions!", "type": "LISTENING" },
+                { "name": "<clientname> Tickets!", "type": "LISTENING" },
                 { "name": "<usersize> Users!", "type": "LISTENING" },
                 { "name": "version <version>", "type": "PLAYING" },
                 { "name": "with <guildsize> Servers!", "type": "PLAYING" },
@@ -23,3 +25,10 @@ bot:
     log:
         command: "1234567890" # Command Log Channel ID
         server: "1234567890" # New/Left Server Log Channel ID
+
+embed:
+    color:
+        default: Burple
+        error: Red
+        success: Green
+        warning: Yellow

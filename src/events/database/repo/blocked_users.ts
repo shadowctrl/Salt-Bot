@@ -8,12 +8,14 @@ import { BlockedUser, BlockReason } from "../entities/blocked_users";
 export class BlockedUserRepository {
     private blockedUserRepo: Repository<BlockedUser>;
     private blockReasonRepo: Repository<BlockReason>;
+    private dataSource: DataSource;
 
     /**
      * Creates a new BlockedUserRepository instance
      * @param dataSource - TypeORM DataSource connection
      */
     constructor(dataSource: DataSource) {
+        this.dataSource = dataSource;
         this.blockedUserRepo = dataSource.getRepository(BlockedUser);
         this.blockReasonRepo = dataSource.getRepository(BlockReason);
     }
@@ -24,10 +26,38 @@ export class BlockedUserRepository {
      * @returns The blocked user record or null if not found
      */
     async findByUserId(userId: string): Promise<BlockedUser | null> {
-        return this.blockedUserRepo.findOne({
-            where: { userId },
-            relations: ['data']
-        });
+        try {
+            return await this.blockedUserRepo.findOne({
+                where: { userId },
+                relations: ['data']
+            });
+        } catch (error) {
+            console.error(`Error finding user ${userId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get the most recent block reason for a user
+     * @param userId - Discord user ID
+     * @returns The most recent block reason or null if not found
+     */
+    async getMostRecentBlockReason(userId: string): Promise<BlockReason | null> {
+        try {
+            const blockedUser = await this.findByUserId(userId);
+
+            if (!blockedUser || !blockedUser.data || blockedUser.data.length === 0) {
+                return null;
+            }
+
+            // Sort reasons by timestamp in descending order and get the most recent one
+            return blockedUser.data.sort((a, b) =>
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            )[0];
+        } catch (error) {
+            console.error(`Error getting recent block reason for user ${userId}:`, error);
+            return null;
+        }
     }
 
     /**
@@ -36,48 +66,116 @@ export class BlockedUserRepository {
      * @param reason - Reason for blocking the user
      * @returns The created or updated blocked user record
      */
-    async blockUser(userId: string, reason: string): Promise<BlockedUser> {
-        let blockedUser = await this.findByUserId(userId);
+    async blockUser(userId: string, reason: string): Promise<BlockedUser | null> {
+        // Use a transaction to ensure data consistency
+        const queryRunner = this.dataSource.createQueryRunner();
 
-        if (!blockedUser) {
-            // Create new blocked user
-            blockedUser = new BlockedUser();
-            blockedUser.userId = userId;
-            blockedUser.status = true;
-            blockedUser.data = [];
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
 
-            // Save to create the entity first (we need the ID for the relation)
-            blockedUser = await this.blockedUserRepo.save(blockedUser);
-        } else {
-            // Update existing user's status
-            blockedUser.status = true;
+        try {
+            let blockedUser = await this.findByUserId(userId);
+
+            if (!blockedUser) {
+                // Create new blocked user
+                blockedUser = new BlockedUser();
+                blockedUser.userId = userId;
+                blockedUser.status = true;
+                blockedUser.data = [];
+
+                // Save to create the entity first (we need the ID for the relation)
+                blockedUser = await this.blockedUserRepo.save(blockedUser);
+            } else {
+                // Update existing user's status
+                blockedUser.status = true;
+                await this.blockedUserRepo.save(blockedUser);
+            }
+
+            // Create a new block reason
+            const blockReason = new BlockReason();
+            blockReason.reason = reason;
+            blockReason.blockedUser = blockedUser;
+            await this.blockReasonRepo.save(blockReason);
+
+            await queryRunner.commitTransaction();
+
+            // Reload the blocked user with the updated data
+            return this.findByUserId(userId);
+        } catch (error) {
+            // Rollback transaction on error
+            await queryRunner.rollbackTransaction();
+            console.error(`Error blocking user ${userId}:`, error);
+            return null;
+        } finally {
+            // Release the query runner
+            await queryRunner.release();
         }
-
-        // Create a new block reason
-        const blockReason = new BlockReason();
-        blockReason.reason = reason;
-        blockReason.blockedUser = blockedUser;
-        await this.blockReasonRepo.save(blockReason);
-
-        // Reload the blocked user with the updated data
-        return this.findByUserId(userId) as Promise<BlockedUser>;
     }
 
     /**
-     * Unblock a user
+     * Unblock a user and record the reason
      * @param userId - Discord user ID
+     * @param reason - Reason for unblocking
      * @returns True if the user was unblocked, false otherwise
      */
-    async unblockUser(userId: string): Promise<boolean> {
-        const blockedUser = await this.findByUserId(userId);
+    async unblockUser(userId: string, reason: string): Promise<boolean> {
+        const queryRunner = this.dataSource.createQueryRunner();
 
-        if (!blockedUser) {
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            const blockedUser = await this.findByUserId(userId);
+
+            if (!blockedUser) {
+                return false;
+            }
+
+            // Update status to unblocked
+            blockedUser.status = false;
+            await this.blockedUserRepo.save(blockedUser);
+
+            // Create a record of the unblock reason
+            const blockReason = new BlockReason();
+            blockReason.reason = `UNBLOCKED: ${reason}`;
+            blockReason.blockedUser = blockedUser;
+            await this.blockReasonRepo.save(blockReason);
+
+            await queryRunner.commitTransaction();
+            return true;
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            console.error(`Error unblocking user ${userId}:`, error);
             return false;
+        } finally {
+            await queryRunner.release();
         }
+    }
 
-        blockedUser.status = false;
-        await this.blockedUserRepo.save(blockedUser);
-        return true;
+    /**
+     * Check if a user is currently blocked
+     * @param userId - Discord user ID
+     * @returns [isBlocked, mostRecentReason] tuple
+     */
+    async checkBlockStatus(userId: string): Promise<[boolean, BlockReason | null]> {
+        try {
+            const blockedUser = await this.findByUserId(userId);
+
+            if (!blockedUser) {
+                return [false, null];
+            }
+
+            // If user is blocked, get the most recent reason
+            if (blockedUser.status) {
+                const recentReason = await this.getMostRecentBlockReason(userId);
+                return [true, recentReason];
+            }
+
+            return [false, null];
+        } catch (error) {
+            console.error(`Error checking block status for user ${userId}:`, error);
+            return [false, null];
+        }
     }
 
     /**
@@ -85,10 +183,15 @@ export class BlockedUserRepository {
      * @returns List of all blocked users
      */
     async getAllBlockedUsers(): Promise<BlockedUser[]> {
-        return this.blockedUserRepo.find({
-            where: { status: true },
-            relations: ['data']
-        });
+        try {
+            return await this.blockedUserRepo.find({
+                where: { status: true },
+                relations: ['data']
+            });
+        } catch (error) {
+            console.error("Error getting all blocked users:", error);
+            return [];
+        }
     }
 
     /**
@@ -98,17 +201,32 @@ export class BlockedUserRepository {
      * @returns Updated blocked user or null if user not found
      */
     async addBlockReason(userId: string, reason: string): Promise<BlockedUser | null> {
-        const blockedUser = await this.findByUserId(userId);
+        const queryRunner = this.dataSource.createQueryRunner();
 
-        if (!blockedUser) {
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            const blockedUser = await this.findByUserId(userId);
+
+            if (!blockedUser) {
+                return null;
+            }
+
+            const blockReason = new BlockReason();
+            blockReason.reason = reason;
+            blockReason.blockedUser = blockedUser;
+            await this.blockReasonRepo.save(blockReason);
+
+            await queryRunner.commitTransaction();
+
+            return this.findByUserId(userId);
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            console.error(`Error adding block reason for user ${userId}:`, error);
             return null;
+        } finally {
+            await queryRunner.release();
         }
-
-        const blockReason = new BlockReason();
-        blockReason.reason = reason;
-        blockReason.blockedUser = blockedUser;
-        await this.blockReasonRepo.save(blockReason);
-
-        return this.findByUserId(userId);
     }
 }

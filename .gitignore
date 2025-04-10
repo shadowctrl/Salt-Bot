@@ -131,7 +131,7 @@ dist
 yarn.lock
 
 # yaml config
-/config/config.yaml
+/config/config.yml
 
 # vscode
 .vscode

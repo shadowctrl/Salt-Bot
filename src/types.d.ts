@@ -43,6 +43,9 @@ export interface Command {
 export interface IConfig {
     bot: {
         owners: Array<string>;
+        support: {
+            link: string;
+        }
         presence: {
             enabled: boolean;
             status: string;

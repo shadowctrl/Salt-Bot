@@ -83,7 +83,9 @@ const loadEvents = async (
 
                         if (!event?.name || !event?.execute) {
                             //check if the folder name ends with schema
-                            if (!subDirPath.endsWith("schema")) {
+                            const ignoreFolders = ["entities", "repo"];
+                            const isIgnoredFolder = ignoreFolders.some(folder => subDirPath.toLowerCase().endsWith(folder.toLowerCase()));
+                            if (!isIgnoredFolder) {
                                 client.logger.warn(
                                     `[MAIN] Invalid event file structure: ${file}`
                                 );
