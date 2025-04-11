@@ -4,11 +4,19 @@ import {
     GuildConfig,
     TicketCategory,
     Ticket,
-    TicketStatus,
     TicketMessage,
     TicketButton,
     SelectMenuConfig
 } from "../entities/ticket_system";
+import {
+    IGuildConfig,
+    ITicketCategory,
+    ITicket,
+    ITicketStatus,
+    ITicketMessage,
+    ITicketButton,
+    ISelectMenuConfig
+} from "../../../types";
 
 /**
  * Repository class for managing ticket system in PostgreSQL
@@ -45,7 +53,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Guild configuration
      */
-    async getOrCreateGuildConfig(guildId: string): Promise<GuildConfig> {
+    async getOrCreateGuildConfig(guildId: string): Promise<IGuildConfig> {
         try {
             // Try to find existing config
             let guildConfig = await this.guildConfigRepo.findOne({
@@ -76,7 +84,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Guild configuration or null if not found
      */
-    async getGuildConfig(guildId: string): Promise<GuildConfig | null> {
+    async getGuildConfig(guildId: string): Promise<IGuildConfig | null> {
         try {
             return await this.guildConfigRepo.findOne({
                 where: { guildId },
@@ -100,7 +108,7 @@ export class TicketRepository {
             defaultCategoryName?: string;
             isEnabled?: boolean;
         }
-    ): Promise<GuildConfig | null> {
+    ): Promise<IGuildConfig | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
 
@@ -112,7 +120,7 @@ export class TicketRepository {
                 guildConfig.isEnabled = configData.isEnabled;
             }
 
-            return await this.guildConfigRepo.save(guildConfig);
+            return await this.guildConfigRepo.save(guildConfig as GuildConfig);
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error updating guild config: ${error}`);
             return null;
@@ -136,7 +144,7 @@ export class TicketRepository {
                 return false;
             }
 
-            await this.guildConfigRepo.remove(guildConfig);
+            await this.guildConfigRepo.remove(guildConfig as GuildConfig);
             await queryRunner.commitTransaction();
 
             return true;
@@ -166,7 +174,7 @@ export class TicketRepository {
             supportRoleId?: string;
             position?: number;
         }
-    ): Promise<TicketCategory> {
+    ): Promise<ITicketCategory> {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -180,7 +188,7 @@ export class TicketRepository {
             category.emoji = categoryData.emoji;
             category.supportRoleId = categoryData.supportRoleId;
             category.position = categoryData.position || 0;
-            category.guildConfig = guildConfig;
+            category.guildConfig = guildConfig as GuildConfig;
 
             const savedCategory = await this.ticketCategoryRepo.save(category);
 
@@ -208,7 +216,7 @@ export class TicketRepository {
      * @param categoryId - Category ID
      * @returns Ticket category or null if not found
      */
-    async getTicketCategory(categoryId: string): Promise<TicketCategory | null> {
+    async getTicketCategory(categoryId: string): Promise<ITicketCategory | null> {
         try {
             return await this.ticketCategoryRepo.findOne({
                 where: { id: categoryId },
@@ -225,7 +233,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Array of ticket categories
      */
-    async getTicketCategories(guildId: string): Promise<TicketCategory[]> {
+    async getTicketCategories(guildId: string): Promise<ITicketCategory[]> {
         try {
             const guildConfig = await this.guildConfigRepo.findOne({
                 where: { guildId },
@@ -260,7 +268,7 @@ export class TicketRepository {
             position?: number;
             isEnabled?: boolean;
         }
-    ): Promise<TicketCategory | null> {
+    ): Promise<ITicketCategory | null> {
         try {
             const category = await this.getTicketCategory(categoryId);
 
@@ -276,7 +284,7 @@ export class TicketRepository {
             if (categoryData.position !== undefined) category.position = categoryData.position;
             if (categoryData.isEnabled !== undefined) category.isEnabled = categoryData.isEnabled;
 
-            return await this.ticketCategoryRepo.save(category);
+            return await this.ticketCategoryRepo.save(category as TicketCategory);
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error updating ticket category: ${error}`);
             return null;
@@ -300,7 +308,7 @@ export class TicketRepository {
                 return false;
             }
 
-            await this.ticketCategoryRepo.remove(category);
+            await this.ticketCategoryRepo.remove(category as TicketCategory);
             await queryRunner.commitTransaction();
 
             return true;
@@ -328,7 +336,7 @@ export class TicketRepository {
         creatorId: string,
         channelId: string,
         categoryId: string
-    ): Promise<Ticket> {
+    ): Promise<ITicket> {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -353,7 +361,7 @@ export class TicketRepository {
             ticket.ticketNumber = category.ticketCount;
             ticket.channelId = channelId;
             ticket.creatorId = creatorId;
-            ticket.status = TicketStatus.OPEN;
+            ticket.status = ITicketStatus.OPEN;
             ticket.category = category;
 
             const savedTicket = await this.ticketRepo.save(ticket);
@@ -374,7 +382,7 @@ export class TicketRepository {
      * @param ticketId - Ticket ID
      * @returns Ticket or null if not found
      */
-    async getTicket(ticketId: string): Promise<Ticket | null> {
+    async getTicket(ticketId: string): Promise<ITicket | null> {
         try {
             return await this.ticketRepo.findOne({
                 where: { id: ticketId },
@@ -391,7 +399,7 @@ export class TicketRepository {
      * @param channelId - Discord channel ID
      * @returns Ticket or null if not found
      */
-    async getTicketByChannelId(channelId: string): Promise<Ticket | null> {
+    async getTicketByChannelId(channelId: string): Promise<ITicket | null> {
         try {
             return await this.ticketRepo.findOne({
                 where: { channelId },
@@ -408,7 +416,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Array of tickets
      */
-    async getGuildTickets(guildId: string): Promise<Ticket[]> {
+    async getGuildTickets(guildId: string): Promise<ITicket[]> {
         try {
             // Get all categories for this guild
             const categories = await this.getTicketCategories(guildId);
@@ -440,7 +448,7 @@ export class TicketRepository {
      * @param categoryId - Category ID
      * @returns Array of tickets
      */
-    async getCategoryTickets(categoryId: string): Promise<Ticket[]> {
+    async getCategoryTickets(categoryId: string): Promise<ITicket[]> {
         try {
             return await this.ticketRepo.find({
                 where: { category: { id: categoryId } },
@@ -462,10 +470,10 @@ export class TicketRepository {
      */
     async updateTicketStatus(
         ticketId: string,
-        status: TicketStatus,
+        status: ITicketStatus,
         userId?: string,
         reason?: string
-    ): Promise<Ticket | null> {
+    ): Promise<ITicket | null> {
         try {
             const ticket = await this.ticketRepo.findOne({
                 where: { id: ticketId }
@@ -477,7 +485,7 @@ export class TicketRepository {
 
             ticket.status = status;
 
-            if (status === TicketStatus.CLOSED || status === TicketStatus.ARCHIVED) {
+            if (status === ITicketStatus.CLOSED || status === ITicketStatus.ARCHIVED) {
                 ticket.closedById = userId;
                 ticket.closedAt = new Date();
                 ticket.closeReason = reason;
@@ -503,7 +511,7 @@ export class TicketRepository {
                 return false;
             }
 
-            await this.ticketRepo.remove(ticket);
+            await this.ticketRepo.remove(ticket as Ticket);
             return true;
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error deleting ticket: ${error}`);
@@ -518,7 +526,7 @@ export class TicketRepository {
      * @param categoryId - Category ID
      * @returns Ticket message configuration
      */
-    async getTicketMessage(categoryId: string): Promise<TicketMessage | null> {
+    async getTicketMessage(categoryId: string): Promise<ITicketMessage | null> {
         try {
             return await this.ticketMessageRepo.findOne({
                 where: { category: { id: categoryId } }
@@ -542,7 +550,7 @@ export class TicketRepository {
             closeMessage?: string;
             includeSupportTeam?: boolean;
         }
-    ): Promise<TicketMessage | null> {
+    ): Promise<ITicketMessage | null> {
         try {
             const category = await this.ticketCategoryRepo.findOne({
                 where: { id: categoryId },
@@ -597,7 +605,7 @@ export class TicketRepository {
             embedDescription?: string;
             embedColor?: string;
         }
-    ): Promise<TicketButton | null> {
+    ): Promise<ITicketButton | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
 
@@ -608,7 +616,7 @@ export class TicketRepository {
 
             if (!buttonConfig) {
                 buttonConfig = new TicketButton();
-                buttonConfig.guildConfig = guildConfig;
+                buttonConfig.guildConfig = guildConfig as GuildConfig;
             }
 
             // Update fields if provided
@@ -633,7 +641,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Ticket button configuration or null if not found
      */
-    async getTicketButtonConfig(guildId: string): Promise<TicketButton | null> {
+    async getTicketButtonConfig(guildId: string): Promise<ITicketButton | null> {
         try {
             const guildConfig = await this.guildConfigRepo.findOne({
                 where: { guildId },
@@ -666,7 +674,7 @@ export class TicketRepository {
             embedDescription?: string;
             embedColor?: string;
         }
-    ): Promise<SelectMenuConfig | null> {
+    ): Promise<ISelectMenuConfig | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
 
@@ -677,7 +685,7 @@ export class TicketRepository {
 
             if (!menuConfig) {
                 menuConfig = new SelectMenuConfig();
-                menuConfig.guildConfig = guildConfig;
+                menuConfig.guildConfig = guildConfig as GuildConfig;
             }
 
             // Update fields if provided
@@ -701,7 +709,7 @@ export class TicketRepository {
      * @param guildId - Discord guild ID
      * @returns Select menu configuration or null if not found
      */
-    async getSelectMenuConfig(guildId: string): Promise<SelectMenuConfig | null> {
+    async getSelectMenuConfig(guildId: string): Promise<ISelectMenuConfig | null> {
         try {
             const guildConfig = await this.guildConfigRepo.findOne({
                 where: { guildId },
@@ -735,9 +743,9 @@ export class TicketRepository {
 
             const stats = {
                 totalTickets: tickets.length,
-                openTickets: tickets.filter(t => t.status === TicketStatus.OPEN).length,
-                closedTickets: tickets.filter(t => t.status === TicketStatus.CLOSED).length,
-                archivedTickets: tickets.filter(t => t.status === TicketStatus.ARCHIVED).length,
+                openTickets: tickets.filter(t => t.status === ITicketStatus.OPEN).length,
+                closedTickets: tickets.filter(t => t.status === ITicketStatus.CLOSED).length,
+                archivedTickets: tickets.filter(t => t.status === ITicketStatus.ARCHIVED).length,
                 categoryCounts: {} as Record<string, number>
             };
 
