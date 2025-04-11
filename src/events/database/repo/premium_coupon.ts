@@ -1,4 +1,5 @@
 import { Repository, DataSource } from "typeorm";
+import client from "../../../salt";
 import { PremiumCoupon } from "../entities/premium_coupons";
 
 /**
@@ -37,7 +38,7 @@ export class PremiumCouponRepository {
 
             return await this.couponRepo.save(coupon);
         } catch (error) {
-            console.error(`Error creating coupon: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error creating coupon: ${error}`);
             return null;
         }
     }
@@ -53,7 +54,7 @@ export class PremiumCouponRepository {
                 where: { code }
             });
         } catch (error) {
-            console.error(`Error finding coupon by code: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error finding coupon by code: ${error}`);
             return null;
         }
     }
@@ -68,7 +69,7 @@ export class PremiumCouponRepository {
             const coupon = await this.findByCode(code);
             return !!coupon;
         } catch (error) {
-            console.error(`Error checking if coupon exists: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error checking if coupon exists: ${error}`);
             return false;
         }
     }
@@ -84,7 +85,7 @@ export class PremiumCouponRepository {
                 where: { userId, status: true }
             });
         } catch (error) {
-            console.error(`Error finding coupons by user ID: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error finding coupons by user ID: ${error}`);
             return [];
         }
     }
@@ -108,7 +109,7 @@ export class PremiumCouponRepository {
 
             return true;
         } catch (error) {
-            console.error(`Error marking coupon as used: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error marking coupon as used: ${error}`);
             return false;
         }
     }
@@ -127,7 +128,7 @@ export class PremiumCouponRepository {
 
             return result.affected || 0;
         } catch (error) {
-            console.error(`Error deleting expired coupons: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error deleting expired coupons: ${error}`);
             return 0;
         }
     }
@@ -165,7 +166,7 @@ export class PremiumCouponRepository {
             return createdCoupons;
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            console.error(`Error creating coupon batch: ${error}`);
+            client.logger.error(`[PREMIUM_USER_REPO] Error creating coupon batch: ${error}`);
             return [];
         } finally {
             await queryRunner.release();
