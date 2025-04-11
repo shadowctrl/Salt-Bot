@@ -1,13 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
-
-export enum TicketStatus {
-    OPEN = "open",
-    CLOSED = "closed",
-    ARCHIVED = "archived"
-}
+import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig, ITicketStatus } from "../../../types";
 
 @Entity("guild_configs")
-export class GuildConfig {
+export class GuildConfig implements IGuildConfig {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
@@ -43,7 +38,7 @@ export class GuildConfig {
 }
 
 @Entity("ticket_categories")
-export class TicketCategory {
+export class TicketCategory implements ITicketCategory {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
@@ -92,7 +87,7 @@ export class TicketCategory {
 }
 
 @Entity("tickets")
-export class Ticket {
+export class Ticket implements ITicket {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
@@ -113,10 +108,10 @@ export class Ticket {
 
     @Column({
         type: "enum",
-        enum: TicketStatus,
-        default: TicketStatus.OPEN
+        enum: ITicketStatus,
+        default: ITicketStatus.OPEN
     })
-    status!: TicketStatus;
+    status!: ITicketStatus;
 
     @Column({ nullable: true, type: "text" })
     closeReason?: string;
@@ -135,7 +130,7 @@ export class Ticket {
 }
 
 @Entity("ticket_messages")
-export class TicketMessage {
+export class TicketMessage implements ITicketMessage {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
@@ -162,7 +157,7 @@ export class TicketMessage {
 }
 
 @Entity("ticket_buttons")
-export class TicketButton {
+export class TicketButton implements ITicketButton {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 
@@ -204,7 +199,7 @@ export class TicketButton {
 }
 
 @Entity("select_menu_configs")
-export class SelectMenuConfig {
+export class SelectMenuConfig implements ISelectMenuConfig {
     @PrimaryGeneratedColumn("uuid")
     id!: string;
 

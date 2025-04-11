@@ -158,6 +158,93 @@ export interface IUserData {
     premiumExpiresAt: Date | null;
 }
 
+export enum ITicketStatus {
+    OPEN = "open",
+    CLOSED = "closed",
+    ARCHIVED = "archived"
+}
+
+export interface IGuildConfig {
+    id: string;
+    guildId: string;
+    defaultCategoryName: string;
+    isEnabled: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    ticketCategories: ITicketCategory[];
+    ticketButton: ITicketButton;
+    selectMenu: ISelectMenuConfig;
+}
+
+export interface ITicketCategory {
+    id: string;
+    name: string;
+    description?: string;
+    emoji?: string;
+    supportRoleId?: string;
+    ticketCount: number;
+    isEnabled: boolean;
+    position: number;
+    createdAt: Date;
+    updatedAt: Date;
+    guildConfig: IGuildConfig;
+    tickets: ITicket[];
+    ticketMessage: ITicketMessage;
+}
+
+export interface ITicket {
+    id: string;
+    ticketNumber: number;
+    channelId: string;
+    creatorId: string;
+    closedById?: string;
+    closedAt?: Date;
+    status: ITicketStatus;
+    closeReason?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    category: ITicketCategory;
+}
+
+export interface ITicketMessage {
+    id: string;
+    welcomeMessage?: string;
+    closeMessage?: string;
+    includeSupportTeam: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    category: ITicketCategory;
+}
+
+export interface ITicketButton {
+    id: string;
+    label: string;
+    emoji: string;
+    style: string;
+    messageId?: string;
+    embedTitle?: string;
+    embedDescription?: string;
+    embedColor?: string;
+    channelId?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    guildConfig: IGuildConfig;
+}
+
+export interface ISelectMenuConfig {
+    id: string;
+    placeholder: string;
+    messageId?: string;
+    minValues: number;
+    maxValues: number;
+    embedTitle?: string;
+    embedDescription?: string;
+    embedColor?: string;
+    createdAt: Date;
+    updatedAt: Date;
+    guildConfig: IGuildConfig;
+}
+
 //-----------INTERFACE-----------//
 
 export interface BotPresence {
