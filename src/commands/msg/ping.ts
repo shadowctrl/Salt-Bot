@@ -1,8 +1,6 @@
 import os from "os";
 import discord from "discord.js";
-import { wait } from "../../utils/extras";
 import Formatter from "../../utils/format";
-import { EmbedTemplate } from "../../utils/embed_template";
 import { Command } from "../../types";
 
 const command: Command = {
@@ -16,9 +14,10 @@ const command: Command = {
         args: Array<string>
     ) => {
         try {
-            const sent = await message.reply("🏓 Pinging...");
-
-            await wait(2000);
+            const chan = message.channel as
+                | discord.GuildTextBasedChannel
+                | discord.DMChannel;
+            const sent = await chan.send("🏓 Pinging...");
 
             const roundTripLatency =
                 sent.createdTimestamp - message.createdTimestamp;
@@ -79,7 +78,12 @@ const command: Command = {
             );
             await message.reply({
                 embeds: [
-                    new EmbedTemplate(client).error("Failed to fetch system status."),
+                    new discord.EmbedBuilder()
+                        .setTitle("❌ Error")
+                        .setDescription(
+                            "An error occurred while fetching the system status."
+                        )
+                        .setColor(client.config.embed.color.error),
                 ],
             });
         }

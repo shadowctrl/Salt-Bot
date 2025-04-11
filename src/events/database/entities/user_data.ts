@@ -10,8 +10,8 @@ export class UserData implements IUserData {
     userId!: string;
 
     @Column({ default: false })
-    premiumStatus!: boolean;
-
-    @Column({ nullable: true, type: 'timestamp' })
-    premiumExpiresAt!: Date | null;
+    premium!: {
+        status: boolean;
+        expiresAt: Date | null;
+    };
 }

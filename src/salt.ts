@@ -20,7 +20,7 @@ const loadConfig = (client: discord.Client) => {
         const file = fs.readFileSync(configPath, "utf8");
         return yaml.parse(file);
     } catch (error) {
-        client.logger.error(`[SALT] Failed to load configuration: ${error}`);
+        client.logger.error(`[PEPPER] Failed to load configuration: ${error}`);
         process.exit(1);
     }
 };
