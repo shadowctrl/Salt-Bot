@@ -1,5 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
-import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig, ITicketStatus } from "../../../types";
+import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig, } from "../../../types";
+
+export enum ITicketStatus {
+    OPEN = "open",
+    CLOSED = "closed",
+    ARCHIVED = "archived"
+}
 
 @Entity("guild_configs")
 export class GuildConfig implements IGuildConfig {

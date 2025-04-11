@@ -1,22 +1,7 @@
 import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
-import {
-    GuildConfig,
-    TicketCategory,
-    Ticket,
-    TicketMessage,
-    TicketButton,
-    SelectMenuConfig
-} from "../entities/ticket_system";
-import {
-    IGuildConfig,
-    ITicketCategory,
-    ITicket,
-    ITicketStatus,
-    ITicketMessage,
-    ITicketButton,
-    ISelectMenuConfig
-} from "../../../types";
+import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
+import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig } from "../../../types";
 
 /**
  * Repository class for managing ticket system in PostgreSQL

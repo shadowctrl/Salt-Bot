@@ -158,12 +158,6 @@ export interface IUserData {
     premiumExpiresAt: Date | null;
 }
 
-export enum ITicketStatus {
-    OPEN = "open",
-    CLOSED = "closed",
-    ARCHIVED = "archived"
-}
-
 export interface IGuildConfig {
     id: string;
     guildId: string;

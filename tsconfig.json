@@ -10,7 +10,9 @@
         "forceConsistentCasingInFileNames": true,
         "strict": true,
         "useUnknownInCatchVariables": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true
     },
     "include": [
         "./src"
