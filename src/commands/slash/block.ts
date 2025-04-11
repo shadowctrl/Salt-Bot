@@ -45,7 +45,7 @@ const blockCommand: SlashCommand = {
         client: discord.Client
     ) => {
         // Immediately acknowledge the interaction to prevent timeout
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
         const subcommand = interaction.options.getSubcommand();
         const user = interaction.options.getUser("user");

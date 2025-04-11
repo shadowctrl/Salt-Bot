@@ -13,6 +13,14 @@ const handleCommandPrerequisites = async (
     command: Command
 ): Promise<boolean> => {
     try {
+        // Check if the message still exists
+        try {
+            await message.fetch();
+        } catch (error) {
+            client.logger.debug(`[MESSAGE_CREATE] Message no longer exists, skipping prerequisites check`);
+            return false;
+        }
+
         const [isBlocked, blockReason] = await checkBlockedStatus(message.author.id);
 
         if (isBlocked) {
@@ -73,8 +81,18 @@ const handleCommandPrerequisites = async (
 
         return true;
     } catch (error: Error | any) {
+        // If the error is related to message not found, just log it as debug and return false
+        if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
+            client.logger.debug(`[MESSAGE_CREATE] Message no longer exists: ${error}`);
+            return false;
+        }
+
         client.logger.error(`[MESSAGE_CREATE] Error in command prerequisites: ${error}`);
-        await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ An error occurred while checking command prerequisites."), null, 10000);
+        try {
+            await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ An error occurred while checking command prerequisites."), null, 10000);
+        } catch (sendError) {
+            client.logger.debug(`[MESSAGE_CREATE] Could not send error message: ${sendError}`);
+        }
         return false;
     }
 };
@@ -86,6 +104,18 @@ const executeCommand = async (
     args: string[]
 ): Promise<void> => {
     try {
+        // Check if the message still exists
+        try {
+            await message.fetch();
+        } catch (error) {
+            client.logger.debug(`[MESSAGE_CREATE] Message no longer exists, skipping command execution`);
+            return;
+        }
+
+        if (message.channel?.isTextBased() && 'send' in message.channel) {
+            await message.channel.sendTyping();
+        }
+
         await command.execute(client, message, args);
 
         await client.cmdLogger.log({
@@ -93,7 +123,7 @@ const executeCommand = async (
             commandName: `${client.config.bot.command.prefix}${command.name}`,
             guild: message.guild,
             user: message.author,
-            channel: message.channel,
+            channel: message.channel as discord.TextChannel,
         });
 
         if (command.cooldown) {
@@ -104,9 +134,25 @@ const executeCommand = async (
             cooldown.set(cooldownKey, Date.now() + cooldownAmount);
             setTimeout(() => cooldown.delete(cooldownKey), cooldownAmount);
         }
+        
     } catch (error: Error | any) {
+        // If the error is related to message not found, just log it as debug
+        if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
+            client.logger.debug(`[MESSAGE_CREATE] Message no longer exists during execution: ${error}`);
+            return;
+        }
+
         client.logger.error(`[MESSAGE_CREATE] Error executing command: ${error}`);
-        await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ An error occurred while executing the command."), null, 10000);
+        try {
+            // Send error message to the channel directly instead of replying
+            if (message.channel?.isTextBased() && 'send' in message.channel) {
+                await message.channel.send({
+                    embeds: [new EmbedTemplate(client).error("❌ An error occurred while executing the command.")]
+                });
+            }
+        } catch (sendError) {
+            client.logger.debug(`[MESSAGE_CREATE] Could not send error message: ${sendError}`);
+        }
     }
 };
 
@@ -137,15 +183,40 @@ const event: BotEvent = {
             if (!command) return;
 
             if (!(client as any).dataSource) {
-                await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ Database connection is not available."), null, 10000);
+                try {
+                    // Send error message to the channel directly instead of replying
+                    if (message.channel?.isTextBased() && 'send' in message.channel) {
+                        await message.channel.send({
+                            embeds: [new EmbedTemplate(client).error("❌ Database connection is not available.")]
+                        });
+                    }
+                } catch (sendError) {
+                    client.logger.debug(`[MESSAGE_CREATE] Could not send database error message: ${sendError}`);
+                }
+                return;
             }
 
             if (await handleCommandPrerequisites(client, message, command)) {
                 await executeCommand(client, message, command, args);
             }
         } catch (error: Error | any) {
+            // If the error is related to message not found, just log it as debug
+            if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
+                client.logger.debug(`[MESSAGE_CREATE] Message no longer exists in event handler: ${error}`);
+                return;
+            }
+
             client.logger.error(`[MESSAGE_CREATE] Error in event handler: ${error}`);
-            await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ An error occurred while processing your message."), null, 10000);
+            try {
+                // Send error message to the channel directly if possible
+                if (message?.channel?.isTextBased() && 'send' in message.channel) {
+                    await message.channel.send({
+                        embeds: [new EmbedTemplate(client).error("❌ An error occurred while processing your message.")]
+                    });
+                }
+            } catch (sendError) {
+                client.logger.debug(`[MESSAGE_CREATE] Could not send error message: ${sendError}`);
+            }
         }
     }
 };

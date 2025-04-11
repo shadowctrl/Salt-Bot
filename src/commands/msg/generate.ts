@@ -67,11 +67,19 @@ const command: Command = {
             const coupons = await premiumHandler.generateCoupons(message.author.id, count, duration);
 
             if (!coupons || coupons.length === 0) {
-                return message.reply({
-                    embeds: [
-                        new EmbedTemplate(client).error("Failed to generate coupon codes.")
-                    ]
-                });
+                try {
+                    // Check if channel is text based and supports send
+                    if (message.channel?.isTextBased() && 'send' in message.channel) {
+                        await message.channel.send({
+                            embeds: [
+                                new EmbedTemplate(client).error("Failed to generate coupon codes.")
+                            ]
+                        });
+                    }
+                } catch (error) {
+                    client.logger.error(`[GENERATE] Failed to send error message: ${error}`);
+                }
+                return;
             }
 
             // Format coupon codes for display
@@ -95,24 +103,43 @@ const command: Command = {
             // Check if it's a DM or a server
             if (!message.guild) {
                 // DM - send directly
-                await message.reply({ embeds: [embed] });
+                try {
+                    if (message.channel?.isTextBased() && 'send' in message.channel) {
+                        await message.channel.send({ embeds: [embed] });
+                    }
+                } catch (error) {
+                    client.logger.error(`[GENERATE] Failed to send DM: ${error}`);
+                }
             } else {
-                // Server - try to DM the user
+                // Server - try to DM the user first
                 try {
                     await message.author.send({ embeds: [embed] });
-                    await message.reply({
-                        embeds: [
-                            new EmbedTemplate(client).success("I have sent you a DM with your coupon codes.")
-                        ]
-                    });
-                } catch (error) {
+                    try {
+                        if (message.channel?.isTextBased() && 'send' in message.channel) {
+                            await message.channel.send({
+                                embeds: [
+                                    new EmbedTemplate(client).success("I have sent you a DM with your coupon codes.")
+                                ]
+                            });
+                        }
+                    } catch (sendError) {
+                        client.logger.error(`[GENERATE] Failed to send confirmation in channel: ${sendError}`);
+                    }
+                } catch (dmError) {
                     // If DM fails, send to channel with warning
-                    await message.reply({
-                        embeds: [
-                            new EmbedTemplate(client).warning("I couldn't send you a DM. Here are your coupon codes:")
-                        ]
-                    });
-                    await message.reply({ embeds: [embed] });
+                    client.logger.warn(`[GENERATE] Could not send DM to ${message.author.tag}: ${dmError}`);
+                    try {
+                        if (message.channel?.isTextBased() && 'send' in message.channel) {
+                            await message.channel.send({
+                                embeds: [
+                                    new EmbedTemplate(client).warning("I couldn't send you a DM. Here are your coupon codes:")
+                                ]
+                            });
+                            await message.channel.send({ embeds: [embed] });
+                        }
+                    } catch (sendError) {
+                        client.logger.error(`[GENERATE] Failed to send coupon codes in channel: ${sendError}`);
+                    }
                 }
             }
 
@@ -121,11 +148,17 @@ const command: Command = {
 
         } catch (error) {
             client.logger.error(`[GENERATE] Error generating coupons: ${error}`);
-            await message.reply({
-                embeds: [
-                    new EmbedTemplate(client).error("An error occurred while generating coupon codes.")
-                ]
-            });
+            try {
+                if (message.channel?.isTextBased() && 'send' in message.channel) {
+                    await message.channel.send({
+                        embeds: [
+                            new EmbedTemplate(client).error("An error occurred while generating coupon codes.")
+                        ]
+                    });
+                }
+            } catch (sendError) {
+                client.logger.error(`[GENERATE] Failed to send error message: ${sendError}`);
+            }
         }
     },
 };
