@@ -1,50 +1,10 @@
 import ms from "ms";
 import discord from "discord.js";
-import client from "../../../salt";
-import PremiumHandler from "../../../utils/premium_handler";
 import { EmbedTemplate, ButtonTemplate } from "../../../utils/embed_template";
-import { BlockedUserRepository } from "../../database/repo/blocked_users";
+import { checkBlockedStatus, checkPremiumStatus } from "../../../utils/commands";
 import { BotEvent, SlashCommand } from "../../../types";
 
-
 const cooldown: discord.Collection<string, number> = new discord.Collection();
-
-const checkBlockedStatus = async (userId: string): Promise<[boolean, string | null]> => {
-    try {
-        const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
-
-        // Use the new method to get the most recent block reason
-        const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
-
-        if (isBlocked && recentReason) {
-            return [true, recentReason.reason];
-        }
-
-        return [isBlocked, null];
-    } catch (error: Error | any) {
-        client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
-        return [false, null];
-    }
-};
-
-const checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
-    try {
-        const premiumHandler = new PremiumHandler((client as any).dataSource);
-
-        const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(userId);
-
-        if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
-            await premiumHandler.revokePremium(userId);
-            client.logger.info(`[PREMIUM] User ${userId} premium expired. Revoked.`);
-            return [false, null];
-        }
-
-        return [isPremium, premiumExpire];
-    } catch (error: Error | any) {
-        client.logger.error(`[CHECK_PREMIUM] Error checking premium status: ${error}`);
-        return [false, null];
-    }
-};
 
 const handleCommandPrerequisites = async (
     client: discord.Client,
@@ -54,7 +14,6 @@ const handleCommandPrerequisites = async (
     if (!interaction.isChatInputCommand()) return false;
 
     try {
-        // Check if user is blocked using the updated method
         const [isBlocked, blockReason] = await checkBlockedStatus(interaction.user.id);
 
         if (isBlocked) {
@@ -100,7 +59,7 @@ const handleCommandPrerequisites = async (
             if (!isPremium) {
                 if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                     await interaction.reply({
-                        embeds: [new EmbedTemplate(client).error("🚫 This command is available to premium users only.")],
+                        embeds: [new EmbedTemplate(client).error("❌ This command is available to premium users only.")],
                         flags: discord.MessageFlags.Ephemeral,
                     });
                 }
@@ -111,7 +70,7 @@ const handleCommandPrerequisites = async (
         if (command.owner && !client.config.bot.owners.includes(interaction.user.id)) {
             if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                 await interaction.reply({
-                    embeds: [new EmbedTemplate(client).error("🚫 This command is restricted to bot owners only.")],
+                    embeds: [new EmbedTemplate(client).error("❌ This command is restricted to bot owners only.")],
                     flags: discord.MessageFlags.Ephemeral,
                 });
             }
@@ -123,7 +82,7 @@ const handleCommandPrerequisites = async (
             if (!member.permissions.has(command.userPerms)) {
                 if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                     await interaction.reply({
-                        embeds: [new EmbedTemplate(client).error("🚫 You do not have permission to use this command.")],
+                        embeds: [new EmbedTemplate(client).error("❌ You do not have permission to use this command.")],
                         flags: discord.MessageFlags.Ephemeral,
                     });
                 }
@@ -136,7 +95,7 @@ const handleCommandPrerequisites = async (
             if (!member.permissions.has(command.botPerms)) {
                 if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                     await interaction.reply({
-                        embeds: [new EmbedTemplate(client).error("🚫 I do not have permission to execute this command.")],
+                        embeds: [new EmbedTemplate(client).error("❌ I do not have permission to execute this command.")],
                         flags: discord.MessageFlags.Ephemeral,
                     });
                 }
@@ -146,11 +105,11 @@ const handleCommandPrerequisites = async (
 
         return true;
     } catch (error) {
-        client.logger.error(`[CMD_PREREQ] Error in command prerequisites: ${error}`);
+        client.logger.error(`[INTERACTION_CREATE] Error in command prerequisites: ${error}`);
 
         if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
             await interaction.reply({
-                embeds: [new EmbedTemplate(client).error("An error occurred while processing your command.")],
+                embeds: [new EmbedTemplate(client).error("❌ An error occurred while checking command prerequisites.")],
                 flags: discord.MessageFlags.Ephemeral,
             });
         }
@@ -167,10 +126,8 @@ const executeCommand = async (
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        // Execute the command
         await command.execute(interaction, client);
 
-        // Log the command execution
         await client.cmdLogger.log({
             client,
             commandName: `/${interaction.commandName}`,
@@ -179,7 +136,6 @@ const executeCommand = async (
             channel: interaction.channel as discord.TextChannel | null,
         });
 
-        // Set cooldown if applicable
         if (command.cooldown) {
             if (client.config.bot.owners.includes(interaction.user.id)) return;
             const cooldownKey = `${command.data.name}${interaction.user.id}`;
@@ -192,7 +148,6 @@ const executeCommand = async (
         client.logger.error(`[INTERACTION_CREATE] Error executing command ${command.data.name}: ${error}`);
 
         try {
-            // Check if we can still reply
             if (interaction.isRepliable()) {
                 if (!interaction.deferred && !interaction.replied) {
                     await interaction.reply({
@@ -215,7 +170,6 @@ const event: BotEvent = {
     name: discord.Events.InteractionCreate,
     execute: async (interaction: discord.Interaction, client: discord.Client): Promise<void> => {
         try {
-            // Handle autocomplete interactions
             if (interaction.isAutocomplete()) {
                 const command = client.slashCommands.get(interaction.commandName);
                 if (command?.autocomplete) {
@@ -228,7 +182,6 @@ const event: BotEvent = {
                 return;
             }
 
-            // Only process chat input commands
             if (!interaction.isChatInputCommand()) return;
 
             const command = client.slashCommands.get(interaction.commandName);
@@ -237,7 +190,6 @@ const event: BotEvent = {
                 return;
             }
 
-            // Check prerequisites and execute command
             if (await handleCommandPrerequisites(client, interaction, command)) {
                 await executeCommand(client, interaction, command);
             }
@@ -245,7 +197,6 @@ const event: BotEvent = {
             client.logger.error(`[INTERACTION_CREATE] Error processing interaction command: ${error}`);
 
             try {
-                // Last resort error handling
                 if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
                     await interaction.reply({
                         embeds: [new EmbedTemplate(client).error("🚫 An unexpected error occurred while processing the command.")],
