@@ -1,7 +1,6 @@
 import os from "os";
 import discord from "discord.js";
 import Formatter from "../../utils/format";
-import { wait } from "../../utils/extras";
 import { Command } from "../../types";
 
 const command: Command = {
@@ -15,9 +14,10 @@ const command: Command = {
         args: Array<string>
     ) => {
         try {
-            const sent = await message.reply("🏓 Pinging...");
-
-            await wait(2000);
+            const chan = message.channel as
+                | discord.GuildTextBasedChannel
+                | discord.DMChannel;
+            const sent = await chan.send("🏓 Pinging...");
 
             const roundTripLatency =
                 sent.createdTimestamp - message.createdTimestamp;

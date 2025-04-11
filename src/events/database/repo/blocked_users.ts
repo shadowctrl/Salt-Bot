@@ -1,5 +1,4 @@
 import { Repository, DataSource } from "typeorm";
-import client from "../../../salt";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
 
 /**
@@ -33,7 +32,7 @@ export class BlockedUserRepository {
                 relations: ['data']
             });
         } catch (error) {
-            client.logger.error(`[BLOCKED_USER_REPO] Error finding user ${userId}: ${error}`);
+            console.error(`Error finding user ${userId}:`, error);
             return null;
         }
     }
@@ -56,7 +55,7 @@ export class BlockedUserRepository {
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             )[0];
         } catch (error) {
-            client.logger.error(`[BLOCKED_USER_REPO] Error getting recent block reason for user ${userId}: ${error}`);
+            console.error(`Error getting recent block reason for user ${userId}:`, error);
             return null;
         }
     }
@@ -105,7 +104,7 @@ export class BlockedUserRepository {
         } catch (error) {
             // Rollback transaction on error
             await queryRunner.rollbackTransaction();
-            client.logger.error(`[BLOCKED_USER_REPO] Error blocking user ${userId}: ${error}`);
+            console.error(`Error blocking user ${userId}:`, error);
             return null;
         } finally {
             // Release the query runner
@@ -146,7 +145,7 @@ export class BlockedUserRepository {
             return true;
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            client.logger.error(`[BLOCKED_USER_REPO] Error unblocking user ${userId}: ${error}`);
+            console.error(`Error unblocking user ${userId}:`, error);
             return false;
         } finally {
             await queryRunner.release();
@@ -174,7 +173,7 @@ export class BlockedUserRepository {
 
             return [false, null];
         } catch (error) {
-            client.logger.error(`[BLOCKED_USER_REPO] Error checking block status for user ${userId}: ${error}`);
+            console.error(`Error checking block status for user ${userId}:`, error);
             return [false, null];
         }
     }
@@ -190,7 +189,7 @@ export class BlockedUserRepository {
                 relations: ['data']
             });
         } catch (error) {
-            client.logger.error(`[BLOCKED_USER_REPO] Error getting all blocked users: ${error}`);
+            console.error("Error getting all blocked users:", error);
             return [];
         }
     }
@@ -224,7 +223,7 @@ export class BlockedUserRepository {
             return this.findByUserId(userId);
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            client.logger.error(`[BLOCKED_USER_REPO] Error adding block reason for user ${userId}: ${error}`);
+            console.error(`Error adding block reason for user ${userId}:`, error);
             return null;
         } finally {
             await queryRunner.release();

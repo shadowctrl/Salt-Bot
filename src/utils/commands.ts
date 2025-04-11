@@ -11,15 +11,9 @@ import { BlockedUserRepository } from "../events/database/repo/blocked_users";
  */
 const checkBlockedStatus = async (userId: string): Promise<[boolean, string | null]> => {
     try {
-        // Check if dataSource exists before using it
-        if (!(client as any).dataSource) {
-            client.logger.debug(`[CHECK_BLOCKED] DataSource not initialized yet for user ${userId}`);
-            return [false, null];
-        }
-
         const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
 
-        // Use the method to get the most recent block reason
+        // Use the new method to get the most recent block reason
         const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
 
         if (isBlocked && recentReason) {
@@ -48,7 +42,7 @@ const checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null
 
         if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
             await premiumHandler.revokePremium(userId);
-            client.logger.info(`[CHECK_PREMIUM] User ${userId} premium expired. Revoked.`);
+            client.logger.info(`[PREMIUM] User ${userId} premium expired. Revoked.`);
             return [false, null];
         }
 
