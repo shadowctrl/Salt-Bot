@@ -1,6 +1,7 @@
 import os from "os";
 import discord from "discord.js";
 import Formatter from "../../utils/format";
+import { EmbedTemplate } from "../../utils/embed_template";
 import { SlashCommand } from "../../types";
 
 const pingCommand: SlashCommand = {
@@ -71,14 +72,7 @@ const pingCommand: SlashCommand = {
                 `[PING] Failed to fetch system status: ${error}`
             );
             await interaction.reply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("❌ Error")
-                        .setDescription(
-                            "An error occurred while fetching system status."
-                        )
-                        .setColor(client.config.embed.color.error)
-                ],
+                embeds: [new EmbedTemplate(client).error("Failed to fetch system status.")],
                 flags: discord.MessageFlags.Ephemeral,
             });
         }

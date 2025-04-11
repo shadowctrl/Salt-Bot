@@ -1,3 +1,4 @@
+import client from "../salt";
 import { DataSource } from "typeorm";
 import voucher_codes from "voucher-code-generator";
 import { UserDataRepository } from "../events/database/repo/user_data";
@@ -89,7 +90,7 @@ class PremiumHandler {
 
             return codes;
         } catch (error) {
-            console.error(`Error generating coupons: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error generating coupons: ${error}`);
             return null;
         }
     };
@@ -127,7 +128,7 @@ class PremiumHandler {
 
             return !!result;
         } catch (error) {
-            console.error(`Error redeeming coupon: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error redeeming coupon: ${error}`);
             return false;
         }
     };
@@ -142,7 +143,7 @@ class PremiumHandler {
         try {
             return await this.couponRepo.findActiveByUserId(userId);
         } catch (error) {
-            console.error(`Error retrieving user coupons: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error retrieving user coupons: ${error}`);
             return [];
         }
     };
@@ -156,13 +157,9 @@ class PremiumHandler {
     public checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
         try {
             const userData = await this.userRepo.checkPremiumStatus(userId);
-            if (!userData) {
-                return [false, null];
-            }
-
-            return [userData.status, userData.expiresAt];
+            return userData; // This now returns [boolean, Date | null] directly
         } catch (error) {
-            console.error(`Error checking premium status: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error checking premium status: ${error}`);
             return [false, null];
         }
     };
@@ -177,7 +174,7 @@ class PremiumHandler {
         try {
             return await this.userRepo.revokePremium(userId);
         } catch (error) {
-            console.error(`Error revoking premium: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error revoking premium: ${error}`);
             return false;
         }
     };
@@ -191,7 +188,7 @@ class PremiumHandler {
         try {
             return await this.userRepo.getAllPremiumUsers();
         } catch (error) {
-            console.error(`Error getting all premium users: ${error}`);
+            client.logger.error(`[PREMIUM_HANDLER] Error getting all premium users: ${error}`);
             return [];
         }
     };
