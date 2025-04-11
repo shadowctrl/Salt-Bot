@@ -1,27 +1,25 @@
+import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
 import { UserData } from "../entities/user_data";
 
 /**
  * Repository class for managing user data in PostgreSQL
- * Provides methods for creating, fetching, and updating user premium status
+ * Provides methods for creating, fetching, and updating user records
+ * @class UserDataRepository
  */
 export class UserDataRepository {
     private userDataRepo: Repository<UserData>;
     private dataSource: DataSource;
 
-    /**
-     * Creates a new UserDataRepository instance
-     * @param dataSource - TypeORM DataSource connection
-     */
     constructor(dataSource: DataSource) {
         this.dataSource = dataSource;
         this.userDataRepo = dataSource.getRepository(UserData);
     }
 
     /**
-     * Finds a user by their user ID
-     * @param userId - Discord user ID
-     * @returns The found user data or null if not found
+     * Creates a new user data record in the database
+     * @param userData - The user data to create
+     * @returns The created user data or null if creation failed
      */
     async findByUserId(userId: string): Promise<UserData | null> {
         try {
@@ -29,15 +27,15 @@ export class UserDataRepository {
                 where: { userId }
             });
         } catch (error) {
-            console.error(`Error finding user data by ID: ${error}`);
+            client.logger.error(`[USER_DATA_REPO] Error finding user data by ID: ${error}`);
             return null;
         }
     }
 
     /**
-     * Creates or updates a user with premium status
+     * Sets the premium status for a user
      * @param userId - Discord user ID
-     * @param expiryDate - Date when premium status expires
+     * @param expiryDate - Date when the premium expires
      * @returns The updated user data or null if operation failed
      */
     async setUserPremium(userId: string, expiryDate: Date): Promise<UserData | null> {
@@ -49,23 +47,20 @@ export class UserDataRepository {
                 userData.userId = userId;
             }
 
-            userData.premium = {
-                status: true,
-                expiresAt: expiryDate
-            };
+            userData.premiumStatus = true;
+            userData.premiumExpiresAt = expiryDate;
 
             return await this.userDataRepo.save(userData);
         } catch (error) {
-            console.error(`Error setting user premium status: ${error}`);
+            client.logger.error(`[USER_DATA_REPO] Error setting user premium status: ${error}`);
             return null;
         }
     }
 
     /**
-     * Extends a user's premium period by adding days to current expiry
-     * @param userId - Discord user ID
-     * @param additionalDays - Number of days to add to premium period
-     * @returns The updated user data or null if operation failed
+     * Generates unique coupon codes
+     * @param count - Number of codes to generate
+     * @returns Array of generated coupon codes
      */
     async extendPremium(userId: string, additionalDays: number): Promise<UserData | null> {
         try {
@@ -78,40 +73,38 @@ export class UserDataRepository {
                 return this.setUserPremium(userId, expiryDate);
             }
 
-            if (!userData.premium?.status || !userData.premium.expiresAt) {
+            if (!userData.premiumStatus || !userData.premiumExpiresAt) {
                 // User doesn't have active premium, set new period
                 const expiryDate = new Date();
                 expiryDate.setDate(expiryDate.getDate() + additionalDays);
-                userData.premium = {
-                    status: true,
-                    expiresAt: expiryDate
-                };
+                userData.premiumStatus = true;
+                userData.premiumExpiresAt = expiryDate;
             } else {
                 // User has active premium, extend it
-                const currentExpiry = new Date(userData.premium.expiresAt);
+                const currentExpiry = new Date(userData.premiumExpiresAt);
                 const now = new Date();
 
                 // If already expired, start fresh from now
                 if (currentExpiry < now) {
                     const expiryDate = new Date();
                     expiryDate.setDate(expiryDate.getDate() + additionalDays);
-                    userData.premium.expiresAt = expiryDate;
+                    userData.premiumExpiresAt = expiryDate;
                 } else {
                     // If not expired, add days to current expiry
                     currentExpiry.setDate(currentExpiry.getDate() + additionalDays);
-                    userData.premium.expiresAt = currentExpiry;
+                    userData.premiumExpiresAt = currentExpiry;
                 }
             }
 
             return await this.userDataRepo.save(userData);
         } catch (error) {
-            console.error(`Error extending premium period: ${error}`);
+            client.logger.error(`[USER_DATA_REPO] Error extending premium period: ${error}`);
             return null;
         }
     }
 
     /**
-     * Revokes a user's premium status
+     * Revokes the premium status of a user
      * @param userId - Discord user ID
      * @returns Boolean indicating if the operation was successful
      */
@@ -123,56 +116,54 @@ export class UserDataRepository {
                 return false;
             }
 
-            userData.premium = {
-                status: false,
-                expiresAt: null
-            };
+            userData.premiumStatus = false;
+            userData.premiumExpiresAt = null;
 
             await this.userDataRepo.save(userData);
             return true;
         } catch (error) {
-            console.error(`Error revoking premium status: ${error}`);
+            client.logger.error(`[USER_DATA_REPO] Error revoking premium status: ${error}`);
             return false;
         }
     }
 
     /**
-     * Checks if a user's premium status is still valid and updates if expired
+     * Checks if a user has premium status
      * @param userId - Discord user ID
-     * @returns Object with premium status and expiry date or null if error occurred
+     * @returns [isPremium, premiumExpire] tuple
+     *          isPremium: true if the user is premium, false otherwise
+     *          premiumExpire: the premium expiration date if premium, null otherwise
      */
-    async checkPremiumStatus(userId: string): Promise<{ status: boolean; expiresAt: Date | null } | null> {
+    async checkPremiumStatus(userId: string): Promise<[boolean, Date | null]> {
         try {
             const userData = await this.findByUserId(userId);
 
-            if (!userData || !userData.premium) {
-                return { status: false, expiresAt: null };
+            if (!userData) {
+                return [false, null];
             }
 
             // Check if premium has expired
-            if (userData.premium.status && userData.premium.expiresAt &&
-                new Date(userData.premium.expiresAt) < new Date()) {
+            if (userData.premiumStatus && userData.premiumExpiresAt &&
+                new Date(userData.premiumExpiresAt) < new Date()) {
 
                 // Automatically update to expired status
-                userData.premium.status = false;
+                userData.premiumStatus = false;
+                userData.premiumExpiresAt = null;
                 await this.userDataRepo.save(userData);
 
-                return { status: false, expiresAt: null };
+                return [false, null];
             }
 
-            return {
-                status: userData.premium.status,
-                expiresAt: userData.premium.expiresAt
-            };
+            return [userData.premiumStatus, userData.premiumExpiresAt];
         } catch (error) {
-            console.error(`Error checking premium status: ${error}`);
-            return null;
+            client.logger.error(`[USER_DATA_REPO] Error checking premium status: ${error}`);
+            return [false, null];
         }
     }
 
     /**
-     * Gets all users with active premium status
-     * @returns Array of users with active premium or empty array if none found
+     * Retrieves all users with active premium status
+     * @returns Array of user data with active premium status
      */
     async getAllPremiumUsers(): Promise<UserData[]> {
         try {
@@ -180,12 +171,12 @@ export class UserDataRepository {
 
             // Filter for users with active premium status
             return users.filter(user =>
-                user.premium?.status &&
-                user.premium.expiresAt &&
-                new Date(user.premium.expiresAt) > new Date()
+                user.premiumStatus &&
+                user.premiumExpiresAt &&
+                new Date(user.premiumExpiresAt) > new Date()
             );
         } catch (error) {
-            console.error(`Error getting all premium users: ${error}`);
+            client.logger.error(`[USER_DATA_REPO] Error getting all premium users: ${error}`);
             return [];
         }
     }

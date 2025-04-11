@@ -58,4 +58,26 @@ const sendTempMessage = async (
     }
 };
 
-export { wait, sendTempMessage };
+/**
+ * Sets a timeout that safely handles durations longer than the maximum safe integer
+ * 
+ * @param callback - Function to execute after timeout
+ * @param delayMs - Delay in milliseconds
+ * @returns Timeout ID that can be used with clearTimeout
+ */
+const setSafeTimeout = (callback: () => void, delayMs: number): NodeJS.Timeout => {
+    // Maximum timeout value (just under 2^31 - 1)
+    const MAX_TIMEOUT = 2147483647;
+
+    if (delayMs <= MAX_TIMEOUT) {
+        // If the delay is within safe range, use setTimeout directly
+        return setTimeout(callback, delayMs);
+    } else {
+        // For longer delays, chain timeouts
+        return setTimeout(() => {
+            setSafeTimeout(callback, delayMs - MAX_TIMEOUT);
+        }, MAX_TIMEOUT);
+    }
+};
+
+export { wait, sendTempMessage, setSafeTimeout };

@@ -190,6 +190,25 @@ const event: BotEvent = {
                 return;
             }
 
+            if (!(client as any).dataSource) {
+                if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) {
+                    await interaction.reply({
+                        embeds: [
+                            new EmbedTemplate(client).error("❌ Database connection is not available.")
+                        ]
+                    });
+                } else if (interaction.isRepliable() && interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({
+                        embeds: [
+                            new EmbedTemplate(client).error("❌ Database connection is not available.")
+                        ]
+                    });
+                } else {
+                    client.logger.error("[INTERACTION_CREATE] Database connection is not available.");
+                }
+                return;
+            }
+
             if (await handleCommandPrerequisites(client, interaction, command)) {
                 await executeCommand(client, interaction, command);
             }

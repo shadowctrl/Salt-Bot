@@ -136,6 +136,10 @@ const event: BotEvent = {
 
             if (!command) return;
 
+            if (!(client as any).dataSource) {
+                await sendTempMessage(message, null, new EmbedTemplate(client).error("❌ Database connection is not available."), null, 10000);
+            }
+
             if (await handleCommandPrerequisites(client, message, command)) {
                 await executeCommand(client, message, command, args);
             }

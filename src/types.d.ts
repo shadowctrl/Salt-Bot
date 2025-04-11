@@ -154,10 +154,8 @@ export interface IPremiumCoupon {
 export interface IUserData {
     id?: string;
     userId: string;
-    premium: {
-        status: boolean;
-        expiresAt: Date | null;
-    }
+    premiumStatus: boolean;
+    premiumExpiresAt: Date | null;
 }
 
 //-----------INTERFACE-----------//
