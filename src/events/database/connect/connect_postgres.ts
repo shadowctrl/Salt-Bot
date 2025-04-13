@@ -1,39 +1,23 @@
-import fs from "fs";
-import path from "path";
 import discord from "discord.js";
 import { DataSource } from "typeorm";
 import { ConfigManager } from "../../../utils/config";
 import { BotEvent } from "../../../types";
 
+// Load entities
+import { UserData } from "../entities/user_data";
+import { PremiumCoupon } from "../entities/premium_coupons";
+import { BlockedUser, BlockReason } from "../entities/blocked_users";
+import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
+
 // Load environment variables
 const configManager = ConfigManager.getInstance();
-
-// Dynamically load all entity classes from the entities directory
-const loadEntities = (): any[] => {
-    const entitiesPath = path.join(__dirname, '../entities');
-    const entityFiles = fs.readdirSync(entitiesPath)
-        .filter(file => file.endsWith('.ts') || file.endsWith('.js'));
-
-    const entities: any[] = [];
-    entityFiles.forEach(file => {
-        // Use require to dynamically import the file
-        const entityModule = require(path.join(entitiesPath, file));
-        Object.keys(entityModule).forEach(key => {
-            if (typeof entityModule[key] === 'function') {
-                entities.push(entityModule[key]);
-            }
-        });
-    });
-
-    return entities;
-};
 
 export const AppDataSource = new DataSource({
     type: "postgres",
     url: configManager.getPostgresUri(),
     synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
-    entities: loadEntities(),
+    entities: [UserData, PremiumCoupon, BlockedUser, BlockReason, GuildConfig, TicketCategory, TicketButton, TicketMessage, Ticket, SelectMenuConfig],
     subscribers: [],
     migrations: [],
 });
@@ -58,7 +42,7 @@ const event: BotEvent = {
             // Add dataSource to client for global access
             (client as any).dataSource = dataSource;
 
-            client.logger.success(`[DATABASE] Connected to PostgreSQL database with ${loadEntities().length} entities`);
+            client.logger.success(`[DATABASE] Connected to PostgreSQL database.`);
         } catch (error) {
             client.logger.error(`[DATABASE] Failed to connect to PostgreSQL: ${error}`);
             process.exit(1);
