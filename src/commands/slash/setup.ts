@@ -100,25 +100,25 @@ const createButtonStyleSelect = () => {
                 .setPlaceholder("Select a button style")
                 .addOptions([
                     {
-                        label: "Primary (Blue)",
+                        label: "Blue",
                         description: "Blue button style",
                         value: "PRIMARY",
                         emoji: "🔵"
                     },
                     {
-                        label: "Secondary (Grey)",
+                        label: "Grey",
                         description: "Grey button style",
                         value: "SECONDARY",
                         emoji: "⚪"
                     },
                     {
-                        label: "Success (Green)",
+                        label: "Green",
                         description: "Green button style",
                         value: "SUCCESS",
                         emoji: "🟢"
                     },
                     {
-                        label: "Danger (Red)",
+                        label: "Red",
                         description: "Red button style",
                         value: "DANGER",
                         emoji: "🔴"
@@ -140,21 +140,6 @@ const createDoneAddingButton = () => {
                 .setLabel("Cancel Setup")
                 .setStyle(discord.ButtonStyle.Danger)
         );
-};
-
-// Update the button filter function to accept any MessageComponentInteraction
-const createButtonFilter = (userId: string) => {
-    return (i: discord.MessageComponentInteraction) => i.user.id === userId;
-};
-
-// Similarly update the select menu filter
-const createSelectFilter = (userId: string) => {
-    return (i: discord.MessageComponentInteraction) => i.user.id === userId && i.isStringSelectMenu();
-};
-
-// Message filter for text inputs that still need to be collected
-const messageFilter = (interaction: discord.ChatInputCommandInteraction) => {
-    return (m: discord.Message) => m.author.id === interaction.user.id;
 };
 
 const setupCommand: SlashCommand = {
@@ -268,7 +253,12 @@ const setupCommand: SlashCommand = {
             // Handle button interactions
             collector.on("collect", async (i: discord.MessageComponentInteraction) => {
                 try {
-                    await i.deferUpdate();
+                    try {
+                        await i.deferUpdate();
+                    } catch (deferError) {
+                        client.logger.warn(`[SETUP] Failed to defer update: ${deferError}`);
+                        return;
+                    }
 
                     // Handle cancel button across all steps
                     if (i.customId === "cancel") {
@@ -419,9 +409,9 @@ const setupCommand: SlashCommand = {
                 } catch (error) {
                     client.logger.error(`[SETUP] Error handling button interaction: ${error}`);
                     await i.editReply({
-                        embeds: [new EmbedTemplate(client).error("An error occurred during the setup process.")],
+                        embeds: [new EmbedTemplate(client).error("An error occurred during setup.")],
                         components: []
-                    });
+                    }).catch(() => {/* Ignore failures here */ });
                     collector.stop();
                 }
             });
@@ -631,7 +621,7 @@ const setupCommand: SlashCommand = {
                 });
             };
 
-            // Handler for the placeholder message customization (to be implemented in detail later)
+            // Handler for the placeholder message customization
             const handleMessageCustomizationLater = async (i: discord.MessageComponentInteraction) => {
                 await i.editReply({
                     embeds: [
@@ -646,21 +636,44 @@ const setupCommand: SlashCommand = {
                     components: [createNavigationButtons("prev_msg", "next_deploy", "cancel", true, false)]
                 });
 
-                // Handle button to move to deployment
-                const nextBtn = await (i.message as discord.Message).awaitMessageComponent({
-                    filter: (i) => i.user.id === interaction.user.id,
-                    time: 60000
-                }) as discord.ButtonInteraction;
-
-                if (nextBtn.customId === "next_deploy") {
-                    setupData.step = 5;
-                    await handleDeployment(nextBtn);
-                } else if (nextBtn.customId === "cancel") {
-                    await nextBtn.update({
-                        embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                        components: []
+                // Handle button to move to deployment with proper error handling
+                try {
+                    const nextBtn = await (i.message as discord.Message).awaitMessageComponent({
+                        filter: (i) => i.user.id === interaction.user.id,
+                        time: 60000
                     });
-                    collector.stop();
+
+                    try {
+                        // Important: Defer the update FIRST before any processing
+                        await nextBtn.deferUpdate().catch(err => {
+                            client.logger.warn(`[SETUP] Failed to defer next button update: ${err}`);
+                        });
+
+                        if (nextBtn.customId === "next_deploy") {
+                            setupData.step = 5;
+                            await handleDeployment(nextBtn);
+                        } else if (nextBtn.customId === "cancel") {
+                            await nextBtn.editReply({
+                                embeds: [new EmbedTemplate(client).info("Setup canceled.")],
+                                components: []
+                            }).catch(err => client.logger.error(`[SETUP] Error with cancel: ${err}`));
+                            collector.stop();
+                        }
+                    } catch (deferError) {
+                        client.logger.error(`[SETUP] Error with button interaction: ${deferError}`);
+                        // At this point we can't use the interaction anymore
+                        await i.editReply({
+                            embeds: [new EmbedTemplate(client).error("An error occurred with the interaction.")],
+                            components: []
+                        }).catch(() => {/* Ignore failures here */ });
+                    }
+                } catch (timeoutError) {
+                    // This catches the timeout error from awaitMessageComponent
+                    client.logger.warn(`[SETUP] Button interaction timed out: ${timeoutError}`);
+                    await i.editReply({
+                        embeds: [new EmbedTemplate(client).error("Setup timed out. Please try again.")],
+                        components: []
+                    }).catch(() => {/* Ignore failures here */ });
                 }
             };
 
