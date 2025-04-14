@@ -3,8 +3,159 @@ import { EmbedTemplate } from "../../utils/embed_template";
 import { TicketRepository } from "../../events/database/repo/ticket_system";
 import { SlashCommand } from "../../types";
 
-// Create a collector filter for messages
-const messageFilter = (m: discord.Message) => m.author.id === m.interaction?.user.id;
+// Helper function to create navigation buttons
+const createNavigationButtons = (
+    previousId: string = "previous",
+    nextId: string = "next",
+    cancelId: string = "cancel",
+    disablePrevious: boolean = false,
+    disableNext: boolean = false
+) => {
+    return new discord.ActionRowBuilder<discord.ButtonBuilder>()
+        .addComponents(
+            new discord.ButtonBuilder()
+                .setCustomId(previousId)
+                .setLabel("Previous")
+                .setStyle(discord.ButtonStyle.Secondary)
+                .setDisabled(disablePrevious),
+            new discord.ButtonBuilder()
+                .setCustomId(cancelId)
+                .setLabel("Cancel Setup")
+                .setStyle(discord.ButtonStyle.Danger),
+            new discord.ButtonBuilder()
+                .setCustomId(nextId)
+                .setLabel("Next")
+                .setStyle(discord.ButtonStyle.Primary)
+                .setDisabled(disableNext)
+        );
+};
+
+// Helper function to create yes/no buttons
+const createYesNoButtons = (
+    yesId: string = "yes",
+    noId: string = "no",
+    cancelId: string = "cancel"
+) => {
+    return new discord.ActionRowBuilder<discord.ButtonBuilder>()
+        .addComponents(
+            new discord.ButtonBuilder()
+                .setCustomId(yesId)
+                .setLabel("Yes")
+                .setStyle(discord.ButtonStyle.Success),
+            new discord.ButtonBuilder()
+                .setCustomId(noId)
+                .setLabel("No")
+                .setStyle(discord.ButtonStyle.Secondary),
+            new discord.ButtonBuilder()
+                .setCustomId(cancelId)
+                .setLabel("Cancel Setup")
+                .setStyle(discord.ButtonStyle.Danger)
+        );
+};
+
+// Helper function to create confirmation buttons
+const createConfirmButtons = (
+    confirmId: string = "confirm",
+    cancelId: string = "cancel"
+) => {
+    return new discord.ActionRowBuilder<discord.ButtonBuilder>()
+        .addComponents(
+            new discord.ButtonBuilder()
+                .setCustomId(confirmId)
+                .setLabel("Confirm")
+                .setStyle(discord.ButtonStyle.Success),
+            new discord.ButtonBuilder()
+                .setCustomId(cancelId)
+                .setLabel("Cancel")
+                .setStyle(discord.ButtonStyle.Danger)
+        );
+};
+
+// Helper function to create deploy buttons
+const createDeployButtons = () => {
+    return new discord.ActionRowBuilder<discord.ButtonBuilder>()
+        .addComponents(
+            new discord.ButtonBuilder()
+                .setCustomId("deploy")
+                .setLabel("Deploy Now")
+                .setStyle(discord.ButtonStyle.Success)
+                .setEmoji("🚀"),
+            new discord.ButtonBuilder()
+                .setCustomId("later")
+                .setLabel("Deploy Later")
+                .setStyle(discord.ButtonStyle.Secondary),
+            new discord.ButtonBuilder()
+                .setCustomId("cancel")
+                .setLabel("Cancel Setup")
+                .setStyle(discord.ButtonStyle.Danger)
+        );
+};
+
+// Helper function to create button styles dropdown
+const createButtonStyleSelect = () => {
+    return new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
+        .addComponents(
+            new discord.StringSelectMenuBuilder()
+                .setCustomId("button_style")
+                .setPlaceholder("Select a button style")
+                .addOptions([
+                    {
+                        label: "Primary (Blue)",
+                        description: "Blue button style",
+                        value: "PRIMARY",
+                        emoji: "🔵"
+                    },
+                    {
+                        label: "Secondary (Grey)",
+                        description: "Grey button style",
+                        value: "SECONDARY",
+                        emoji: "⚪"
+                    },
+                    {
+                        label: "Success (Green)",
+                        description: "Green button style",
+                        value: "SUCCESS",
+                        emoji: "🟢"
+                    },
+                    {
+                        label: "Danger (Red)",
+                        description: "Red button style",
+                        value: "DANGER",
+                        emoji: "🔴"
+                    }
+                ])
+        );
+};
+
+// Helper function to create "done adding categories" button
+const createDoneAddingButton = () => {
+    return new discord.ActionRowBuilder<discord.ButtonBuilder>()
+        .addComponents(
+            new discord.ButtonBuilder()
+                .setCustomId("done_adding")
+                .setLabel("Done Adding Categories")
+                .setStyle(discord.ButtonStyle.Primary),
+            new discord.ButtonBuilder()
+                .setCustomId("cancel")
+                .setLabel("Cancel Setup")
+                .setStyle(discord.ButtonStyle.Danger)
+        );
+};
+
+// Update the button filter function to accept any MessageComponentInteraction
+const createButtonFilter = (userId: string) => {
+    return (i: discord.MessageComponentInteraction) => i.user.id === userId;
+};
+
+// Similarly update the select menu filter
+const createSelectFilter = (userId: string) => {
+    return (i: discord.MessageComponentInteraction) => i.user.id === userId && i.isStringSelectMenu();
+};
+
+// Message filter for text inputs that still need to be collected
+const messageFilter = (interaction: discord.ChatInputCommandInteraction) => {
+    return (m: discord.Message) => m.author.id === interaction.user.id;
+};
 
 const setupCommand: SlashCommand = {
     cooldown: 10,
@@ -69,9 +220,9 @@ const setupCommand: SlashCommand = {
             const setupEmbed = new discord.EmbedBuilder()
                 .setTitle("🎫 Ticket System Setup")
                 .setDescription(
-                    "Let's set up your ticket system! I'll ask you a few questions. " +
-                    "You can reply to each message with your response.\n\n" +
-                    "To cancel setup at any time, type `cancel`."
+                    "Let's set up your ticket system! We'll walk you through the configuration process " +
+                    "step by step using buttons for easier navigation.\n\n" +
+                    "You can cancel the setup at any time by clicking the Cancel button."
                 )
                 .addFields(
                     { name: "Ticket Channel", value: `${ticketChannel}`, inline: true },
@@ -84,410 +235,476 @@ const setupCommand: SlashCommand = {
                 .setColor("Blue")
                 .setFooter({ text: "Step 1/5: Ticket Button Configuration" });
 
-            await interaction.editReply({ embeds: [setupEmbed] });
+            // Initial button configuration with next button
+            const initialButtons = createNavigationButtons("previous", "next", "cancel", true, false);
 
-            // Create message collector
-            const channel = interaction.channel as discord.TextChannel;
-            if (!channel) return;
+            // Send the initial setup message with buttons
+            const setupMessage = await interaction.editReply({
+                embeds: [setupEmbed],
+                components: [initialButtons]
+            });
 
-            // STEP 1: Configure ticket button
-            const buttonConfigEmbed = new discord.EmbedBuilder()
-                .setTitle("🔘 Ticket Button Configuration")
-                .setDescription(
-                    "Let's set up the ticket creation button.\n\n" +
-                    "Please enter the following details in this format:\n" +
-                    "`Button Label | Button Emoji | Button Style | Embed Title | Embed Description`\n\n" +
-                    "Example:\n" +
-                    "`Create Ticket | 🎫 | Primary | Need Help? | Click the button below to create a ticket!`\n\n" +
-                    "Available button styles: Primary (blue), Secondary (grey), Success (green), Danger (red)\n\n" +
-                    "You can press Enter after each line. Type `default` to use default values."
-                )
-                .setColor("Blue");
+            // Create button collector for the setup process
+            const collector = (setupMessage as discord.Message).createMessageComponentCollector({
+                filter: (i) => i.user.id === interaction.user.id,
+                time: 600000 // 10 minutes timeout
+            })
 
-            const buttonMsg = await channel.send({ embeds: [buttonConfigEmbed] });
+            // Store setup data
+            let setupData = {
+                step: 1,
+                buttonConfig: {
+                    label: "Create Ticket",
+                    emoji: "🎫",
+                    style: "PRIMARY",
+                    embedTitle: "Need Help?",
+                    embedDescription: "Click the button below to create a ticket!"
+                },
+                useCategories: false,
+                categories: [] as any[],
+                customizeMessages: false
+            };
 
-            try {
-                const buttonCollected = await channel.awaitMessages({
-                    filter: (m) => m.author.id === interaction.user.id,
-                    max: 1,
-                    time: 300000,
-                    errors: ['time']
-                });
-
-                // Clean up user message
+            // Handle button interactions
+            collector.on("collect", async (i: discord.MessageComponentInteraction) => {
                 try {
-                    await buttonCollected.first()?.delete();
-                } catch (err) {
-                    client.logger.debug(`[SETUP] Could not delete message: ${err}`);
+                    await i.deferUpdate();
+
+                    // Handle cancel button across all steps
+                    if (i.customId === "cancel") {
+                        await i.editReply({
+                            embeds: [new EmbedTemplate(client).info("Setup canceled.")],
+                            components: []
+                        });
+                        collector.stop();
+                        return;
+                    }
+
+                    // Handle navigation and step-specific actions based on the current step
+                    switch (setupData.step) {
+                        case 1: // Ticket Button Configuration
+                            if (i.customId === "next") {
+                                // Move to button customization step
+                                await handleButtonCustomization(i);
+                            }
+                            break;
+
+                        case 2: // Button style selection
+                            if (i.isStringSelectMenu() && i.customId === "button_style") {
+                                setupData.buttonConfig.style = i.values[0];
+
+                                const styleEmbed = new discord.EmbedBuilder()
+                                    .setTitle("🔘 Button Style Selected")
+                                    .setDescription(`You selected the ${i.values[0].toLowerCase()} button style.`)
+                                    .setColor("Green");
+
+                                await i.editReply({
+                                    embeds: [styleEmbed],
+                                    components: [createNavigationButtons("back_to_button", "continue_button")]
+                                });
+                            } else if (i.customId === "back_to_button") {
+                                await handleButtonCustomization(i);
+                            } else if (i.customId === "continue_button") {
+                                // Configure button in database
+                                await ticketRepo.configureTicketButton(interaction.guildId!, {
+                                    label: setupData.buttonConfig.label,
+                                    emoji: setupData.buttonConfig.emoji,
+                                    style: setupData.buttonConfig.style,
+                                    channelId: ticketChannel.id,
+                                    embedTitle: setupData.buttonConfig.embedTitle,
+                                    embedDescription: setupData.buttonConfig.embedDescription
+                                });
+
+                                // Move to categories step
+                                setupData.step = 3;
+                                await handleCategoriesStep(i);
+                            }
+                            break;
+
+                        case 3: // Categories configuration
+                            if (i.customId === "yes") {
+                                setupData.useCategories = true;
+                                await handleCategoryCreation(i);
+                            } else if (i.customId === "no") {
+                                setupData.useCategories = false;
+
+                                // Create a default category
+                                const defaultCategory = await ticketRepo.createTicketCategory(interaction.guildId!, {
+                                    name: "General Support",
+                                    description: "General support tickets",
+                                    emoji: "🎫",
+                                    supportRoleId: supportersRole ? supportersRole.id : undefined,
+                                    position: 0
+                                });
+
+                                // Configure default messages for this category
+                                await ticketRepo.configureTicketMessages(defaultCategory.id, {
+                                    welcomeMessage: "Welcome to your ticket!\n\nPlease describe your issue and wait for a staff member to assist you.",
+                                    closeMessage: "This ticket has been closed.",
+                                    includeSupportTeam: true
+                                });
+
+                                // Move to message customization step
+                                setupData.step = 4;
+                                await handleMessageCustomization(i);
+                            }
+                            break;
+
+                        case 3.5: // Category creation
+                            if (i.customId === "done_adding") {
+                                // Configure select menu if using categories
+                                await ticketRepo.configureSelectMenu(interaction.guildId!, {
+                                    placeholder: "Select a ticket category",
+                                    minValues: 1,
+                                    maxValues: 1,
+                                    embedTitle: "Create a Ticket",
+                                    embedDescription: "Please select a category for your ticket"
+                                });
+
+                                // Move to message customization step
+                                setupData.step = 4;
+                                await handleMessageCustomization(i);
+                            }
+                            break;
+
+                        case 4: // Message Customization
+                            if (i.customId === "yes") {
+                                setupData.customizeMessages = true;
+                                await handleMessageCustomizationLater(i);
+                            } else if (i.customId === "no") {
+                                setupData.customizeMessages = false;
+
+                                // Move to deployment step
+                                setupData.step = 5;
+                                await handleDeployment(i);
+                            }
+                            break;
+
+                        case 5: // Deployment
+                            if (i.customId === "deploy") {
+                                await handleDeployTicketSystem(i, ticketChannel, setupData.useCategories);
+                            } else if (i.customId === "later") {
+                                await i.editReply({
+                                    embeds: [
+                                        new discord.EmbedBuilder()
+                                            .setTitle("📝 Deployment Postponed")
+                                            .setDescription(
+                                                "You can deploy the ticket panel later using the `/ticket deploy` command.\n\n" +
+                                                "Your settings have been saved."
+                                            )
+                                            .setColor("Orange")
+                                    ],
+                                    components: []
+                                });
+
+                                // Send final confirmation
+                                await interaction.followUp({
+                                    embeds: [
+                                        new EmbedTemplate(client).success("✅ Ticket system setup complete!")
+                                            .setDescription(
+                                                "Your ticket system has been configured successfully.\n\n" +
+                                                "You can manage it with the following commands:\n" +
+                                                "- `/ticket deploy` - Deploy the ticket panel\n" +
+                                                "- `/ticket config` - Configure ticket settings\n" +
+                                                "- `/stop` - Disable the ticket system"
+                                            )
+                                    ]
+                                });
+
+                                collector.stop();
+                            }
+                            break;
+                    }
+
+                } catch (error) {
+                    client.logger.error(`[SETUP] Error handling button interaction: ${error}`);
+                    await i.editReply({
+                        embeds: [new EmbedTemplate(client).error("An error occurred during the setup process.")],
+                        components: []
+                    });
+                    collector.stop();
                 }
+            });
 
-                const buttonResponse = buttonCollected.first()?.content.trim();
-
-                // Check for cancel
-                if (buttonResponse?.toLowerCase() === "cancel") {
-                    await buttonMsg.delete().catch(() => { });
-                    return interaction.followUp({
-                        embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                        ephemeral: true
+            // Handle collector end (timeout or manual stop)
+            collector.on("end", async (collected, reason) => {
+                if (reason === "time") {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Setup timed out. Please try again.")],
+                        components: []
                     });
                 }
+            });
 
-                // Parse button configuration
-                let buttonLabel = "Create Ticket";
-                let buttonEmoji = "🎫";
-                let buttonStyle = "Primary";
-                let embedTitle = "Need Help?";
-                let embedDescription = "Click the button below to create a ticket!";
+            // Handler for button customization step
+            const handleButtonCustomization = async (i: discord.MessageComponentInteraction) => {
+                setupData.step = 2;
 
-                if (buttonResponse && buttonResponse.toLowerCase() !== "default") {
-                    const parts = buttonResponse.split("|").map(part => part.trim());
-                    if (parts.length >= 1 && parts[0]) buttonLabel = parts[0];
-                    if (parts.length >= 2 && parts[1]) buttonEmoji = parts[1];
-                    if (parts.length >= 3 && parts[2]) {
-                        const style = parts[2].toLowerCase();
-                        if (["primary", "secondary", "success", "danger"].includes(style)) {
-                            buttonStyle = style.charAt(0).toUpperCase() + style.slice(1);
-                        }
-                    }
-                    if (parts.length >= 4 && parts[3]) embedTitle = parts[3];
-                    if (parts.length >= 5 && parts[4]) embedDescription = parts[4];
-                }
+                const buttonConfigEmbed = new discord.EmbedBuilder()
+                    .setTitle("🔘 Ticket Button Configuration")
+                    .setDescription(
+                        "Let's configure the ticket creation button.\n\n" +
+                        "First, select a style for your button below."
+                    )
+                    .setFields(
+                        { name: "Label", value: setupData.buttonConfig.label, inline: true },
+                        { name: "Emoji", value: setupData.buttonConfig.emoji, inline: true },
+                        { name: "Style", value: setupData.buttonConfig.style, inline: true },
+                        { name: "Embed Title", value: setupData.buttonConfig.embedTitle, inline: false },
+                        { name: "Embed Description", value: setupData.buttonConfig.embedDescription, inline: false }
+                    )
+                    .setColor("Blue")
+                    .setFooter({ text: "You can customize more button options later with /ticket config" });
 
-                // Configure button in database
-                await ticketRepo.configureTicketButton(interaction.guildId!, {
-                    label: buttonLabel,
-                    emoji: buttonEmoji,
-                    style: buttonStyle.toUpperCase(),
-                    channelId: ticketChannel.id,
-                    embedTitle: embedTitle,
-                    embedDescription: embedDescription
+                await i.editReply({
+                    embeds: [buttonConfigEmbed],
+                    components: [createButtonStyleSelect()]
                 });
+            };
 
-                await buttonMsg.edit({
-                    embeds: [
-                        new discord.EmbedBuilder()
-                            .setTitle("🔘 Ticket Button Configuration")
-                            .setDescription("Button configuration saved successfully!")
-                            .addFields(
-                                { name: "Button Label", value: buttonLabel, inline: true },
-                                { name: "Button Emoji", value: buttonEmoji, inline: true },
-                                { name: "Button Style", value: buttonStyle, inline: true },
-                                { name: "Embed Title", value: embedTitle, inline: false },
-                                { name: "Embed Description", value: embedDescription, inline: false }
-                            )
-                            .setColor("Green")
-                    ]
-                });
-
-                // STEP 2: Ask if they want categories
+            // Handler for categories step
+            const handleCategoriesStep = async (i: discord.MessageComponentInteraction) => {
                 const categoriesEmbed = new discord.EmbedBuilder()
                     .setTitle("📑 Ticket Categories")
                     .setDescription(
                         "Do you want to set up different categories for tickets?\n\n" +
                         "If yes, users will select a category when creating a ticket. " +
-                        "If no, tickets will be created directly.\n\n" +
-                        "Please type `yes` or `no`."
+                        "If no, tickets will be created directly."
                     )
                     .setColor("Blue")
-                    .setFooter({ text: "Step 2/5: Ticket Categories" });
+                    .setFooter({ text: "Step 3/5: Ticket Categories" });
 
-                const categoriesMsg = await channel.send({ embeds: [categoriesEmbed] });
+                await i.editReply({
+                    embeds: [categoriesEmbed],
+                    components: [createYesNoButtons()]
+                });
+            };
 
-                const categoryDecisionCollected = await channel.awaitMessages({
-                    filter: (m) => m.author.id === interaction.user.id,
-                    max: 1,
-                    time: 120000,
-                    errors: ['time']
+            // Handler for category creation
+            const handleCategoryCreation = async (i: discord.MessageComponentInteraction) => {
+                setupData.step = 3.5;
+
+                const categoryCreationEmbed = new discord.EmbedBuilder()
+                    .setTitle("📑 Ticket Categories Configuration")
+                    .setDescription(
+                        "Please enter your ticket categories, one by one.\n\n" +
+                        "Format for each category:\n" +
+                        "`Emoji | Category Name | Description | Support Role ID (optional)`\n\n" +
+                        "Example:\n" +
+                        "`🔧 | Technical Support | Get help with technical issues | 123456789012345678`\n\n" +
+                        "Type each category in the chat, then click 'Done Adding Categories' when finished."
+                    )
+                    .setColor("Blue")
+                    .setFooter({ text: "Step 3/5: Category Configuration" });
+
+                await i.editReply({
+                    embeds: [categoryCreationEmbed],
+                    components: [createDoneAddingButton()]
                 });
 
-                // Clean up user message
-                try {
-                    await categoryDecisionCollected.first()?.delete();
-                } catch (err) {
-                    client.logger.debug(`[SETUP] Could not delete message: ${err}`);
-                }
+                // Set up message collector to gather category information
+                const channel = interaction.channel as discord.TextChannel;
 
-                const categoryDecision = categoryDecisionCollected.first()?.content.trim().toLowerCase();
+                if (!channel) return;
 
-                // Check for cancel
-                if (categoryDecision === "cancel") {
-                    await categoriesMsg.delete().catch(() => { });
-                    await buttonMsg.delete().catch(() => { });
-                    return interaction.followUp({
-                        embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                        ephemeral: true
-                    });
-                }
+                const categoryMessageCollector = channel.createMessageCollector({
+                    filter: (m) => m.author.id === interaction.user.id && m.content !== "",
+                    time: 300000 // 5 minutes timeout
+                });
 
-                const useCategories = categoryDecision === "yes";
+                let categoryIndex = 1;
 
-                if (useCategories) {
-                    // STEP 3: Configure categories
-                    await categoriesMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("📑 Ticket Categories Configuration")
-                                .setDescription(
-                                    "Please enter your ticket categories, one by one.\n\n" +
-                                    "Format for each category:\n" +
-                                    "`Emoji | Category Name | Description | Support Role ID (optional)`\n\n" +
-                                    "Example:\n" +
-                                    "`🔧 | Technical Support | Get help with technical issues | 123456789012345678`\n\n" +
-                                    "Type `done` when you've added all categories you want."
-                                )
-                                .setColor("Blue")
-                                .setFooter({ text: "Step 3/5: Category Configuration" })
-                        ]
-                    });
+                categoryMessageCollector.on("collect", async (message) => {
+                    try {
+                        // Parse category information
+                        const parts = message.content.split("|").map(part => part.trim());
+                        const emoji = parts[0] || "📝";
+                        const name = parts[1] || `Category ${categoryIndex}`;
+                        const description = parts[2] || `Support for ${name}`;
+                        const roleId = parts[3] || (supportersRole ? supportersRole.id : undefined);
 
-                    const categories = [];
-                    let categoryIndex = 1;
-                    let categoryDone = false;
-
-                    while (!categoryDone) {
-                        const categoryCollected = await channel.awaitMessages({
-                            filter: (m) => m.author.id === interaction.user.id,
-                            max: 1,
-                            time: 300000,
-                            errors: ['time']
+                        // Create category in database
+                        const category = await ticketRepo.createTicketCategory(interaction.guildId!, {
+                            name,
+                            description,
+                            emoji,
+                            supportRoleId: roleId,
+                            position: categoryIndex - 1
                         });
 
-                        const categoryResponse = categoryCollected.first()?.content.trim();
+                        setupData.categories.push({
+                            emoji,
+                            name,
+                            description,
+                            roleId
+                        });
 
-                        // Clean up user message
-                        try {
-                            await categoryCollected.first()?.delete();
-                        } catch (err) {
-                            client.logger.debug(`[SETUP] Could not delete message: ${err}`);
-                        }
+                        // Configure default messages for this category
+                        await ticketRepo.configureTicketMessages(category.id, {
+                            welcomeMessage: `Welcome to your ticket in the **${name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`,
+                            closeMessage: `This ticket in the **${name}** category has been closed.`,
+                            includeSupportTeam: true
+                        });
 
-                        // Check for done or cancel
-                        if (categoryResponse?.toLowerCase() === "done") {
-                            categoryDone = true;
-                            continue;
-                        } else if (categoryResponse?.toLowerCase() === "cancel") {
-                            await categoriesMsg.delete().catch(() => { });
-                            await buttonMsg.delete().catch(() => { });
-                            return interaction.followUp({
-                                embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                                ephemeral: true
-                            });
-                        }
+                        // Send confirmation
+                        const chan = message.channel as discord.TextChannel;
+                        const confirmMessage = await chan.send({
+                            embeds: [
+                                new EmbedTemplate(client).success(`Added category: ${emoji} **${name}**`)
+                                    .setFooter({ text: `Category ${categoryIndex} added` })
+                            ]
+                        });
 
-                        // Parse category
-                        if (categoryResponse) {
-                            const parts = categoryResponse.split("|").map(part => part.trim());
-                            const emoji = parts[0] || "📝";
-                            const name = parts[1] || `Category ${categoryIndex}`;
-                            const description = parts[2] || `Support for ${name}`;
-                            const roleId = parts[3] || (supportersRole ? supportersRole.id : undefined);
+                        // Delete user message
+                        await message.delete().catch(() => { });
 
-                            // Create category in database
-                            const category = await ticketRepo.createTicketCategory(interaction.guildId!, {
-                                name,
-                                description,
-                                emoji,
-                                supportRoleId: roleId,
-                                position: categoryIndex - 1
-                            });
+                        // Delete confirmation after 3 seconds
+                        setTimeout(() => {
+                            confirmMessage.delete().catch(() => { });
+                        }, 3000);
 
-                            categories.push({
-                                emoji,
-                                name,
-                                description,
-                                roleId
-                            });
+                        categoryIndex++;
 
-                            // Configure default messages for this category
-                            await ticketRepo.configureTicketMessages(category.id, {
-                                welcomeMessage: `Welcome to your ticket in the **${name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`,
-                                closeMessage: `This ticket in the **${name}** category has been closed.`,
-                                includeSupportTeam: true
-                            });
+                        // Update category list in setup message
+                        let categoryList = "";
+                        setupData.categories.forEach((cat, index) => {
+                            categoryList += `${index + 1}. ${cat.emoji} **${cat.name}** - ${cat.description}\n`;
+                        });
 
-                            // Send confirmation
-                            await channel.send({
-                                embeds: [
-                                    new EmbedTemplate(client).success(`Added category: ${emoji} **${name}**`)
-                                        .setFooter({ text: `Category ${categoryIndex} added` })
-                                ]
-                            }).then(msg => {
-                                setTimeout(() => {
-                                    msg.delete().catch(() => { });
-                                }, 5000);
-                            });
+                        const updatedEmbed = new discord.EmbedBuilder()
+                            .setTitle("📑 Ticket Categories Configuration")
+                            .setDescription(
+                                "Please enter your ticket categories, one by one.\n\n" +
+                                "Format for each category:\n" +
+                                "`Emoji | Category Name | Description | Support Role ID (optional)`\n\n" +
+                                "Click 'Done Adding Categories' when finished.\n\n" +
+                                `**Added Categories:**\n${categoryList}`
+                            )
+                            .setColor("Blue")
+                            .setFooter({ text: `Step 3/5: Currently ${setupData.categories.length} categories added` });
 
-                            categoryIndex++;
-                        }
+                        await i.editReply({
+                            embeds: [updatedEmbed],
+                            components: [createDoneAddingButton()]
+                        });
+
+                    } catch (error) {
+                        client.logger.error(`[SETUP] Error creating category: ${error}`);
+                        const chan = message.channel as discord.TextChannel;
+                        await chan.send({
+                            embeds: [new EmbedTemplate(client).error("Error creating category. Please try again with correct format.")]
+                        }).then((msg: discord.Message) => {
+                            setTimeout(() => {
+                                msg.delete().catch(() => { });
+                            }, 5000);
+                        });
+
+                        // Delete user message
+                        await message.delete().catch(() => { });
                     }
+                });
 
-                    // Configure select menu
-                    await ticketRepo.configureSelectMenu(interaction.guildId!, {
-                        placeholder: "Select a ticket category",
-                        minValues: 1,
-                        maxValues: 1,
-                        embedTitle: "Create a Ticket",
-                        embedDescription: "Please select a category for your ticket"
-                    });
+                // Stop the category collector when the done button is pressed
+                collector.on("collect", (btnInteraction) => {
+                    if (btnInteraction.customId === "done_adding" || btnInteraction.customId === "cancel") {
+                        categoryMessageCollector.stop();
+                    }
+                });
+            };
 
-                    // Display summary of categories
-                    let categoryList = "";
-                    categories.forEach((cat, index) => {
-                        categoryList += `${index + 1}. ${cat.emoji} **${cat.name}** - ${cat.description}\n`;
-                    });
+            // Handler for message customization step
+            const handleMessageCustomization = async (i: discord.MessageComponentInteraction) => {
+                setupData.step = 4;
 
-                    await categoriesMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("📑 Ticket Categories Configured")
-                                .setDescription(
-                                    `Successfully configured ${categories.length} categories:\n\n${categoryList}`
-                                )
-                                .setColor("Green")
-                        ]
-                    });
-                } else {
-                    // No categories, update message
-                    await categoriesMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("📑 Ticket Categories")
-                                .setDescription("You've chosen not to use categories. Tickets will be created directly.")
-                                .setColor("Green")
-                        ]
-                    });
-
-                    // Create a default category
-                    const defaultCategory = await ticketRepo.createTicketCategory(interaction.guildId!, {
-                        name: "General Support",
-                        description: "General support tickets",
-                        emoji: "🎫",
-                        supportRoleId: supportersRole ? supportersRole.id : undefined,
-                        position: 0
-                    });
-
-                    // Configure default messages for this category
-                    await ticketRepo.configureTicketMessages(defaultCategory.id, {
-                        welcomeMessage: "Welcome to your ticket!\n\nPlease describe your issue and wait for a staff member to assist you.",
-                        closeMessage: "This ticket has been closed.",
-                        includeSupportTeam: true
-                    });
-                }
-
-                // STEP 4: Ticket Message Customization
                 const messageCustomizationEmbed = new discord.EmbedBuilder()
                     .setTitle("💬 Ticket Messages")
                     .setDescription(
                         "Would you like to customize the welcome and closing messages for tickets?\n\n" +
-                        "Default messages have been set, but you can customize them later with the `/ticket config` command.\n\n" +
-                        "Type `yes` to customize now, or `no` to keep defaults."
+                        "Default messages have been set, but you can customize them now or later with the `/ticket config` command."
                     )
                     .setColor("Blue")
                     .setFooter({ text: "Step 4/5: Message Customization" });
 
-                const messageCustomizationMsg = await channel.send({ embeds: [messageCustomizationEmbed] });
+                await i.editReply({
+                    embeds: [messageCustomizationEmbed],
+                    components: [createYesNoButtons("yes", "no", "cancel")]
+                });
+            };
 
-                const messageDecisionCollected = await channel.awaitMessages({
-                    filter: (m) => m.author.id === interaction.user.id,
-                    max: 1,
-                    time: 120000,
-                    errors: ['time']
+            // Handler for the placeholder message customization (to be implemented in detail later)
+            const handleMessageCustomizationLater = async (i: discord.MessageComponentInteraction) => {
+                await i.editReply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("💬 Message Customization")
+                            .setDescription(
+                                "Message customization can be done with the `/ticket config` command.\n\n" +
+                                "For now, we'll use the default messages and move to the next step."
+                            )
+                            .setColor("Green")
+                    ],
+                    components: [createNavigationButtons("prev_msg", "next_deploy", "cancel", true, false)]
                 });
 
-                // Clean up user message
-                try {
-                    await messageDecisionCollected.first()?.delete();
-                } catch (err) {
-                    client.logger.debug(`[SETUP] Could not delete message: ${err}`);
-                }
+                // Handle button to move to deployment
+                const nextBtn = await (i.message as discord.Message).awaitMessageComponent({
+                    filter: (i) => i.user.id === interaction.user.id,
+                    time: 60000
+                }) as discord.ButtonInteraction;
 
-                const messageDecision = messageDecisionCollected.first()?.content.trim().toLowerCase();
-
-                // Check for cancel
-                if (messageDecision === "cancel") {
-                    await messageCustomizationMsg.delete().catch(() => { });
-                    await categoriesMsg.delete().catch(() => { });
-                    await buttonMsg.delete().catch(() => { });
-                    return interaction.followUp({
+                if (nextBtn.customId === "next_deploy") {
+                    setupData.step = 5;
+                    await handleDeployment(nextBtn);
+                } else if (nextBtn.customId === "cancel") {
+                    await nextBtn.update({
                         embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                        ephemeral: true
+                        components: []
                     });
+                    collector.stop();
                 }
+            };
 
-                if (messageDecision === "yes") {
-                    // You would implement message customization here
-                    // For simplicity, we'll skip detailed implementation and just acknowledge
-                    await messageCustomizationMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("💬 Message Customization")
-                                .setDescription(
-                                    "Message customization can be done later with the `/ticket config` command.\n\n" +
-                                    "For now, we'll use the default messages."
-                                )
-                                .setColor("Green")
-                        ]
-                    });
-                } else {
-                    await messageCustomizationMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("💬 Ticket Messages")
-                                .setDescription(
-                                    "Using default ticket messages. You can customize them later with the `/ticket config` command."
-                                )
-                                .setColor("Green")
-                        ]
-                    });
-                }
-
-                // STEP 5: Deploy the ticket system
+            // Handler for deployment step
+            const handleDeployment = async (i: discord.MessageComponentInteraction) => {
                 const deployEmbed = new discord.EmbedBuilder()
                     .setTitle("🚀 Deploy Ticket System")
                     .setDescription(
                         "Your ticket system is configured! Ready to deploy it now?\n\n" +
                         "This will create the ticket panel in the specified channel.\n\n" +
-                        "Type `deploy` to create the panel, or `later` to deploy it manually later."
+                        "Click 'Deploy Now' to create the panel, or 'Deploy Later' to deploy it manually later."
                     )
                     .setColor("Blue")
                     .setFooter({ text: "Step 5/5: Deployment" });
 
-                const deployMsg = await channel.send({ embeds: [deployEmbed] });
-
-                const deployDecisionCollected = await channel.awaitMessages({
-                    filter: (m) => m.author.id === interaction.user.id,
-                    max: 1,
-                    time: 120000,
-                    errors: ['time']
+                await i.editReply({
+                    embeds: [deployEmbed],
+                    components: [createDeployButtons()]
                 });
+            };
 
-                // Clean up user message
+            // Handler for deploying the ticket system
+            const handleDeployTicketSystem = async (
+                i: discord.MessageComponentInteraction,
+                ticketChannel: discord.TextChannel,
+                useCategories: boolean
+            ) => {
                 try {
-                    await deployDecisionCollected.first()?.delete();
-                } catch (err) {
-                    client.logger.debug(`[SETUP] Could not delete message: ${err}`);
-                }
-
-                const deployDecision = deployDecisionCollected.first()?.content.trim().toLowerCase();
-
-                // Check for cancel
-                if (deployDecision === "cancel") {
-                    await deployMsg.delete().catch(() => { });
-                    await messageCustomizationMsg.delete().catch(() => { });
-                    await categoriesMsg.delete().catch(() => { });
-                    await buttonMsg.delete().catch(() => { });
-                    return interaction.followUp({
-                        embeds: [new EmbedTemplate(client).info("Setup canceled.")],
-                        ephemeral: true
+                    // Show loading state
+                    await i.editReply({
+                        embeds: [
+                            new discord.EmbedBuilder()
+                                .setTitle("⏳ Deploying Ticket System")
+                                .setDescription("Please wait while we deploy your ticket system...")
+                                .setColor("Blue")
+                        ],
+                        components: []
                     });
-                }
 
-                if (deployDecision === "deploy") {
                     // Get the button and ticket configuration
                     const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
 
                     if (!buttonConfig) {
-                        return deployMsg.edit({
+                        return i.editReply({
                             embeds: [
                                 new discord.EmbedBuilder()
                                     .setTitle("❌ Deployment Failed")
@@ -501,7 +718,7 @@ const setupCommand: SlashCommand = {
                     const ticketButtonChannel = client.channels.cache.get(ticketChannel.id) as discord.TextChannel;
 
                     if (!ticketButtonChannel) {
-                        return deployMsg.edit({
+                        return i.editReply({
                             embeds: [
                                 new discord.EmbedBuilder()
                                     .setTitle("❌ Deployment Failed")
@@ -561,48 +778,40 @@ const setupCommand: SlashCommand = {
                         });
                     }
 
-                    await deployMsg.edit({
+                    // Send confirmation message
+                    await i.editReply({
                         embeds: [
                             new discord.EmbedBuilder()
                                 .setTitle("🎉 Ticket System Deployed")
-                                .setDescription(`Your ticket system has been deployed in ${ticketButtonChannel}!`)
+                                .setDescription(`Your ticket system has been deployed in ${ticketButtonChannel}!\n\nUsers can now create tickets by clicking the button.`)
                                 .setColor("Green")
+                                .setTimestamp()
+                        ],
+                        components: []
+                    });
+
+                    // Send final success message
+                    await interaction.followUp({
+                        embeds: [
+                            new EmbedTemplate(client).success("✅ Ticket System Setup Complete!")
+                                .setDescription(
+                                    "Your ticket system has been configured and deployed successfully.\n\n" +
+                                    "You can manage it with the following commands:\n" +
+                                    "- `/ticket config` - Configure ticket settings\n" +
+                                    "- `/stop` - Disable the ticket system or remove the panel"
+                                )
                         ]
                     });
-                } else {
-                    await deployMsg.edit({
-                        embeds: [
-                            new discord.EmbedBuilder()
-                                .setTitle("📝 Deployment Postponed")
-                                .setDescription(
-                                    "You can deploy the ticket panel later using the `/ticket deploy` command.\n\n" +
-                                    "Your settings have been saved."
-                                )
-                                .setColor("Orange")
-                        ]
+
+                    collector.stop("completed");
+                } catch (error) {
+                    client.logger.error(`[SETUP] Error deploying ticket system: ${error}`);
+                    await i.editReply({
+                        embeds: [new EmbedTemplate(client).error("An error occurred while deploying the ticket system.")],
+                        components: []
                     });
                 }
-
-                // Final followUp
-                return interaction.followUp({
-                    embeds: [
-                        new EmbedTemplate(client).success("✅ Ticket system setup complete!")
-                            .setDescription(
-                                "Your ticket system has been configured successfully.\n\n" +
-                                "You can manage it with the following commands:\n" +
-                                "- `/ticket deploy` - Deploy the ticket panel\n" +
-                                "- `/ticket config` - Configure ticket settings\n" +
-                                "- `/stop` - Disable the ticket system"
-                            )
-                    ]
-                });
-
-            } catch (error) {
-                client.logger.error(`[SETUP] Error during ticket setup: ${error}`);
-                return interaction.followUp({
-                    embeds: [new EmbedTemplate(client).error("Setup timed out or failed. Please try again.")]
-                });
-            }
+            };
 
         } catch (error) {
             client.logger.error(`[SETUP] Error in setup command: ${error}`);
@@ -611,12 +820,12 @@ const setupCommand: SlashCommand = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     embeds: [new EmbedTemplate(client).error("An error occurred during setup.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral
                 });
             } else {
                 await interaction.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred during setup.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral
                 });
             }
         }
