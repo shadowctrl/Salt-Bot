@@ -353,15 +353,12 @@ const handleCloseButton = async (
     client: discord.Client,
     ticketRepo: TicketRepository
 ) => {
-    // Don't defer the reply here since we're showing a modal
-    // Instead of: await interaction.deferReply();
-
     // Check if the command is being used in a ticket channel
     const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
     if (!ticket) {
         return interaction.reply({
             embeds: [new EmbedTemplate(client).error("This is not a valid ticket channel.")],
-            flags: discord.MessageFlags.Ephemeral,
+            ephemeral: true
         });
     }
 
@@ -369,7 +366,7 @@ const handleCloseButton = async (
     if (ticket.status !== "open") {
         return interaction.reply({
             embeds: [new EmbedTemplate(client).error("This ticket is already closed.")],
-            flags: discord.MessageFlags.Ephemeral,
+            ephemeral: true
         });
     }
 
@@ -394,18 +391,26 @@ const handleCloseButton = async (
     // Show the modal - this already responds to the interaction
     await interaction.showModal(modal);
 
+    // Store channel reference to use later if the interaction expires
+    const channel = interaction.channel as discord.TextChannel;
+
     // Wait for modal submission
     try {
         const modalInteraction = await interaction.awaitModalSubmit({
             filter: i => i.customId === "ticket_close_modal" && i.user.id === interaction.user.id,
-            time: 120000 // 2 minutes
+            time: 900000 // 15 minutes max (Discord's interaction timeout)
         });
 
         // Get reason from modal
         const reason = modalInteraction.fields.getTextInputValue("ticket_close_reason") || "No reason provided";
 
-        // Defer the update on the modal interaction
-        await modalInteraction.deferUpdate();
+        // Safely try to defer the update on the modal interaction
+        try {
+            await modalInteraction.deferUpdate();
+        } catch (deferError) {
+            client.logger.warn(`[TICKET_CLOSE] Could not defer modal interaction: ${deferError}`);
+            // Continue anyway - we'll use channel messages as fallback
+        }
 
         // Update ticket status in database
         await ticketRepo.updateTicketStatus(
@@ -415,15 +420,11 @@ const handleCloseButton = async (
             reason
         );
 
-        // Get the channel
-        const channel = interaction.channel as discord.TextChannel;
-
         // Get the ticket message configuration
         const ticketMessage = await ticketRepo.getTicketMessage(ticket.category.id);
-
         const category = ticket.category;
 
-        // Create close message embed
+        // Create close message embed with improved details
         const closeEmbed = new discord.EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber} Closed`)
             .setDescription(ticketMessage?.closeMessage || "This ticket has been closed.")
@@ -466,15 +467,24 @@ const handleCloseButton = async (
                         .setStyle(discord.ButtonStyle.Danger)
                 );
 
-            // Use followUp on the modal interaction, not the original interaction
-            await modalInteraction.followUp({
-                embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
-                components: [actionRow]
-            });
+            // Try to respond to the modal interaction, fall back to channel message if it fails
+            try {
+                await modalInteraction.followUp({
+                    embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
+                    components: [actionRow]
+                });
+            } catch (followUpError) {
+                client.logger.warn(`[TICKET_CLOSE] Could not follow up on modal interaction: ${followUpError}`);
+                await channel.send({
+                    embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
+                    components: [actionRow]
+                });
+            }
         } catch (error) {
             client.logger.error(`[TICKET_CLOSE] Error updating permissions: ${error}`);
-            // Use followUp on the modal interaction
-            await modalInteraction.followUp({
+
+            // Fall back to channel message
+            await channel.send({
                 embeds: [
                     new EmbedTemplate(client).warning("Ticket marked as closed, but could not update channel permissions.")
                         .setDescription("Make sure the bot has the necessary permissions to modify channel permissions.")
@@ -483,13 +493,11 @@ const handleCloseButton = async (
         }
     } catch (error) {
         client.logger.error(`[TICKET_CLOSE] Modal submission error: ${error}`);
-        // Since the original interaction was used to show the modal,
-        // we can't reply to it again if the modal times out.
-        // Instead, send a message to the channel.
-        const channel = interaction.channel as discord.TextChannel;
+
+        // Interaction timed out, send message to channel as fallback
         if (channel) {
             await channel.send({
-                embeds: [new EmbedTemplate(client).error("The operation timed out. Please try again.")],
+                embeds: [new EmbedTemplate(client).error("The operation timed out or was cancelled. Please try again.")]
             });
         }
     }
