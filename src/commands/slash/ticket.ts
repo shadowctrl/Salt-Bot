@@ -90,7 +90,7 @@ const ticketCommand: SlashCommand = {
             if (!(client as any).dataSource) {
                 return interaction.reply({
                     embeds: [new EmbedTemplate(client).error("Database connection is not available.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
             }
 
@@ -128,7 +128,7 @@ const ticketCommand: SlashCommand = {
                 default:
                     await interaction.reply({
                         embeds: [new EmbedTemplate(client).error("Invalid subcommand.")],
-                        ephemeral: true
+                        flags: discord.MessageFlags.Ephemeral,
                     });
             }
         } catch (error) {
@@ -138,12 +138,12 @@ const ticketCommand: SlashCommand = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     embeds: [new EmbedTemplate(client).error("An error occurred while executing the command.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
             } else {
                 await interaction.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while executing the command.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
             }
         }
@@ -158,7 +158,7 @@ const handleConfigSubcommand = async (
     client: discord.Client,
     ticketRepo: TicketRepository
 ) => {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
     // Check if user has required permissions
     if (!interaction.memberPermissions?.has(discord.PermissionFlagsBits.Administrator)) {

@@ -15,6 +15,9 @@ export class GuildConfig implements IGuildConfig {
     @Column({ default: "tickets" })
     defaultCategoryName!: string;
 
+    @Column({ default: 0 })
+    globalTicketCount!: number;
+
     @Column({ default: true })
     isEnabled!: boolean;
 

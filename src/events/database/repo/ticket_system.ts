@@ -1,5 +1,5 @@
 import client from "../../../salt";
-import { Repository, DataSource } from "typeorm";
+import { Repository, DataSource, In } from "typeorm";
 import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
 import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig } from "../../../types";
 
@@ -327,6 +327,19 @@ export class TicketRepository {
         await queryRunner.startTransaction();
 
         try {
+            // Get guild config
+            const guildConfig = await this.guildConfigRepo.findOne({
+                where: { guildId }
+            });
+
+            if (!guildConfig) {
+                throw new Error("Guild configuration not found");
+            }
+
+            // Increment the global ticket counter
+            guildConfig.globalTicketCount++;
+            await this.guildConfigRepo.save(guildConfig);
+
             // Find the specified category
             const category = await this.ticketCategoryRepo.findOne({
                 where: { id: categoryId },
@@ -337,13 +350,13 @@ export class TicketRepository {
                 throw new Error("Ticket category not found or does not belong to this guild");
             }
 
-            // Increment the ticket counter for this category
+            // Increment the category counter too for category-specific counting
             category.ticketCount++;
             await this.ticketCategoryRepo.save(category);
 
-            // Create the ticket
+            // Create the ticket using the global counter
             const ticket = new Ticket();
-            ticket.ticketNumber = category.ticketCount;
+            ticket.ticketNumber = guildConfig.globalTicketCount;
             ticket.channelId = channelId;
             ticket.creatorId = creatorId;
             ticket.status = ITicketStatus.OPEN;
@@ -413,15 +426,22 @@ export class TicketRepository {
             // Get category IDs
             const categoryIds = categories.map(cat => cat.id);
 
-            // Get tickets for these categories
-            return await this.ticketRepo.find({
-                where: {
-                    category: {
-                        id: categoryIds.length === 1 ? categoryIds[0] : { $in: categoryIds } as any
-                    }
-                },
-                relations: ['category']
-            });
+            // Get tickets for these categories using TypeORM's In operator
+            if (categoryIds.length === 1) {
+                return await this.ticketRepo.find({
+                    where: {
+                        category: { id: categoryIds[0] }
+                    },
+                    relations: ['category']
+                });
+            } else {
+                return await this.ticketRepo.find({
+                    where: {
+                        category: { id: In(categoryIds) }
+                    },
+                    relations: ['category']
+                });
+            }
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error getting guild tickets: ${error}`);
             return [];

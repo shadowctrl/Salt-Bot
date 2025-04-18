@@ -162,6 +162,7 @@ export interface IGuildConfig {
     id: string;
     guildId: string;
     defaultCategoryName: string;
+    globalTicketCount: number;
     isEnabled: boolean;
     createdAt: Date;
     updatedAt: Date;

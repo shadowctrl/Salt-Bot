@@ -320,12 +320,12 @@ const stopCommand: SlashCommand = {
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     embeds: [new EmbedTemplate(client).error("An error occurred while executing the command.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
             } else {
                 await interaction.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while executing the command.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
             }
         }

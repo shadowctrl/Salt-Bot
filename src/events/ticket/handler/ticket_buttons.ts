@@ -53,7 +53,7 @@ const event: BotEvent = {
                 if (!interaction.replied && !interaction.deferred) {
                     await interaction.reply({
                         embeds: [new EmbedTemplate(client).error("An error occurred while processing your request.")],
-                        ephemeral: true
+                        flags: discord.MessageFlags.Ephemeral,
                     });
                 }
             } catch (replyError) {
@@ -71,7 +71,7 @@ const handleCreateTicketButton = async (
     client: discord.Client,
     ticketRepo: TicketRepository
 ) => {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral, });
 
     try {
         // Get guild config
@@ -185,7 +185,7 @@ const handleCategorySelect = async (
         client.logger.error(`[TICKET_BUTTON] Error handling category select: ${error}`);
         await interaction.followUp({
             embeds: [new EmbedTemplate(client).error("An error occurred while creating your ticket.")],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 };
@@ -221,13 +221,13 @@ const createTicket = async (
         });
 
         // Generate channel name
-        const ticketCount = category.ticketCount + 1;
-        const channelName = `ticket-${ticketCount.toString().padStart(4, '0')}`;
+        // We'll use a temporary placeholder before we know the ticket number
+        const tempChannelName = `ticket-new`;
 
         // Create ticket channel
         const guild = interaction.guild!;
         const ticketChannel = await guild.channels.create({
-            name: channelName,
+            name: tempChannelName,
             type: discord.ChannelType.GuildText,
             permissionOverwrites: [
                 {
@@ -254,6 +254,18 @@ const createTicket = async (
             ]
         });
 
+        // Create ticket in database with the channel ID we just created
+        const ticket = await ticketRepo.createTicket(
+            interaction.guildId!,
+            interaction.user.id,
+            ticketChannel.id,
+            categoryId
+        );
+
+        // Rename the channel with the actual ticket number
+        const channelName = `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`;
+        await ticketChannel.setName(channelName);
+
         // If category has a support role, add it to channel permissions
         if (category.supportRoleId) {
             try {
@@ -270,30 +282,28 @@ const createTicket = async (
             }
         }
 
-        // Create ticket in database
-        const ticket = await ticketRepo.createTicket(
-            interaction.guildId!,
-            interaction.user.id,
-            ticketChannel.id,
-            categoryId
-        );
-
         // Get ticket welcome message
         const ticketMessage = category.ticketMessage;
         const welcomeMessage = ticketMessage?.welcomeMessage ||
             `Welcome to your ticket in the **${category.name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`;
 
-        // Create welcome embed
+        // Format creation time
+        const creationTime = new Date();
+        const creationTimestamp = Math.floor(creationTime.getTime() / 1000);
+
+        // Create welcome embed with improved details
         const welcomeEmbed = new discord.EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber}`)
             .setDescription(welcomeMessage)
             .addFields(
+                { name: "Ticket ID", value: `#${ticket.ticketNumber}`, inline: true },
                 { name: "Category", value: `${category.emoji || "🎫"} ${category.name}`, inline: true },
+                { name: "Status", value: `🟢 Open`, inline: true },
                 { name: "Created By", value: `<@${interaction.user.id}>`, inline: true },
-                { name: "Created At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: false }
+                { name: "Created At", value: `<t:${creationTimestamp}:F>`, inline: true }
             )
             .setColor("Green")
-            .setFooter({ text: "Powered by Salt Bot", iconURL: client.user?.displayAvatarURL() })
+            .setFooter({ text: `Use /ticket close to close this ticket | ID: ${ticket.id}` })
             .setTimestamp();
 
         // Create action row with close button
@@ -319,7 +329,7 @@ const createTicket = async (
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket created successfully!")
-                    .setDescription(`Your ticket has been created: ${ticketChannel}`)
+                    .setDescription(`Your ticket has been created: ${ticketChannel}\nTicket Number: #${ticket.ticketNumber}`)
             ],
             components: []
         });
@@ -343,20 +353,23 @@ const handleCloseButton = async (
     client: discord.Client,
     ticketRepo: TicketRepository
 ) => {
-    await interaction.deferReply();
+    // Don't defer the reply here since we're showing a modal
+    // Instead of: await interaction.deferReply();
 
     // Check if the command is being used in a ticket channel
     const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
     if (!ticket) {
-        return interaction.editReply({
-            embeds: [new EmbedTemplate(client).error("This is not a valid ticket channel.")]
+        return interaction.reply({
+            embeds: [new EmbedTemplate(client).error("This is not a valid ticket channel.")],
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 
     // Check if the ticket is already closed
     if (ticket.status !== "open") {
-        return interaction.editReply({
-            embeds: [new EmbedTemplate(client).error("This ticket is already closed.")]
+        return interaction.reply({
+            embeds: [new EmbedTemplate(client).error("This ticket is already closed.")],
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -378,7 +391,7 @@ const handleCloseButton = async (
 
     modal.addComponents(actionRow);
 
-    // Show the modal
+    // Show the modal - this already responds to the interaction
     await interaction.showModal(modal);
 
     // Wait for modal submission
@@ -391,6 +404,7 @@ const handleCloseButton = async (
         // Get reason from modal
         const reason = modalInteraction.fields.getTextInputValue("ticket_close_reason") || "No reason provided";
 
+        // Defer the update on the modal interaction
         await modalInteraction.deferUpdate();
 
         // Update ticket status in database
@@ -407,16 +421,22 @@ const handleCloseButton = async (
         // Get the ticket message configuration
         const ticketMessage = await ticketRepo.getTicketMessage(ticket.category.id);
 
+        const category = ticket.category;
+
         // Create close message embed
         const closeEmbed = new discord.EmbedBuilder()
-            .setTitle("Ticket Closed")
+            .setTitle(`Ticket #${ticket.ticketNumber} Closed`)
             .setDescription(ticketMessage?.closeMessage || "This ticket has been closed.")
             .addFields(
+                { name: "Ticket ID", value: `#${ticket.ticketNumber}`, inline: true },
+                { name: "Category", value: `${category.emoji || "🎫"} ${category.name}`, inline: true },
+                { name: "Status", value: `🔴 Closed`, inline: true },
                 { name: "Closed By", value: `<@${interaction.user.id}>`, inline: true },
-                { name: "Reason", value: reason, inline: true }
+                { name: "Closed At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+                { name: "Reason", value: reason, inline: false }
             )
             .setColor("Red")
-            .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
+            .setFooter({ text: `Use /ticket reopen to reopen this ticket | ID: ${ticket.id}` })
             .setTimestamp();
 
         // Send close message
@@ -446,12 +466,14 @@ const handleCloseButton = async (
                         .setStyle(discord.ButtonStyle.Danger)
                 );
 
+            // Use followUp on the modal interaction, not the original interaction
             await modalInteraction.followUp({
                 embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
                 components: [actionRow]
             });
         } catch (error) {
             client.logger.error(`[TICKET_CLOSE] Error updating permissions: ${error}`);
+            // Use followUp on the modal interaction
             await modalInteraction.followUp({
                 embeds: [
                     new EmbedTemplate(client).warning("Ticket marked as closed, but could not update channel permissions.")
@@ -461,10 +483,15 @@ const handleCloseButton = async (
         }
     } catch (error) {
         client.logger.error(`[TICKET_CLOSE] Modal submission error: ${error}`);
-        await interaction.followUp({
-            embeds: [new EmbedTemplate(client).error("The operation timed out. Please try again.")],
-            ephemeral: true
-        });
+        // Since the original interaction was used to show the modal,
+        // we can't reply to it again if the modal times out.
+        // Instead, send a message to the channel.
+        const channel = interaction.channel as discord.TextChannel;
+        if (channel) {
+            await channel.send({
+                embeds: [new EmbedTemplate(client).error("The operation timed out. Please try again.")],
+            });
+        }
     }
 };
 
