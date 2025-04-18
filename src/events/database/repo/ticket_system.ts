@@ -15,7 +15,7 @@ export class TicketRepository {
     private ticketMessageRepo: Repository<TicketMessage>;
     private ticketButtonRepo: Repository<TicketButton>;
     private selectMenuRepo: Repository<SelectMenuConfig>;
-    private dataSource: DataSource;
+    public dataSource: DataSource;
 
     /**
      * Creates a new TicketRepository instance
@@ -600,16 +600,7 @@ export class TicketRepository {
      */
     async configureTicketButton(
         guildId: string,
-        buttonData: {
-            label?: string;
-            emoji?: string;
-            style?: string;
-            messageId?: string;
-            channelId?: string;
-            embedTitle?: string;
-            embedDescription?: string;
-            embedColor?: string;
-        }
+        buttonData: ITicketButton
     ): Promise<ITicketButton | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
@@ -633,6 +624,7 @@ export class TicketRepository {
             if (buttonData.embedTitle !== undefined) buttonConfig.embedTitle = buttonData.embedTitle;
             if (buttonData.embedDescription !== undefined) buttonConfig.embedDescription = buttonData.embedDescription;
             if (buttonData.embedColor !== undefined) buttonConfig.embedColor = buttonData.embedColor;
+            if (buttonData.logChannelId !== undefined) buttonConfig.logChannelId = buttonData.logChannelId;
 
             return await this.ticketButtonRepo.save(buttonConfig);
         } catch (error) {
