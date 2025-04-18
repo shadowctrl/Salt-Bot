@@ -314,7 +314,7 @@ class TicketCommandManager {
             // Send confirmation
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Button label updated to: "${newLabel}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -375,7 +375,7 @@ class TicketCommandManager {
             // Send confirmation
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Button emoji updated to: "${newEmoji}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -467,7 +467,7 @@ class TicketCommandManager {
             // Send confirmation
             await styleInteraction.followUp({
                 embeds: [new EmbedTemplate(this.client).success(`Button style updated to: "${newStyle}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -528,7 +528,7 @@ class TicketCommandManager {
             // Send confirmation
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Embed title updated to: "${newTitle}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -589,7 +589,7 @@ class TicketCommandManager {
             // Send confirmation
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Embed description updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -648,7 +648,7 @@ class TicketCommandManager {
             if (!isValidHex) {
                 await modalInteraction.reply({
                     embeds: [new EmbedTemplate(this.client).error("Invalid color format. Please use hex format (e.g., #5865F2).")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
                 return;
             }
@@ -666,7 +666,7 @@ class TicketCommandManager {
                         .setDescription(`Embed color updated to: "${newColor}"`)
                         .setColor(newColor as discord.ColorResolvable)
                 ],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Update the panel if deployed
@@ -1038,7 +1038,7 @@ class TicketCommandManager {
             // Send confirmation
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Category "${name}" created successfully!`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Return to category config
@@ -1157,7 +1157,7 @@ class TicketCommandManager {
             if (!category) {
                 await selectInteraction.followUp({
                     embeds: [new EmbedTemplate(this.client).error("Selected category not found.")],
-                    ephemeral: true
+                    flags: discord.MessageFlags.Ephemeral,
                 });
                 await this.configCategoryComponent();
                 return;
@@ -1327,7 +1327,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Category name updated to "${newName}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh category data
@@ -1389,7 +1389,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Category description updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh category data
@@ -1451,7 +1451,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Category emoji updated to "${newEmoji}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh category data
@@ -1512,14 +1512,14 @@ class TicketCommandManager {
                     if (!role) {
                         await modalInteraction.reply({
                             embeds: [new EmbedTemplate(this.client).error("Role not found with the provided ID.")],
-                            ephemeral: true
+                            flags: discord.MessageFlags.Ephemeral,
                         });
                         return;
                     }
                 } catch (error) {
                     await modalInteraction.reply({
                         embeds: [new EmbedTemplate(this.client).error("Invalid role ID. Please enter a valid role ID.")],
-                        ephemeral: true
+                        flags: discord.MessageFlags.Ephemeral,
                     });
                     return;
                 }
@@ -1533,7 +1533,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Support role updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh category data
@@ -1564,7 +1564,7 @@ class TicketCommandManager {
         // Acknowledge
         await i.followUp({
             embeds: [new EmbedTemplate(this.client).success(`Category ${category.isEnabled ? "disabled" : "enabled"} successfully.`)],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
 
         // Refresh category data
@@ -1587,7 +1587,7 @@ class TicketCommandManager {
         if (categories.length <= 1) {
             await i.followUp({
                 embeds: [new EmbedTemplate(this.client).error("You cannot delete the only category. Create another category first.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
             return;
         }
@@ -1769,7 +1769,7 @@ class TicketCommandManager {
                 if (!category) {
                     await i.followUp({
                         embeds: [new EmbedTemplate(this.client).error("Selected category not found.")],
-                        ephemeral: true
+                        flags: discord.MessageFlags.Ephemeral,
                     });
                     return;
                 }
@@ -1800,7 +1800,7 @@ class TicketCommandManager {
         if (!ticketMessage) {
             await i.followUp({
                 embeds: [new EmbedTemplate(this.client).error("Message configuration not found for this category.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
             return;
         }
@@ -1931,7 +1931,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Welcome message updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh ticket message
@@ -1995,7 +1995,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Close message updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Refresh ticket message
@@ -2028,7 +2028,7 @@ class TicketCommandManager {
         // Acknowledge
         await i.followUp({
             embeds: [new EmbedTemplate(this.client).success(`Support team ${ticketMessage.includeSupportTeam ? "will no longer" : "will now"} be mentioned in tickets.`)],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
 
         // Refresh ticket message
@@ -2197,7 +2197,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Menu placeholder updated to "${newPlaceholder}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Return to select menu config
@@ -2254,7 +2254,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success(`Menu embed title updated to "${newTitle}"`)],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Return to select menu config
@@ -2311,7 +2311,7 @@ class TicketCommandManager {
             // Acknowledge
             await modalInteraction.reply({
                 embeds: [new EmbedTemplate(this.client).success("Menu embed description updated successfully.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
 
             // Return to select menu config

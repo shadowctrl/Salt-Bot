@@ -206,7 +206,7 @@ const createTicket = async (
         if (!category) {
             return interaction.followUp({
                 embeds: [new EmbedTemplate(client).error("The selected category no longer exists.")],
-                ephemeral: true
+                flags: discord.MessageFlags.Ephemeral,
             });
         }
 
@@ -341,7 +341,7 @@ const createTicket = async (
         client.logger.error(`[TICKET_CREATE] Error creating ticket: ${error}`);
         await interaction.followUp({
             embeds: [new EmbedTemplate(client).error("An error occurred while creating your ticket.")],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 };
@@ -359,7 +359,7 @@ const handleCloseButton = async (
     if (!ticket) {
         return interaction.reply({
             embeds: [new EmbedTemplate(client).error("This is not a valid ticket channel.")],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 
@@ -367,7 +367,7 @@ const handleCloseButton = async (
     if (ticket.status !== "open") {
         return interaction.reply({
             embeds: [new EmbedTemplate(client).error("This ticket is already closed.")],
-            ephemeral: true
+            flags: discord.MessageFlags.Ephemeral,
         });
     }
 
