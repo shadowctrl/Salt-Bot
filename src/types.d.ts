@@ -221,6 +221,7 @@ export interface ITicketButton {
     embedDescription?: string;
     embedColor?: string;
     channelId?: string;
+    logChannelId?: string;
     createdAt: Date;
     updatedAt: Date;
     guildConfig: IGuildConfig;

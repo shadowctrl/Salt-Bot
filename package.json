@@ -28,6 +28,7 @@
     },
     "dependencies": {
         "chalk": "4.1.2",
+        "discord-html-transcripts": "^3.2.0",
         "discord.js": "^14.18.0",
         "dotenv": "^16.4.7",
         "path": "^0.12.7",

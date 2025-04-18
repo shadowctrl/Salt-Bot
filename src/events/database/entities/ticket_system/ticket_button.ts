@@ -31,6 +31,9 @@ export class TicketButton implements ITicketButton {
     @Column({ nullable: true })
     channelId?: string;
 
+    @Column({ nullable: true })
+    logChannelId?: string;
+
     @CreateDateColumn()
     createdAt!: Date;
 

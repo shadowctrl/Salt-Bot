@@ -3,6 +3,7 @@ import { BotEvent } from "../../../types";
 import { ITicketStatus } from "../../../events/database/entities/ticket_system";
 import { TicketRepository } from "../../../events/database/repo/ticket_system";
 import { EmbedTemplate } from "../../../utils/embed_template";
+import { createAndSendTranscript } from '../../../utils/transcript';
 
 const event: BotEvent = {
     name: discord.Events.InteractionCreate,
@@ -479,6 +480,20 @@ const handleCloseButton = async (
                     embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
                     components: [actionRow]
                 });
+            }
+
+            try {
+                // Create and send transcript
+                await createAndSendTranscript(
+                    channel,
+                    interaction.user,
+                    reason,
+                    ticket.id,
+                    ticketRepo.dataSource
+                );
+            } catch (error) {
+                client.logger.error(`[TICKET_CLOSE] Error creating transcript: ${error}`);
+                // Continue with closing the ticket even if transcript fails
             }
         } catch (error) {
             client.logger.error(`[TICKET_CLOSE] Error updating permissions: ${error}`);

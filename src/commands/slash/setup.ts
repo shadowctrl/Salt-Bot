@@ -167,6 +167,11 @@ const setupCommand: SlashCommand = {
         .addRoleOption(option =>
             option.setName("ticket_supporters")
                 .setDescription("Role for ticket supporters")
+                .setRequired(false))
+        .addChannelOption(option =>
+            option.setName('transcript_channel')
+                .setDescription('Channel where ticket transcripts will be sent')
+                .addChannelTypes(discord.ChannelType.GuildText)
                 .setRequired(false)),
 
     execute: async (
@@ -200,6 +205,9 @@ const setupCommand: SlashCommand = {
 
             // Get specified supporter role or leave it null
             const supportersRole = interaction.options.getRole("ticket_supporters");
+
+            // Get specified transcript channel or leave it null
+            const transcriptChannel = interaction.options.getChannel("transcript_channel");
 
             // Setup initial configuration
             const setupEmbed = new discord.EmbedBuilder()
@@ -302,7 +310,8 @@ const setupCommand: SlashCommand = {
                                     style: setupData.buttonConfig.style,
                                     channelId: ticketChannel.id,
                                     embedTitle: setupData.buttonConfig.embedTitle,
-                                    embedDescription: setupData.buttonConfig.embedDescription
+                                    embedDescription: setupData.buttonConfig.embedDescription,
+                                    logChannelId: transcriptChannel ? transcriptChannel.id : null
                                 });
 
                                 // Move to categories step
