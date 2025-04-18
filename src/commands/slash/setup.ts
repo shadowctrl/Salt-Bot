@@ -311,7 +311,7 @@ const setupCommand: SlashCommand = {
                                     channelId: ticketChannel.id,
                                     embedTitle: setupData.buttonConfig.embedTitle,
                                     embedDescription: setupData.buttonConfig.embedDescription,
-                                    logChannelId: transcriptChannel ? transcriptChannel.id : null
+                                    logChannelId: transcriptChannel ? transcriptChannel.id : undefined
                                 });
 
                                 // Move to categories step

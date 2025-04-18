@@ -600,7 +600,7 @@ export class TicketRepository {
      */
     async configureTicketButton(
         guildId: string,
-        buttonData: ITicketButton
+        buttonData: Partial<ITicketButton>
     ): Promise<ITicketButton | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
