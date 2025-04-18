@@ -1667,9 +1667,6 @@ class TicketCommandManager {
         }
     }
 
-    // Additional methods for messages and select menu configuration would be implemented here
-    // For the sake of brevity, I'll skip those implementations since they follow the same pattern
-
     /**
      * Create a message component collector
      */
