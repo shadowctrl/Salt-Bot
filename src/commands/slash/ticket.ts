@@ -84,6 +84,44 @@ class TicketCommandManager {
     }
 
     /**
+ * Create button styles dropdown
+ */
+    private createButtonStyleSelect(): discord.ActionRowBuilder<discord.StringSelectMenuBuilder> {
+        return new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
+            .addComponents(
+                new discord.StringSelectMenuBuilder()
+                    .setCustomId("button_style_select")
+                    .setPlaceholder("Select a button style")
+                    .addOptions([
+                        {
+                            label: "Blue",
+                            description: "Blue button style",
+                            value: "PRIMARY",
+                            emoji: "🔵"
+                        },
+                        {
+                            label: "Grey",
+                            description: "Grey button style",
+                            value: "SECONDARY",
+                            emoji: "⚪"
+                        },
+                        {
+                            label: "Green",
+                            description: "Green button style",
+                            value: "SUCCESS",
+                            emoji: "🟢"
+                        },
+                        {
+                            label: "Red",
+                            description: "Red button style",
+                            value: "DANGER",
+                            emoji: "🔴"
+                        }
+                    ])
+            );
+    }
+
+    /**
      * Handle the config subcommand
      */
     private async configSubcommand(): Promise<void> {
@@ -137,350 +175,602 @@ class TicketCommandManager {
      * Configure ticket button settings
      */
     private async configButtonComponent(): Promise<void> {
-        // Get current button configuration
-        const buttonConfig = await this.ticketRepo.getTicketButtonConfig(this.interaction.guildId!);
-        if (!buttonConfig) {
-            await this.interaction.editReply({
-                embeds: [new EmbedTemplate(this.client).error("Button configuration not found.")]
-            });
-            return;
-        }
-
-        // Create initial embed
-        const configEmbed = new discord.EmbedBuilder()
-            .setTitle("🔧 Configure Ticket Button")
-            .setDescription(
-                "Configure the ticket creation button.\n\n" +
-                "Current Configuration:\n" +
-                `**Label:** ${buttonConfig.label}\n` +
-                `**Emoji:** ${buttonConfig.emoji}\n` +
-                `**Style:** ${buttonConfig.style}\n` +
-                `**Embed Title:** ${buttonConfig.embedTitle || "Default"}\n` +
-                `**Embed Description:** ${buttonConfig.embedDescription || "Default"}\n\n` +
-                "Click an option below to configure:"
-            )
-            .setColor("Blue")
-            .setTimestamp();
-
-        // Create button row
-        const buttonRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-            .addComponents(
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_label")
-                    .setLabel("Change Label")
-                    .setStyle(discord.ButtonStyle.Primary),
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_emoji")
-                    .setLabel("Change Emoji")
-                    .setStyle(discord.ButtonStyle.Primary),
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_style")
-                    .setLabel("Change Style")
-                    .setStyle(discord.ButtonStyle.Primary)
-            );
-
-        // Add second row for embed config
-        const embedRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-            .addComponents(
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_title")
-                    .setLabel("Change Embed Title")
-                    .setStyle(discord.ButtonStyle.Secondary),
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_desc")
-                    .setLabel("Change Description")
-                    .setStyle(discord.ButtonStyle.Secondary),
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_button_color")
-                    .setLabel("Change Color")
-                    .setStyle(discord.ButtonStyle.Secondary)
-            );
-
-        // Add third row for cancel button
-        const cancelRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-            .addComponents(
-                new discord.ButtonBuilder()
-                    .setCustomId("ticket_config_cancel")
-                    .setLabel("Cancel")
-                    .setStyle(discord.ButtonStyle.Danger)
-            );
-
-        // Send the config message
-        const response = await this.interaction.editReply({
-            embeds: [configEmbed],
-            components: [buttonRow, embedRow, cancelRow]
-        });
-
-        // Create collector for buttons
-        const collector = this.createConfigCollector(response);
-
-        // Handle different options
-        collector.on("collect", async (i: discord.MessageComponentInteraction) => {
-            await i.deferUpdate().catch(err => {
-                this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
-            });
-
-            // Handle cancel button
-            if (i.customId === "ticket_config_cancel") {
-                await i.editReply({
-                    embeds: [new EmbedTemplate(this.client).info("Configuration canceled.")],
-                    components: []
+        try {
+            // Get current button configuration
+            const buttonConfig = await this.ticketRepo.getTicketButtonConfig(this.interaction.guildId!);
+            if (!buttonConfig) {
+                await this.interaction.editReply({
+                    embeds: [new EmbedTemplate(this.client).error("Button configuration not found.")]
                 });
-                collector.stop();
                 return;
             }
 
-            // Handle different configuration options
-            switch (i.customId) {
-                case "ticket_button_label":
-                    await this.configButtonLabel(i, buttonConfig);
-                    break;
-                case "ticket_button_emoji":
-                    await this.configButtonEmoji(i, buttonConfig);
-                    break;
-                case "ticket_button_style":
-                    await this.configButtonStyle(i, buttonConfig);
-                    break;
-                case "ticket_button_title":
-                    await this.configButtonTitle(i, buttonConfig);
-                    break;
-                case "ticket_button_desc":
-                    await this.configButtonDescription(i, buttonConfig);
-                    break;
-                case "ticket_button_color":
-                    await this.configButtonColor(i, buttonConfig);
-                    break;
-                default:
-                    await i.editReply({
-                        embeds: [new EmbedTemplate(this.client).error("Invalid option selected.")],
-                        components: []
-                    });
-                    collector.stop();
-            }
-        });
+            // Create initial embed
+            const configEmbed = new discord.EmbedBuilder()
+                .setTitle("🔧 Configure Ticket Button")
+                .setDescription(
+                    "Configure the ticket creation button.\n\n" +
+                    "Current Configuration:\n" +
+                    `**Label:** ${buttonConfig.label}\n` +
+                    `**Emoji:** ${buttonConfig.emoji}\n` +
+                    `**Style:** ${buttonConfig.style}\n` +
+                    `**Embed Title:** ${buttonConfig.embedTitle || "Default"}\n` +
+                    `**Embed Description:** ${buttonConfig.embedDescription || "Default"}\n\n` +
+                    "Click an option below to configure:"
+                )
+                .setColor("Blue")
+                .setTimestamp();
 
-        // Handle end of collection
-        collector.on("end", async (collected, reason) => {
-            if (reason === "time") {
-                await this.interaction.editReply({
-                    embeds: [new EmbedTemplate(this.client).info("Configuration timed out.")],
-                    components: []
+            // Create button row
+            const buttonRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                .addComponents(
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_label")
+                        .setLabel("Change Label")
+                        .setStyle(discord.ButtonStyle.Primary),
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_emoji")
+                        .setLabel("Change Emoji")
+                        .setStyle(discord.ButtonStyle.Primary),
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_style")
+                        .setLabel("Change Style")
+                        .setStyle(discord.ButtonStyle.Primary)
+                );
+
+            // Add second row for embed config
+            const embedRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                .addComponents(
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_title")
+                        .setLabel("Change Embed Title")
+                        .setStyle(discord.ButtonStyle.Secondary),
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_desc")
+                        .setLabel("Change Description")
+                        .setStyle(discord.ButtonStyle.Secondary),
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_button_color")
+                        .setLabel("Change Color")
+                        .setStyle(discord.ButtonStyle.Secondary)
+                );
+
+            // Add third row for cancel button
+            const cancelRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                .addComponents(
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_config_cancel")
+                        .setLabel("Cancel")
+                        .setStyle(discord.ButtonStyle.Danger)
+                );
+
+            // Send the config message
+            const response = await this.interaction.editReply({
+                embeds: [configEmbed],
+                components: [buttonRow, embedRow, cancelRow]
+            });
+
+            // Create collector for buttons
+            const collector = (response as discord.Message).createMessageComponentCollector({
+                filter: (i) => i.user.id === this.interaction.user.id,
+                time: 300000 // 5 minutes timeout
+            });
+
+            // Handle different button clicks
+            collector.on("collect", async (i: discord.MessageComponentInteraction) => {
+                try {
+                    // Handle cancel button
+                    if (i.customId === "ticket_config_cancel") {
+                        await i.update({
+                            embeds: [new EmbedTemplate(this.client).info("Configuration canceled.")],
+                            components: []
+                        });
+                        collector.stop();
+                        return;
+                    }
+
+                    // Handle different buttons - use update() instead of deferUpdate() + editReply()
+                    switch (i.customId) {
+                        case "ticket_button_label":
+                            await this.configButtonLabel(i, buttonConfig);
+                            break;
+                        case "ticket_button_emoji":
+                            if (i instanceof discord.ButtonInteraction) {
+                                await this.configButtonEmoji(i, buttonConfig);
+                            }
+                            break;
+                        case "ticket_button_style":
+                            if (i instanceof discord.ButtonInteraction) {
+                                await this.configButtonStyle(i, buttonConfig);
+                            }
+                            break;
+                        case "ticket_button_title":
+                            await this.configButtonTitle(i, buttonConfig);
+                            break;
+                        case "ticket_button_desc":
+                            await this.configButtonDescription(i, buttonConfig);
+                            break;
+                        case "ticket_button_color":
+                            await this.configButtonColor(i, buttonConfig);
+                            break;
+                        default:
+                            // Unknown button, try to update with an error message
+                            try {
+                                await i.update({
+                                    embeds: [new EmbedTemplate(this.client).error("Unknown button selected.")],
+                                    components: []
+                                });
+                                setTimeout(() => this.configButtonComponent(), 2000);
+                            } catch (err) {
+                                this.client.logger.error(`[TICKET_CONFIG] Error handling unknown button: ${err}`);
+                                await this.configButtonComponent();
+                            }
+                    }
+                } catch (error) {
+                    this.client.logger.error(`[TICKET_CONFIG] Error handling button interaction: ${error}`);
+                    try {
+                        // Try to recover by going back to the main config
+                        await this.configButtonComponent();
+                    } catch (recoverError) {
+                        this.client.logger.error(`[TICKET_CONFIG] Failed to recover from error: ${recoverError}`);
+                    }
+                }
+            });
+
+            // Handle collector end
+            collector.on("end", async (collected, reason) => {
+                if (reason === "time") {
+                    try {
+                        await this.interaction.editReply({
+                            embeds: [new EmbedTemplate(this.client).info("Configuration timed out.")],
+                            components: []
+                        });
+                    } catch (error) {
+                        this.client.logger.debug(`[TICKET_CONFIG] Error sending timeout message: ${error}`);
+                    }
+                }
+            });
+        } catch (error) {
+            this.client.logger.error(`[TICKET_CONFIG] Error in configButtonComponent: ${error}`);
+            await this.interaction.editReply({
+                embeds: [new EmbedTemplate(this.client).error("An error occurred during configuration.")]
+            });
+        }
+    }
+
+    /**
+     * Set up modal submission listeners
+     */
+    private setupModalSubmitListeners(buttonConfig: any): void {
+        // We can't use the channel's collector for modal submissions
+        // Instead, we need to set up one-time listeners for each modal type
+
+        const handleModalSubmission = async (
+            modalId: string,
+            inputId: string,
+            updateFunction: (value: string) => Promise<void>,
+            successMessage: string
+        ) => {
+            try {
+                // Create a promise that will resolve when the modal is submitted
+                const modalPromise = new Promise<string>((resolve, reject) => {
+                    // Set up a one-time event listener for the specific modal
+                    const listener = async (interaction: discord.Interaction) => {
+                        // Check if it's a modal submit interaction and matches our criteria
+                        if (!interaction.isModalSubmit() ||
+                            interaction.customId !== modalId ||
+                            interaction.user.id !== this.interaction.user.id) {
+                            return;
+                        }
+
+                        // Get the input value
+                        const value = interaction.fields.getTextInputValue(inputId);
+
+                        // Remove this listener once we've found our modal
+                        this.client.removeListener('interactionCreate', listener);
+
+                        // Resolve with the input value
+                        resolve(value);
+                    };
+
+                    // Add the listener to the client
+                    this.client.on('interactionCreate', listener);
+
+                    // Set a timeout to remove the listener and reject if no submission
+                    setTimeout(() => {
+                        this.client.removeListener('interactionCreate', listener);
+                        reject(new Error('Modal submission timeout'));
+                    }, 300000); // 5 minutes
                 });
+
+                // Wait for the modal submission
+                const value = await modalPromise;
+
+                // Update the configuration with the new value
+                await updateFunction(value);
+
+                // Update the panel if deployed
+                await this.updateDeployedPanel(this.interaction.guildId!);
+
+                // Return to the config screen - we do this in the button handlers instead
+
+            } catch (error) {
+                // Silently catch timeout errors
+                if (error instanceof Error && error.message === 'Modal submission timeout') {
+                    this.client.logger.debug(`[TICKET_CONFIG] Modal submission timed out`);
+                    return;
+                }
+
+                this.client.logger.error(`[TICKET_CONFIG] Error handling modal submission: ${error}`);
             }
-        });
+        };
+
+        // Set up handlers for each modal type
+        const modals = [
+            {
+                modalId: 'button_label_modal',
+                inputId: 'button_label_input',
+                updateFunction: async (value: string) => {
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, { label: value });
+                },
+                successMessage: 'Button label updated successfully'
+            },
+            {
+                modalId: 'button_emoji_modal',
+                inputId: 'button_emoji_input',
+                updateFunction: async (value: string) => {
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, { emoji: value });
+                },
+                successMessage: 'Button emoji updated successfully'
+            },
+            {
+                modalId: 'button_title_modal',
+                inputId: 'button_title_input',
+                updateFunction: async (value: string) => {
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, { embedTitle: value });
+                },
+                successMessage: 'Embed title updated successfully'
+            },
+            {
+                modalId: 'button_desc_modal',
+                inputId: 'button_desc_input',
+                updateFunction: async (value: string) => {
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, { embedDescription: value });
+                },
+                successMessage: 'Embed description updated successfully'
+            },
+            {
+                modalId: 'button_color_modal',
+                inputId: 'button_color_input',
+                updateFunction: async (value: string) => {
+                    // Validate hex color
+                    const isValidHex = /^#([0-9A-F]{3}){1,2}$/i.test(value);
+                    if (!isValidHex) {
+                        throw new Error('Invalid color format');
+                    }
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, { embedColor: value });
+                },
+                successMessage: 'Embed color updated successfully'
+            }
+        ];
+
+        // Start listening for each modal type
+        for (const modal of modals) {
+            handleModalSubmission(
+                modal.modalId,
+                modal.inputId,
+                modal.updateFunction,
+                modal.successMessage
+            ).catch(err => {
+                this.client.logger.error(`[TICKET_CONFIG] Error with modal ${modal.modalId}: ${err}`);
+            });
+        }
     }
 
     /**
      * Configure button label
      */
     private async configButtonLabel(i: discord.MessageComponentInteraction, buttonConfig: any): Promise<void> {
-        // Create modal for input
-        const modal = new discord.ModalBuilder()
-            .setCustomId("button_label_modal")
-            .setTitle("Change Button Label");
-
-        const labelInput = new discord.TextInputBuilder()
-            .setCustomId("button_label_input")
-            .setLabel("New Button Label")
-            .setValue(buttonConfig.label)
-            .setPlaceholder("Enter the new button label (e.g., Create Ticket)")
-            .setRequired(true)
-            .setStyle(discord.TextInputStyle.Short)
-            .setMaxLength(80);
-
-        const actionRow = new discord.ActionRowBuilder<discord.TextInputBuilder>()
-            .addComponents(labelInput);
-
-        modal.addComponents(actionRow);
-
-        // Show the modal
-        await i.showModal(modal);
-
         try {
-            // Wait for modal submission
-            const modalInteraction = await i.awaitModalSubmit({
-                filter: interaction => interaction.customId === "button_label_modal" && interaction.user.id === this.interaction.user.id,
-                time: 300000 // 5 minutes
-            });
+            // Create modal for input
+            const modal = new discord.ModalBuilder()
+                .setCustomId("button_label_modal")
+                .setTitle("Change Button Label");
 
-            // Get the new label
-            const newLabel = modalInteraction.fields.getTextInputValue("button_label_input");
+            const labelInput = new discord.TextInputBuilder()
+                .setCustomId("button_label_input")
+                .setLabel("New Button Label")
+                .setValue(buttonConfig.label)
+                .setPlaceholder("Enter the new button label (e.g., Create Ticket)")
+                .setRequired(true)
+                .setStyle(discord.TextInputStyle.Short)
+                .setMaxLength(80);
 
-            // Update in database
-            await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
-                label: newLabel
-            });
+            const actionRow = new discord.ActionRowBuilder<discord.TextInputBuilder>()
+                .addComponents(labelInput);
 
-            // Send confirmation
-            await modalInteraction.reply({
-                embeds: [new EmbedTemplate(this.client).success(`Button label updated to: "${newLabel}"`)],
-                flags: discord.MessageFlags.Ephemeral,
-            });
+            modal.addComponents(actionRow);
 
-            // Update the panel if deployed
-            await this.updateDeployedPanel(this.interaction.guildId!);
+            // Use the current interaction to show the modal
+            // If it's a button interaction, it will have showModal
+            if (i instanceof discord.ButtonInteraction) {
+                await i.showModal(modal);
+            } else {
+                // For other interaction types that support modals
+                await (i as any).showModal(modal);
+            }
 
-            // Return to the config screen
-            await this.configButtonComponent();
+            try {
+                // Create a filter for the modal submission
+                const filter = (interaction: discord.Interaction) =>
+                    interaction.isModalSubmit() &&
+                    interaction.customId === "button_label_modal" &&
+                    interaction.user.id === this.interaction.user.id;
+
+                // Wait for the modal submission with a timeout
+                const modalInteraction = await this.interaction.awaitModalSubmit({
+                    filter,
+                    time: 60000 // 1 minute timeout
+                });
+
+                // Always defer updates immediately to prevent modal interactions from expiring
+                await modalInteraction.deferReply({ ephemeral: true });
+
+                // Get the new value from the modal
+                const newLabel = modalInteraction.fields.getTextInputValue("button_label_input");
+
+                // Update in database
+                await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
+                    label: newLabel
+                });
+
+                // Update the panel if deployed
+                await this.updateDeployedPanel(this.interaction.guildId!);
+
+                // Send confirmation
+                await modalInteraction.editReply({
+                    embeds: [new EmbedTemplate(this.client).success(`Button label updated to: "${newLabel}"`)]
+                });
+
+                // Return to the config screen after a short delay
+                setTimeout(async () => {
+                    try {
+                        await this.configButtonComponent();
+                    } catch (error) {
+                        this.client.logger.error(`[TICKET_CONFIG] Error returning to config: ${error}`);
+                    }
+                }, 2000);
+            } catch (error) {
+                // Handle timeout or other modal submission errors
+                this.client.logger.warn(`[TICKET_CONFIG] Modal submission error: ${error}`);
+
+                // Return to config screen in case of error or timeout
+                setTimeout(async () => {
+                    try {
+                        await this.configButtonComponent();
+                    } catch (err) {
+                        this.client.logger.error(`[TICKET_CONFIG] Error returning to config: ${err}`);
+                    }
+                }, 1000);
+            }
         } catch (error) {
-            this.client.logger.error(`[TICKET_CONFIG] Error configuring button label: ${error}`);
-            await this.interaction.editReply({
-                embeds: [new EmbedTemplate(this.client).error("An error occurred or the modal timed out.")],
-                components: []
-            });
+            this.client.logger.error(`[TICKET_CONFIG] Error in configButtonLabel: ${error}`);
+
+            // Try to recover by returning to the main config
+            setTimeout(async () => {
+                try {
+                    await this.configButtonComponent();
+                } catch (err) {
+                    this.client.logger.error(`[TICKET_CONFIG] Recovery failed: ${err}`);
+                }
+            }, 1000);
         }
     }
 
     /**
      * Configure button emoji
      */
-    private async configButtonEmoji(i: discord.MessageComponentInteraction, buttonConfig: any): Promise<void> {
-        // Create modal for input
-        const modal = new discord.ModalBuilder()
-            .setCustomId("button_emoji_modal")
-            .setTitle("Change Button Emoji");
-
-        const emojiInput = new discord.TextInputBuilder()
-            .setCustomId("button_emoji_input")
-            .setLabel("New Button Emoji")
-            .setValue(buttonConfig.emoji)
-            .setPlaceholder("Enter the new button emoji (e.g., 🎫)")
-            .setRequired(true)
-            .setStyle(discord.TextInputStyle.Short)
-            .setMaxLength(10);
-
-        const actionRow = new discord.ActionRowBuilder<discord.TextInputBuilder>()
-            .addComponents(emojiInput);
-
-        modal.addComponents(actionRow);
-
-        // Show the modal
-        await i.showModal(modal);
-
+    private async configButtonEmoji(i: discord.ButtonInteraction, buttonConfig: any): Promise<void> {
         try {
-            // Wait for modal submission
-            const modalInteraction = await i.awaitModalSubmit({
-                filter: interaction => interaction.customId === "button_emoji_modal" && interaction.user.id === this.interaction.user.id,
-                time: 300000 // 5 minutes
-            });
+            // Create modal for input
+            const modal = new discord.ModalBuilder()
+                .setCustomId("button_emoji_modal")
+                .setTitle("Change Button Emoji");
 
-            // Get the new emoji
-            const newEmoji = modalInteraction.fields.getTextInputValue("button_emoji_input");
+            const emojiInput = new discord.TextInputBuilder()
+                .setCustomId("button_emoji_input")
+                .setLabel("New Button Emoji")
+                .setValue(buttonConfig.emoji)
+                .setPlaceholder("Enter the new button emoji (e.g., 🎫)")
+                .setRequired(true)
+                .setStyle(discord.TextInputStyle.Short)
+                .setMaxLength(10);
 
-            // Update in database
-            await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
-                emoji: newEmoji
-            });
+            const actionRow = new discord.ActionRowBuilder<discord.TextInputBuilder>()
+                .addComponents(emojiInput);
 
-            // Send confirmation
-            await modalInteraction.reply({
-                embeds: [new EmbedTemplate(this.client).success(`Button emoji updated to: "${newEmoji}"`)],
-                flags: discord.MessageFlags.Ephemeral,
-            });
+            modal.addComponents(actionRow);
 
-            // Update the panel if deployed
-            await this.updateDeployedPanel(this.interaction.guildId!);
+            // Show the modal
+            await i.showModal(modal);
 
-            // Return to the config screen
-            await this.configButtonComponent();
+            // Set up a listener for this specific modal submission
+            const filter = (interaction: discord.Interaction) =>
+                interaction.isModalSubmit() &&
+                interaction.customId === "button_emoji_modal" &&
+                interaction.user.id === this.interaction.user.id;
+
+            try {
+                // Wait for modal submission with timeout
+                const modalSubmission = await i.awaitModalSubmit({ filter, time: 300000 });
+
+                // Get the new emoji
+                const newEmoji = modalSubmission.fields.getTextInputValue("button_emoji_input");
+
+                // Update in database
+                await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
+                    emoji: newEmoji
+                });
+
+                // Update the panel if deployed
+                await this.updateDeployedPanel(this.interaction.guildId!);
+
+                // Send confirmation
+                await modalSubmission.reply({
+                    embeds: [new EmbedTemplate(this.client).success(`Button emoji updated to: "${newEmoji}"`)],
+                    flags: discord.MessageFlags.Ephemeral,
+                });
+
+                // Return to the config screen after a short delay
+                setTimeout(async () => {
+                    try {
+                        await this.configButtonComponent();
+                    } catch (error) {
+                        this.client.logger.error(`[TICKET_CONFIG] Error returning to config screen: ${error}`);
+                    }
+                }, 2000);
+            } catch (error) {
+                // Handle timeout of modal submission
+                if (error instanceof Error && error.message.includes('time')) {
+                    this.client.logger.warn(`[TICKET_CONFIG] Modal submission timed out`);
+                } else {
+                    this.client.logger.error(`[TICKET_CONFIG] Error with modal submission: ${error}`);
+                }
+            }
         } catch (error) {
-            this.client.logger.error(`[TICKET_CONFIG] Error configuring button emoji: ${error}`);
-            await this.interaction.editReply({
-                embeds: [new EmbedTemplate(this.client).error("An error occurred or the modal timed out.")],
-                components: []
-            });
+            this.client.logger.error(`[TICKET_CONFIG] Error showing modal: ${error}`);
         }
     }
 
     /**
      * Configure button style
      */
-    private async configButtonStyle(i: discord.MessageComponentInteraction, buttonConfig: any): Promise<void> {
-        // Create select menu for styles
-        const styleRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
-            .addComponents(
-                new discord.StringSelectMenuBuilder()
-                    .setCustomId("button_style_select")
-                    .setPlaceholder("Select a button style")
-                    .addOptions([
-                        {
-                            label: "Blue (Primary)",
-                            description: "Blue button style",
-                            value: "PRIMARY",
-                            emoji: "🔵",
-                            default: buttonConfig.style === "PRIMARY"
-                        },
-                        {
-                            label: "Grey (Secondary)",
-                            description: "Grey button style",
-                            value: "SECONDARY",
-                            emoji: "⚪",
-                            default: buttonConfig.style === "SECONDARY"
-                        },
-                        {
-                            label: "Green (Success)",
-                            description: "Green button style",
-                            value: "SUCCESS",
-                            emoji: "🟢",
-                            default: buttonConfig.style === "SUCCESS"
-                        },
-                        {
-                            label: "Red (Danger)",
-                            description: "Red button style",
-                            value: "DANGER",
-                            emoji: "🔴",
-                            default: buttonConfig.style === "DANGER"
-                        }
-                    ])
-            );
-
-        // Send the select menu
-        await i.editReply({
-            embeds: [
-                new discord.EmbedBuilder()
-                    .setTitle("Select Button Style")
-                    .setDescription("Choose a style for the ticket button:")
-                    .setColor("Blue")
-            ],
-            components: [styleRow]
-        });
-
+    private async configButtonStyle(i: discord.ButtonInteraction, buttonConfig: any): Promise<void> {
         try {
-            // Wait for selection
-            const styleInteraction = await (i.message as discord.Message).awaitMessageComponent({
-                filter: interaction =>
+            // Create select menu for styles
+            const styleRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
+                .addComponents(
+                    new discord.StringSelectMenuBuilder()
+                        .setCustomId("button_style_select")
+                        .setPlaceholder("Select a button style")
+                        .addOptions([
+                            {
+                                label: "Blue (Primary)",
+                                description: "Blue button style",
+                                value: "PRIMARY",
+                                emoji: "🔵",
+                                default: buttonConfig.style === "PRIMARY"
+                            },
+                            {
+                                label: "Grey (Secondary)",
+                                description: "Grey button style",
+                                value: "SECONDARY",
+                                emoji: "⚪",
+                                default: buttonConfig.style === "SECONDARY"
+                            },
+                            {
+                                label: "Green (Success)",
+                                description: "Green button style",
+                                value: "SUCCESS",
+                                emoji: "🟢",
+                                default: buttonConfig.style === "SUCCESS"
+                            },
+                            {
+                                label: "Red (Danger)",
+                                description: "Red button style",
+                                value: "DANGER",
+                                emoji: "🔴",
+                                default: buttonConfig.style === "DANGER"
+                            }
+                        ])
+                );
+
+            // Update the message with the select menu
+            await i.update({
+                embeds: [
+                    new discord.EmbedBuilder()
+                        .setTitle("Select Button Style")
+                        .setDescription("Choose a style for the ticket button:")
+                        .setColor("Blue")
+                ],
+                components: [styleRow]
+            });
+
+            // Get the message to attach a collector to
+            const message = await this.interaction.fetchReply();
+
+            // Create collector for the select menu
+            const collector = message.createMessageComponentCollector({
+                filter: (interaction) =>
+                    interaction.isStringSelectMenu() &&
                     interaction.customId === "button_style_select" &&
                     interaction.user.id === this.interaction.user.id,
-                time: 60000 // 1 minute
+                time: 60000, // 1 minute timeout
+                max: 1 // Only collect one interaction
             });
 
-            await styleInteraction.deferUpdate();
+            // Set up collector handlers
+            collector.on('collect', async (selectInteraction) => {
+                if (!selectInteraction.isStringSelectMenu()) return;
 
-            // Get the selected style
-            const newStyle = styleInteraction.isStringSelectMenu() ? styleInteraction.values[0] : "PRIMARY";
+                try {
+                    // Immediately acknowledge the interaction
+                    await selectInteraction.deferUpdate();
 
-            // Update in database
-            await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
-                style: newStyle
+                    const newStyle = selectInteraction.values[0];
+
+                    // Update in database
+                    await this.ticketRepo.configureTicketButton(this.interaction.guildId!, {
+                        style: newStyle
+                    });
+
+                    // Update the panel if deployed
+                    await this.updateDeployedPanel(this.interaction.guildId!);
+
+                    // Send confirmation as a follow-up message
+                    await selectInteraction.followUp({
+                        embeds: [new EmbedTemplate(this.client).success(`Button style updated to: "${newStyle}"`)],
+                        ephemeral: true,
+                    });
+
+                    // Return to the config screen after a short delay
+                    setTimeout(async () => {
+                        try {
+                            await this.configButtonComponent();
+                        } catch (error) {
+                            this.client.logger.error(`[TICKET_CONFIG] Error returning to config screen: ${error}`);
+                        }
+                    }, 2000);
+                } catch (error) {
+                    this.client.logger.error(`[TICKET_CONFIG] Error processing style selection: ${error}`);
+                    // Try to continue with the config
+                    setTimeout(async () => {
+                        try {
+                            await this.configButtonComponent();
+                        } catch (err) {
+                            this.client.logger.error(`[TICKET_CONFIG] Error returning to config after error: ${err}`);
+                        }
+                    }, 2000);
+                }
             });
 
-            // Send confirmation
-            await styleInteraction.followUp({
-                embeds: [new EmbedTemplate(this.client).success(`Button style updated to: "${newStyle}"`)],
-                flags: discord.MessageFlags.Ephemeral,
+            collector.on('end', async (collected, reason) => {
+                if (reason === 'time' && collected.size === 0) {
+                    try {
+                        // Go back to main config if timed out
+                        await this.configButtonComponent();
+                    } catch (error) {
+                        this.client.logger.error(`[TICKET_CONFIG] Error returning to config after timeout: ${error}`);
+                    }
+                }
             });
-
-            // Update the panel if deployed
-            await this.updateDeployedPanel(this.interaction.guildId!);
-
-            // Return to the config screen
-            await this.configButtonComponent();
         } catch (error) {
             this.client.logger.error(`[TICKET_CONFIG] Error configuring button style: ${error}`);
-            await this.interaction.editReply({
-                embeds: [new EmbedTemplate(this.client).error("An error occurred or the selection timed out.")],
-                components: []
-            });
+            try {
+                await this.configButtonComponent();
+            } catch (secondError) {
+                this.client.logger.error(`[TICKET_CONFIG] Error returning to config after error: ${secondError}`);
+            }
         }
     }
 
@@ -802,13 +1092,13 @@ class TicketCommandManager {
 
         // Handle different options
         collector.on("collect", async (i: discord.MessageComponentInteraction) => {
-            await i.deferUpdate().catch(err => {
-                this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
-            });
+            // await i.deferUpdate().catch(err => {
+            //     this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
+            // });
 
             // Handle cancel button
             if (i.customId === "ticket_config_cancel") {
-                await i.editReply({
+                await i.update({
                     embeds: [new EmbedTemplate(this.client).info("Configuration canceled.")],
                     components: []
                 });
@@ -1060,41 +1350,51 @@ class TicketCommandManager {
         const categories = await this.ticketRepo.getTicketCategories(this.interaction.guildId!);
 
         if (categories.length === 0) {
-            await i.editReply({
-                embeds: [
-                    new EmbedTemplate(this.client).error("No categories found to edit.")
-                        .setDescription("Use the 'Add Category' button to create your first category.")
-                ],
-                components: [
-                    new discord.ActionRowBuilder<discord.ButtonBuilder>()
-                        .addComponents(
-                            new discord.ButtonBuilder()
-                                .setCustomId("back_to_categories")
-                                .setLabel("Back")
-                                .setStyle(discord.ButtonStyle.Secondary)
-                        )
-                ]
-            });
-
-            // Wait for back button
             try {
-                const backInteraction = await (i.message as discord.Message).awaitMessageComponent({
-                    filter: interaction =>
-                        interaction.customId === "back_to_categories" &&
-                        interaction.user.id === this.interaction.user.id,
-                    time: 60000 // 1 minute
+                await i.update({
+                    embeds: [
+                        new EmbedTemplate(this.client).error("No categories found to edit.")
+                            .setDescription("Use the 'Add Category' button to create your first category.")
+                    ],
+                    components: [
+                        new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                            .addComponents(
+                                new discord.ButtonBuilder()
+                                    .setCustomId("back_to_categories")
+                                    .setLabel("Back")
+                                    .setStyle(discord.ButtonStyle.Secondary)
+                            )
+                    ]
                 });
 
-                await backInteraction.deferUpdate();
-                await this.configCategoryComponent();
+                // Wait for back button
+                const message = await this.interaction.fetchReply();
+                const backFilter = (interaction: discord.Interaction) =>
+                    interaction.isButton() &&
+                    interaction.customId === "back_to_categories" &&
+                    interaction.user.id === this.interaction.user.id;
+
+                try {
+                    const backInteraction = await message.awaitMessageComponent({
+                        filter: backFilter,
+                        time: 60000 // 1 minute
+                    });
+
+                    await backInteraction.update({ components: [] }); // Clear components
+                    await this.configCategoryComponent();
+                } catch (error) {
+                    this.client.logger.warn(`[TICKET_CONFIG] Category edit back button timed out: ${error}`);
+                    await this.interaction.editReply({
+                        embeds: [new EmbedTemplate(this.client).error("Interaction timed out.")],
+                        components: []
+                    });
+                }
+                return;
             } catch (error) {
-                this.client.logger.warn(`[TICKET_CONFIG] Category edit back button timed out: ${error}`);
-                await i.editReply({
-                    embeds: [new EmbedTemplate(this.client).error("Interaction timed out.")],
-                    components: []
-                });
+                this.client.logger.error(`[TICKET_CONFIG] Error updating no categories message: ${error}`);
+                await this.configCategoryComponent();
+                return;
             }
-            return;
         }
 
         // Create select menu with categories
@@ -1113,64 +1413,74 @@ class TicketCommandManager {
         });
 
         // Send select menu
-        await i.editReply({
-            embeds: [
-                new discord.EmbedBuilder()
-                    .setTitle("Edit Category")
-                    .setDescription("Select the category you want to edit:")
-                    .setColor("Blue")
-            ],
-            components: [
-                new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
-                    .addComponents(selectMenu),
-                new discord.ActionRowBuilder<discord.ButtonBuilder>()
-                    .addComponents(
-                        new discord.ButtonBuilder()
-                            .setCustomId("back_to_categories")
-                            .setLabel("Back")
-                            .setStyle(discord.ButtonStyle.Secondary)
-                    )
-            ]
-        });
-
         try {
+            await i.update({
+                embeds: [
+                    new discord.EmbedBuilder()
+                        .setTitle("Edit Category")
+                        .setDescription("Select the category you want to edit:")
+                        .setColor("Blue")
+                ],
+                components: [
+                    new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
+                        .addComponents(selectMenu),
+                    new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                        .addComponents(
+                            new discord.ButtonBuilder()
+                                .setCustomId("back_to_categories")
+                                .setLabel("Back")
+                                .setStyle(discord.ButtonStyle.Secondary)
+                        )
+                ]
+            });
+
             // Wait for selection
-            const selectInteraction = await (i.message as discord.Message).awaitMessageComponent({
-                filter: interaction =>
-                    (interaction.customId === "edit_category_select" || interaction.customId === "back_to_categories") &&
-                    interaction.user.id === this.interaction.user.id,
-                time: 60000 // 1 minute
-            });
+            const message = await this.interaction.fetchReply();
+            const filter = (interaction: discord.Interaction) =>
+                (interaction.isStringSelectMenu() && interaction.customId === "edit_category_select" ||
+                    interaction.isButton() && interaction.customId === "back_to_categories") &&
+                interaction.user.id === this.interaction.user.id;
 
-            await selectInteraction.deferUpdate();
-
-            if (selectInteraction.customId === "back_to_categories") {
-                await this.configCategoryComponent();
-                return;
-            }
-
-            if (!selectInteraction.isStringSelectMenu()) return;
-
-            const categoryId = selectInteraction.values[0];
-            const category = categories.find(c => c.id === categoryId);
-
-            if (!category) {
-                await selectInteraction.followUp({
-                    embeds: [new EmbedTemplate(this.client).error("Selected category not found.")],
-                    flags: discord.MessageFlags.Ephemeral,
+            try {
+                const selectInteraction = await message.awaitMessageComponent({
+                    filter,
+                    time: 60000 // 1 minute
                 });
-                await this.configCategoryComponent();
-                return;
-            }
 
-            // Show category edit options
-            await this.showCategoryEditOptions(selectInteraction, category);
+                await selectInteraction.deferUpdate();
+
+                if (selectInteraction.isButton() && selectInteraction.customId === "back_to_categories") {
+                    await this.configCategoryComponent();
+                    return;
+                }
+
+                if (!selectInteraction.isStringSelectMenu()) return;
+
+                const categoryId = selectInteraction.values[0];
+                const category = categories.find(c => c.id === categoryId);
+
+                if (!category) {
+                    await selectInteraction.followUp({
+                        embeds: [new EmbedTemplate(this.client).error("Selected category not found.")],
+                        ephemeral: true,
+                    });
+                    await this.configCategoryComponent();
+                    return;
+                }
+
+                // Show category edit options
+                await this.showCategoryEditOptions(selectInteraction, category);
+            } catch (error) {
+                this.client.logger.warn(`[TICKET_CONFIG] Category selection timed out: ${error}`);
+                await this.interaction.editReply({
+                    embeds: [new EmbedTemplate(this.client).error("Interaction timed out.")],
+                    components: []
+                });
+            }
         } catch (error) {
-            this.client.logger.warn(`[TICKET_CONFIG] Category selection timed out: ${error}`);
-            await i.editReply({
-                embeds: [new EmbedTemplate(this.client).error("Interaction timed out.")],
-                components: []
-            });
+            this.client.logger.error(`[TICKET_CONFIG] Error showing category selection: ${error}`);
+            // Try to recover
+            await this.configCategoryComponent();
         }
     }
 
@@ -1681,7 +1991,6 @@ class TicketCommandManager {
             time: 300000 // 5 minutes timeout
         });
 
-        // Cast it to the specific type we want
         return collector as discord.InteractionCollector<discord.ButtonInteraction | discord.StringSelectMenuInteraction>;
     }
 
@@ -1748,13 +2057,13 @@ class TicketCommandManager {
 
         // Handle selection
         collector.on("collect", async (i: discord.MessageComponentInteraction) => {
-            await i.deferUpdate().catch(err => {
-                this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
-            });
+            // await i.deferUpdate().catch(err => {
+            //     this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
+            // });
 
             // Handle cancel button
             if (i.customId === "ticket_config_cancel") {
-                await i.editReply({
+                await i.update({
                     embeds: [new EmbedTemplate(this.client).info("Configuration canceled.")],
                     components: []
                 });
@@ -2109,13 +2418,13 @@ class TicketCommandManager {
 
         // Handle different options
         collector.on("collect", async (i: discord.MessageComponentInteraction) => {
-            await i.deferUpdate().catch(err => {
-                this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
-            });
+            // await i.deferUpdate().catch(err => {
+            //     this.client.logger.warn(`[TICKET_CONFIG] Failed to defer button update: ${err}`);
+            // });
 
             // Handle cancel button
             if (i.customId === "ticket_config_cancel") {
-                await i.editReply({
+                await i.update({
                     embeds: [new EmbedTemplate(this.client).info("Configuration canceled.")],
                     components: []
                 });
