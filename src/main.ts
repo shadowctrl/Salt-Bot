@@ -8,7 +8,7 @@ import { ConfigManager } from "./utils/config";
 const configManager = ConfigManager.getInstance();
 
 /**
- * Loads handler files and attaches them to the client
+ * Recursively loads handler files from directories
  * @param client Discord client instance
  * @param handlersPath Path to handlers directory
  */
@@ -52,75 +52,68 @@ const loadHandlers = async (
 };
 
 /**
- * Loads event files from nested directory structure
+ * Recursively loads event files from nested directory structure
  * @param client Discord client instance
- * @param eventsPath Path to events directory
+ * @param basePath Base path for events
+ * @param currentPath Current path being processed
+ * @param ignoreFolders Folders to ignore
  */
-const loadEvents = async (
+const loadEventsRecursive = async (
     client: discord.Client,
-    eventsPath: string
+    basePath: string,
+    currentPath: string = basePath,
+    ignoreFolders: string[] = ["entities", "repo"]
 ): Promise<void> => {
     try {
-        const mainDirs = fs.readdirSync(eventsPath);
+        const items = fs.readdirSync(currentPath, { withFileTypes: true });
 
-        for (const mainDir of mainDirs) {
-            const mainDirPath = path.join(eventsPath, mainDir);
-            if (!fs.statSync(mainDirPath).isDirectory()) continue;
+        for (const item of items) {
+            const itemPath = path.join(currentPath, item.name);
+            const relativePath = path.relative(basePath, itemPath);
 
-            const subFolders = fs.readdirSync(mainDirPath);
-            for (const subDir of subFolders) {
-                const subDirPath = path.join(mainDirPath, subDir);
-                if (!fs.statSync(subDirPath).isDirectory()) continue;
+            if (item.isDirectory()) {
+                // Skip ignored folders
+                if (ignoreFolders.some(folder =>
+                    item.name.toLowerCase().endsWith(folder.toLowerCase()))) {
+                    client.logger.debug(`[MAIN] Skipping ignored folder: ${item.name}`);
+                    continue;
+                }
 
-                const eventFiles = fs
-                    .readdirSync(subDirPath)
-                    .filter((file) => file.endsWith(".js") || file.endsWith(".ts"));
+                // Process subdirectory
+                await loadEventsRecursive(client, basePath, itemPath, ignoreFolders);
+            } else if (item.isFile() && (item.name.endsWith(".js") || item.name.endsWith(".ts")) && !item.name.endsWith(".d.ts")) {
+                try {
+                    const event = require(itemPath).default;
 
-                for (const file of eventFiles) {
-                    try {
-                        const filePath = path.join(subDirPath, file);
-                        const event = require(filePath).default;
-
-                        if (!event?.name || !event?.execute) {
-                            //check if the folder name ends with schema
-                            const ignoreFolders = ["entities", "repo"];
-                            const isIgnoredFolder = ignoreFolders.some(folder => subDirPath.toLowerCase().endsWith(folder.toLowerCase()));
-                            if (!isIgnoredFolder) {
-                                client.logger.warn(
-                                    `[MAIN] Invalid event file structure: ${file}`
-                                );
-                            } else {
-                                client.logger.debug(
-                                    `[MAIN] Ignored Schema files: ${file}`
-                                );
-                            }
-                            continue;
-                        }
-
-                        if (event.once) {
-                            client.once(event.name, (...args) =>
-                                event.execute(...args, client)
-                            );
-                        } else {
-                            client.on(event.name, (...args) =>
-                                event.execute(...args, client)
-                            );
-                        }
-
+                    if (!event?.name || !event?.execute) {
                         client.logger.debug(
-                            `[MAIN] Loaded event: ${event.name} from ${mainDir}/${subDir}/${file}`
+                            `[MAIN] Skipping non-event file: ${relativePath}`
                         );
-                    } catch (error) {
-                        client.logger.error(
-                            `[MAIN] Failed to load event ${file}: ${error}`
+                        continue;
+                    }
+
+                    if (event.once) {
+                        client.once(event.name, (...args) =>
+                            event.execute(...args, client)
+                        );
+                    } else {
+                        client.on(event.name, (...args) =>
+                            event.execute(...args, client)
                         );
                     }
+
+                    client.logger.debug(
+                        `[MAIN] Loaded event: ${event.name} from ${relativePath}`
+                    );
+                } catch (error) {
+                    client.logger.error(
+                        `[MAIN] Failed to load event ${itemPath}: ${error}`
+                    );
                 }
             }
         }
     } catch (error) {
-        client.logger.error(`[MAIN] Failed to read events directory: ${error}`);
-        throw error;
+        client.logger.error(`[MAIN] Error loading from directory ${currentPath}: ${error}`);
     }
 };
 
@@ -155,7 +148,7 @@ const initializeBot = async (client: discord.Client): Promise<void> => {
 
     try {
         await loadHandlers(client, handlersPath);
-        await loadEvents(client, eventsPath);
+        await loadEventsRecursive(client, eventsPath);
         setupErrorHandlers(client);
 
         await client.login(configManager.getToken());

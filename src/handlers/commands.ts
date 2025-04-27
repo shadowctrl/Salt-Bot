@@ -7,23 +7,41 @@ import { BotEvent, Command, SlashCommand } from "../types";
 // Load environment variables
 const configManager = ConfigManager.getInstance();
 
-const loadCommands = async (
+/**
+ * Recursively load command files from directories
+ * @param directory Base directory to search in
+ * @param fileFilter Function to filter command files
+ * @returns Array of loaded commands
+ */
+const loadCommandsRecursive = async (
     directory: string,
     fileFilter: (file: string) => boolean
-): Promise<Command[] | SlashCommand[]> => {
-    // Read all files from the specified directory
-    const files = await fs.readdir(directory);
-    const commandFiles = files.filter(fileFilter);
+): Promise<(Command | SlashCommand)[]> => {
+    const commands: (Command | SlashCommand)[] = [];
+    const items = await fs.readdir(directory, { withFileTypes: true });
 
-    // Load and return command modules
-    return await Promise.all(
-        commandFiles.map(async (file) => {
-            const { default: command } = await import(
-                path.join(directory, file)
-            );
-            return command;
-        })
-    );
+    for (const item of items) {
+        const itemPath = path.join(directory, item.name);
+
+        if (item.isDirectory()) {
+            // Recursively process subdirectories
+            const subCommands = await loadCommandsRecursive(itemPath, fileFilter);
+            commands.push(...subCommands);
+        } else if (fileFilter(item.name)) {
+            try {
+                // Check if there's an index.ts/js file that exports the command
+                const { default: command } = await import(itemPath);
+
+                if (command) {
+                    commands.push(command);
+                }
+            } catch (error) {
+                console.error(`Failed to load command from ${itemPath}:`, error);
+            }
+        }
+    }
+
+    return commands;
 };
 
 const event: BotEvent = {
@@ -45,7 +63,7 @@ const event: BotEvent = {
 
         if (!client.config.bot.command.disable_message) {
             const messageCommandsDir = path.join(__dirname, "../commands/msg");
-            const messageCommands = (await loadCommands(
+            const messageCommands = (await loadCommandsRecursive(
                 messageCommandsDir,
                 (file) => file.endsWith(".js") || file.endsWith(".ts")
             )) as Command[];
@@ -58,9 +76,9 @@ const event: BotEvent = {
         }
 
         const slashCommandsDir = path.join(__dirname, "../commands/slash");
-        const loadedSlashCommands = (await loadCommands(
+        const loadedSlashCommands = (await loadCommandsRecursive(
             slashCommandsDir,
-            (file) => file.endsWith(".js") || file.endsWith(".ts")
+            (file) => (file.endsWith(".js") || file.endsWith(".ts")) && !file.includes(".d.ts")
         )) as SlashCommand[];
 
         loadedSlashCommands.forEach((command) => {
@@ -71,6 +89,7 @@ const event: BotEvent = {
                 );
 
             if (shouldRegister) {
+                client.logger.debug(`[COMMAND] Registering slash command: ${command.data.name}`);
                 client.slashCommands.set(command.data.name, command);
                 slashCommands.push(command.data);
                 commands.set(command.data.name, command);
