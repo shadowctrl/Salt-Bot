@@ -159,13 +159,12 @@ const setupButtonConfig = (
     buttonConfig: any
 ): void => {
     collector.on("collect", async (i: discord.MessageComponentInteraction) => {
-        // Always acknowledge the button press first
-        await i.deferUpdate().catch(err => {
-            client.logger.debug(`[TICKET_CONFIG] Failed to defer update: ${err}`);
-        });
-
-        // Handle cancel button
+        // For cancel button, we need to defer update
         if (i.customId === "ticket_config_cancel") {
+            await i.deferUpdate().catch(err => {
+                client.logger.debug(`[TICKET_CONFIG] Failed to defer update: ${err}`);
+            });
+
             await i.editReply({
                 embeds: [new EmbedTemplate(client).info("Configuration canceled.")],
                 components: []
@@ -176,62 +175,132 @@ const setupButtonConfig = (
             return;
         }
 
+        // For buttons that show modals, DO NOT defer update
         try {
             switch (i.customId) {
                 case "ticket_button_label":
-                    // Show modal for label input
-                    if (i instanceof discord.ButtonInteraction) {
-                        const modal = new discord.ModalBuilder()
-                            .setCustomId("button_label_modal")
-                            .setTitle("Change Button Label");
-
-                        const labelInput = new discord.TextInputBuilder()
-                            .setCustomId("button_label_input")
-                            .setLabel("New Button Label")
-                            .setValue(buttonConfig.label)
-                            .setPlaceholder("Enter the new button label (e.g., Create Ticket)")
-                            .setRequired(true)
-                            .setStyle(discord.TextInputStyle.Short)
-                            .setMaxLength(80);
-
-                        modal.addComponents(
-                            new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(labelInput)
-                        );
-
-                        await i.showModal(modal).catch(err => {
-                            client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
-                        });
-                    }
-                    break;
-
                 case "ticket_button_emoji":
-                    // Show modal for emoji input
+                case "ticket_button_title":
+                case "ticket_button_desc":
+                case "ticket_button_color":
+                    // Show modal directly without deferring for these interactions
                     if (i instanceof discord.ButtonInteraction) {
-                        const modal = new discord.ModalBuilder()
-                            .setCustomId("button_emoji_modal")
-                            .setTitle("Change Button Emoji");
+                        // Create and show the appropriate modal based on customId
+                        if (i.customId === "ticket_button_label") {
+                            const modal = new discord.ModalBuilder()
+                                .setCustomId("button_label_modal")
+                                .setTitle("Change Button Label");
 
-                        const emojiInput = new discord.TextInputBuilder()
-                            .setCustomId("button_emoji_input")
-                            .setLabel("New Button Emoji")
-                            .setValue(buttonConfig.emoji)
-                            .setPlaceholder("Enter the new button emoji (e.g., 🎫)")
-                            .setRequired(true)
-                            .setStyle(discord.TextInputStyle.Short)
-                            .setMaxLength(10);
+                            const labelInput = new discord.TextInputBuilder()
+                                .setCustomId("button_label_input")
+                                .setLabel("New Button Label")
+                                .setValue(buttonConfig.label)
+                                .setPlaceholder("Enter the new button label (e.g., Create Ticket)")
+                                .setRequired(true)
+                                .setStyle(discord.TextInputStyle.Short)
+                                .setMaxLength(80);
 
-                        modal.addComponents(
-                            new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(emojiInput)
-                        );
+                            modal.addComponents(
+                                new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(labelInput)
+                            );
 
-                        await i.showModal(modal).catch(err => {
-                            client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
-                        });
+                            await i.showModal(modal).catch(err => {
+                                client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
+                            });
+                        } else if (i.customId === "ticket_button_emoji") {
+                            const modal = new discord.ModalBuilder()
+                                .setCustomId("button_emoji_modal")
+                                .setTitle("Change Button Emoji");
+
+                            const emojiInput = new discord.TextInputBuilder()
+                                .setCustomId("button_emoji_input")
+                                .setLabel("New Button Emoji")
+                                .setValue(buttonConfig.emoji)
+                                .setPlaceholder("Enter the new button emoji (e.g., 🎫)")
+                                .setRequired(true)
+                                .setStyle(discord.TextInputStyle.Short)
+                                .setMaxLength(10);
+
+                            modal.addComponents(
+                                new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(emojiInput)
+                            );
+
+                            await i.showModal(modal).catch(err => {
+                                client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
+                            });
+                        } else if (i.customId === "ticket_button_title") {
+                            const modal = new discord.ModalBuilder()
+                                .setCustomId("button_title_modal")
+                                .setTitle("Change Embed Title");
+
+                            const titleInput = new discord.TextInputBuilder()
+                                .setCustomId("button_title_input")
+                                .setLabel("New Embed Title")
+                                .setValue(buttonConfig.embedTitle || "Need Help?")
+                                .setPlaceholder("Enter the new embed title (e.g., Need Help?)")
+                                .setRequired(true)
+                                .setStyle(discord.TextInputStyle.Short)
+                                .setMaxLength(100);
+
+                            modal.addComponents(
+                                new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(titleInput)
+                            );
+
+                            await i.showModal(modal).catch(err => {
+                                client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
+                            });
+                        } else if (i.customId === "ticket_button_desc") {
+                            const modal = new discord.ModalBuilder()
+                                .setCustomId("button_desc_modal")
+                                .setTitle("Change Embed Description");
+
+                            const descInput = new discord.TextInputBuilder()
+                                .setCustomId("button_desc_input")
+                                .setLabel("New Embed Description")
+                                .setValue(buttonConfig.embedDescription || "Click the button below to create a ticket")
+                                .setPlaceholder("Enter the new embed description")
+                                .setRequired(true)
+                                .setStyle(discord.TextInputStyle.Paragraph)
+                                .setMaxLength(1000);
+
+                            modal.addComponents(
+                                new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(descInput)
+                            );
+
+                            await i.showModal(modal).catch(err => {
+                                client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
+                            });
+                        } else if (i.customId === "ticket_button_color") {
+                            const modal = new discord.ModalBuilder()
+                                .setCustomId("button_color_modal")
+                                .setTitle("Change Embed Color");
+
+                            const colorInput = new discord.TextInputBuilder()
+                                .setCustomId("button_color_input")
+                                .setLabel("New Embed Color (HEX)")
+                                .setValue(buttonConfig.embedColor || "#5865F2")
+                                .setPlaceholder("Enter the hex color code (e.g., #5865F2)")
+                                .setRequired(true)
+                                .setStyle(discord.TextInputStyle.Short)
+                                .setMaxLength(7);
+
+                            modal.addComponents(
+                                new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(colorInput)
+                            );
+
+                            await i.showModal(modal).catch(err => {
+                                client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
+                            });
+                        }
                     }
                     break;
 
                 case "ticket_button_style":
-                    // Show style selection menu
+                    // For the style button, we need to defer and edit
+                    await i.deferUpdate().catch(err => {
+                        client.logger.debug(`[TICKET_CONFIG] Failed to defer update: ${err}`);
+                    });
+
                     const styleRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
                         .addComponents(
                             new discord.StringSelectMenuBuilder()
@@ -282,85 +351,12 @@ const setupButtonConfig = (
                     });
                     break;
 
-                case "ticket_button_title":
-                    // Show modal for title input
-                    if (i instanceof discord.ButtonInteraction) {
-                        const modal = new discord.ModalBuilder()
-                            .setCustomId("button_title_modal")
-                            .setTitle("Change Embed Title");
-
-                        const titleInput = new discord.TextInputBuilder()
-                            .setCustomId("button_title_input")
-                            .setLabel("New Embed Title")
-                            .setValue(buttonConfig.embedTitle || "Need Help?")
-                            .setPlaceholder("Enter the new embed title (e.g., Need Help?)")
-                            .setRequired(true)
-                            .setStyle(discord.TextInputStyle.Short)
-                            .setMaxLength(100);
-
-                        modal.addComponents(
-                            new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(titleInput)
-                        );
-
-                        await i.showModal(modal).catch(err => {
-                            client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
-                        });
-                    }
-                    break;
-
-                case "ticket_button_desc":
-                    // Show modal for description input
-                    if (i instanceof discord.ButtonInteraction) {
-                        const modal = new discord.ModalBuilder()
-                            .setCustomId("button_desc_modal")
-                            .setTitle("Change Embed Description");
-
-                        const descInput = new discord.TextInputBuilder()
-                            .setCustomId("button_desc_input")
-                            .setLabel("New Embed Description")
-                            .setValue(buttonConfig.embedDescription || "Click the button below to create a ticket")
-                            .setPlaceholder("Enter the new embed description")
-                            .setRequired(true)
-                            .setStyle(discord.TextInputStyle.Paragraph)
-                            .setMaxLength(1000);
-
-                        modal.addComponents(
-                            new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(descInput)
-                        );
-
-                        await i.showModal(modal).catch(err => {
-                            client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
-                        });
-                    }
-                    break;
-
-                case "ticket_button_color":
-                    // Show modal for color input
-                    if (i instanceof discord.ButtonInteraction) {
-                        const modal = new discord.ModalBuilder()
-                            .setCustomId("button_color_modal")
-                            .setTitle("Change Embed Color");
-
-                        const colorInput = new discord.TextInputBuilder()
-                            .setCustomId("button_color_input")
-                            .setLabel("New Embed Color (HEX)")
-                            .setValue(buttonConfig.embedColor || "#5865F2")
-                            .setPlaceholder("Enter the hex color code (e.g., #5865F2)")
-                            .setRequired(true)
-                            .setStyle(discord.TextInputStyle.Short)
-                            .setMaxLength(7);
-
-                        modal.addComponents(
-                            new discord.ActionRowBuilder<discord.TextInputBuilder>().addComponents(colorInput)
-                        );
-
-                        await i.showModal(modal).catch(err => {
-                            client.logger.error(`[TICKET_CONFIG] Error showing modal: ${err}`);
-                        });
-                    }
-                    break;
-
                 case "button_style_select":
+                    // For select menu, we defer first
+                    await i.deferUpdate().catch(err => {
+                        client.logger.debug(`[TICKET_CONFIG] Failed to defer update: ${err}`);
+                    });
+
                     if (i.isStringSelectMenu()) {
                         const newStyle = i.values[0];
 
