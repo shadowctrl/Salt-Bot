@@ -75,6 +75,26 @@ const setupCommand: SlashCommand = {
             // Get specified transcript channel or leave it null
             const transcriptChannel = interaction.options.getChannel("transcript_channel") as discord.TextChannel | null;
 
+            const ticketDiscordCategory = await interaction.guild!.channels.create({
+                name: `${client.config.ticket.default.category.name} Ticket`,
+                type: discord.ChannelType.GuildCategory,
+                position: 0,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild!.roles.everyone,
+                        deny: [discord.PermissionFlagsBits.ViewChannel]
+                    },
+                    {
+                        id: client.user!.id,
+                        allow: [
+                            discord.PermissionFlagsBits.ViewChannel,
+                            discord.PermissionFlagsBits.SendMessages,
+                            discord.PermissionFlagsBits.ManageChannels
+                        ]
+                    }
+                ]
+            });
+
             // Convert APIRole to discord.Role if needed
             let supporterRole: discord.Role | null = null;
             if (supportersRole) {
@@ -83,6 +103,14 @@ const setupCommand: SlashCommand = {
                 if (guild) {
                     try {
                         supporterRole = await guild.roles.fetch(supportersRole.id) || null;
+                        await ticketDiscordCategory.permissionOverwrites.create(
+                            supporterRole?.id || "",
+                            {
+                                ViewChannel: true,
+                                SendMessages: true,
+                                ReadMessageHistory: true
+                            }
+                        );
                     } catch (err) {
                         client.logger.warn(`[SETUP] Failed to fetch role: ${err}`);
                     }
@@ -134,7 +162,8 @@ const setupCommand: SlashCommand = {
                 description: client.config.ticket.default.category.description,
                 emoji: client.config.ticket.default.category.emoji,
                 supportRoleId: supporterRole ? supporterRole.id : undefined,
-                position: 0
+                position: 0,
+                categoryId: ticketDiscordCategory.id
             });
 
             // 3. Configure default messages for this category

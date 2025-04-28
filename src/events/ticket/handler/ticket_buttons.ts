@@ -227,9 +227,11 @@ const createTicket = async (
 
         // Create ticket channel
         const guild = interaction.guild!;
+
         const ticketChannel = await guild.channels.create({
             name: tempChannelName,
             type: discord.ChannelType.GuildText,
+            parent: category.categoryId,
             permissionOverwrites: [
                 {
                     id: guild.roles.everyone,

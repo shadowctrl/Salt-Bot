@@ -12,6 +12,9 @@ export class TicketCategory implements ITicketCategory {
     @Column({ nullable: false })
     name!: string;
 
+    @Column({ nullable: false })
+    categoryId!: string;
+
     @Column({ nullable: true, type: "text" })
     description?: string;
 

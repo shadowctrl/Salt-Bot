@@ -199,6 +199,7 @@ export interface IGuildConfig {
 export interface ITicketCategory {
     id: string;
     name: string;
+    categoryId: string;
     description?: string;
     emoji?: string;
     supportRoleId?: string;

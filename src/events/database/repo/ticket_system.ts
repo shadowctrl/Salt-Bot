@@ -1,3 +1,4 @@
+import discord from "discord.js";
 import client from "../../../salt";
 import { Repository, DataSource, In } from "typeorm";
 import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
@@ -158,6 +159,7 @@ export class TicketRepository {
             emoji?: string;
             supportRoleId?: string;
             position?: number;
+            categoryId?: string; // Make it optional for backward compatibility
         }
     ): Promise<ITicketCategory> {
         const queryRunner = this.dataSource.createQueryRunner();
@@ -167,6 +169,52 @@ export class TicketRepository {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
 
+            // Get the guild object
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) {
+                throw new Error("Guild not found");
+            }
+
+            // Create Discord category if categoryId is not provided
+            let discordCategoryId = categoryData.categoryId;
+            if (!discordCategoryId) {
+                // Create a new Discord category
+                const categoryName = `${categoryData.name} Ticket`;
+                const discordCategory = await guild.channels.create({
+                    name: categoryName,
+                    type: discord.ChannelType.GuildCategory,
+                    position: 0, // Top of the channel list
+                    permissionOverwrites: [
+                        {
+                            id: guild.roles.everyone,
+                            deny: [discord.PermissionFlagsBits.ViewChannel]
+                        },
+                        {
+                            id: client.user!.id,
+                            allow: [
+                                discord.PermissionFlagsBits.ViewChannel,
+                                discord.PermissionFlagsBits.SendMessages,
+                                discord.PermissionFlagsBits.ManageChannels
+                            ]
+                        }
+                    ]
+                });
+
+                discordCategoryId = discordCategory.id;
+
+                // If support role is provided, set permissions for it
+                if (categoryData.supportRoleId) {
+                    await discordCategory.permissionOverwrites.create(
+                        categoryData.supportRoleId,
+                        {
+                            ViewChannel: true,
+                            SendMessages: true,
+                            ReadMessageHistory: true
+                        }
+                    );
+                }
+            }
+
             const category = new TicketCategory();
             category.name = categoryData.name;
             category.description = categoryData.description;
@@ -174,6 +222,7 @@ export class TicketRepository {
             category.supportRoleId = categoryData.supportRoleId;
             category.position = categoryData.position || 0;
             category.guildConfig = guildConfig as GuildConfig;
+            category.categoryId = discordCategoryId!; // Using the Discord category ID
 
             const savedCategory = await this.ticketCategoryRepo.save(category);
 
