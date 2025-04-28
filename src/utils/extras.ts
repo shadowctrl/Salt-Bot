@@ -55,7 +55,7 @@ const sendTempMessage = async (
 
     // Prepare message options
     const messageOptions: discord.MessageCreateOptions = { embeds: [embed] };
-    if (components) messageOptions.components = [components as unknown as discord.APIActionRowComponent<discord.APIMessageActionRowComponent>];
+    if (components) messageOptions.components = [components.toJSON()];
 
     let msg: discord.Message | null = null;
 
