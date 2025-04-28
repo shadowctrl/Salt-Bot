@@ -74,6 +74,31 @@ export interface IConfig {
             warning: discord.ColorResolvable | null;
         }
     }
+    ticket: {
+        default: {
+            button: {
+                label: string;
+                emoji: string;
+                style: string;
+                embed_title: string;
+                embed_description: string;
+            };
+            category: {
+                name: string;
+                description: string;
+                emoji: string;
+            };
+            message: {
+                welcome_message: string;
+                close_message: string;
+            };
+            select_menu: {
+                placeholder: string;
+                embed_title: string;
+                embed_description: string;
+            };
+        }
+    }
 }
 
 //-----------GLOBAL-----------//
