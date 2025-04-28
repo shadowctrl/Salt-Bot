@@ -1,93 +1,143 @@
-# Salt
+# Salt Bot
 
-![Version](https://img.shields.io/badge/version-0.1.3-blue)
+![Version](https://img.shields.io/badge/version-0.2.1-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![Discord.js](https://img.shields.io/badge/discord.js-v14-7289da)
 ![TypeScript](https://img.shields.io/badge/typescript-v5.2.2-blue)
 
-## Ticket Data model
+A feature-rich Discord bot for ticket management, server moderation, and premium user handling, built with TypeScript and Discord.js.
 
-```mermaid
-erDiagram
-    GuildConfig ||--o{ TicketCategory : "has many"
-    GuildConfig ||--o| TicketButton : "has one"
-    GuildConfig ||--o| SelectMenuConfig : "has one"
-    TicketCategory ||--o{ Ticket : "has many"
-    TicketCategory ||--o| TicketMessage : "has one"
+## Features
 
-    GuildConfig {
-        uuid id PK
-        string guildId UK "Discord guild ID"
-        string defaultCategoryName "Default category name"
-        boolean isEnabled "Whether ticket system is enabled"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-    }
+### 🎫 Advanced Ticket System
 
-    TicketCategory {
-        uuid id PK
-        string name "Category name"
-        string description "Optional description"
-        string emoji "Emoji for visual identification"
-        string supportRoleId "Optional support role ID"
-        int ticketCount "Counter for ticket numbers"
-        int position "Display order in dropdown"
-        boolean isEnabled "Whether category is enabled"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-        uuid guildConfigId FK "References GuildConfig"
-    }
+- **Multiple Ticket Categories**: Organize tickets by type with customizable categories
+- **Customizable Ticket Panels**: Create beautiful ticket panels with custom buttons and embeds
+- **Ticket Transcripts**: Automatic HTML transcripts when tickets are closed
+- **Ticket Management**: Open, close, reopen, archive, and delete tickets
+- **Support Role Integration**: Assign specific roles to handle different ticket categories
+- **Ticket Statistics**: View detailed statistics about ticket usage
 
-    Ticket {
-        uuid id PK
-        int ticketNumber "Sequential ticket number"
-        string channelId "Discord channel ID for ticket"
-        string creatorId "User who created the ticket"
-        string closedById "User who closed the ticket"
-        datetime closedAt "When ticket was closed"
-        enum status "OPEN, CLOSED, or ARCHIVED"
-        string closeReason "Reason for closure"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-        uuid categoryId FK "References TicketCategory"
-    }
+### 💎 Premium System
 
-    TicketMessage {
-        uuid id PK
-        string welcomeMessage "Message when ticket is created"
-        string closeMessage "Message when ticket is closed"
-        boolean includeSupportTeam "Whether to mention support team"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-        uuid categoryId FK "References TicketCategory"
-    }
+- **Premium User Management**: Grant premium status to users
+- **Coupon System**: Generate and redeem coupon codes for premium access
+- **Time-based Premium**: Set expiration dates for premium access
 
-    TicketButton {
-        uuid id PK
-        string label "Button label text"
-        string emoji "Button emoji"
-        string style "Button style (color)"
-        string messageId "ID of message with button"
-        string channelId "Channel where button is placed"
-        string embedTitle "Title for embed"
-        string embedDescription "Description for embed"
-        string embedColor "Color for embed"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-        uuid guildConfigId FK "References GuildConfig"
-    }
+### 🛡️ User Management
 
-    SelectMenuConfig {
-        uuid id PK
-        string placeholder "Dropdown placeholder text"
-        string messageId "ID of message with menu"
-        int minValues "Minimum selections required"
-        int maxValues "Maximum selections allowed"
-        string embedTitle "Title for embed"
-        string embedDescription "Description for embed"
-        string embedColor "Color for embed"
-        datetime createdAt "Creation timestamp"
-        datetime updatedAt "Last update timestamp"
-        uuid guildConfigId FK "References GuildConfig"
-    }
-```
+- **User Blocking**: Block problematic users from using the bot
+- **Block History**: Maintain a history of block/unblock actions and reasons
+
+### 📝 Logging System
+
+- **Command Logging**: Log all command usage
+- **Error Handling**: Comprehensive error logging system
+- **Formatted Logs**: Organized log files with date-based directories
+
+## Prerequisites
+
+- Node.js 16.9.0 or higher
+- PostgreSQL database
+- Discord Bot Token
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone git@github.com:muralianand12345/Salt-Bot.git
+   cd salt-bot
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   - Create a `.env` file.
+   - Fill in the required variables:
+   ```
+   TOKEN=your_discord_bot_token
+   POSTGRES_URI=postgres://username:password@hostname:port/database
+   DEBUG_MODE=false
+   FEEDBACK_WEBHOOK=your_webhook_url
+   ```
+
+4. **Set up the config file**
+   - Copy `config/config.example.yml` to `config/config.yml`
+   - Edit the configuration to match your needs
+
+5. **Build the TypeScript code**
+   ```bash
+   tsc
+   ```
+
+6. **Run the bot**
+   ```bash
+   node .
+   ```
+
+## Database Schema
+
+The bot uses PostgreSQL with TypeORM for database operations. The main entities are:
+
+- **GuildConfig**: Server-specific bot configuration
+- **TicketCategory**: Categories for organizing tickets
+- **Ticket**: Individual user tickets
+- **TicketMessage**: Custom messages for ticket interactions
+- **UserData**: User-specific data including premium status
+- **BlockedUser**: Users blocked from using the bot
+- **PremiumCoupon**: Coupon codes for premium access
+
+## Commands
+
+### Ticket Commands
+
+- `/setup` - Set up the ticket system
+- `/ticket deploy` - Deploy the ticket panel to a channel
+- `/ticket config` - Configure ticket settings
+- `/ticket close` - Close a ticket
+- `/ticket reopen` - Reopen a closed ticket
+- `/ticket info` - Get information about a ticket
+- `/ticket transcript` - Generate a transcript of the ticket
+
+### Premium Commands
+
+- `/premium status` - Check your premium status
+- `/premium redeem` - Redeem a premium coupon
+- `!generate` - Generate premium coupons (bot owners only)
+
+### System Commands
+
+- `/ping` - Check bot status and latency
+- `/block` - Manage user blocks
+- `/stop` - Disable or manage the ticket system
+
+## Configuration
+
+The bot is highly configurable through both the `config.yml` file and in-app commands. See the example configuration file for all available options.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+
+## Acknowledgements
+
+- [Discord.js](https://discord.js.org/) - The Discord API library
+- [TypeORM](https://typeorm.io/) - ORM for database operations
+- [discord-html-transcripts](https://github.com/ItzDerock/discord-html-transcripts) - For generating HTML transcripts
+
+## Support
+
+If you need help with setup or encounter any issues, please open an issue on GitHub or join our [support server](https://discord.gg/XzE9hSbsNb).
