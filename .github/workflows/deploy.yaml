@@ -1,0 +1,140 @@
+name: Deploy Salt Bot to K3s
+on:
+  push:
+    branches:
+      - feat/workflow
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Create .env file from secrets
+      - name: Create .env file
+        run: |
+          echo "# Bot configuration" > .env
+          echo "DEBUG_MODE=false" >> .env
+          echo "TOKEN=${{ secrets.BOT_TOKEN }}" >> .env
+          echo "FEEDBACK_WEBHOOK=${{ secrets.FEEDBACK_WEBHOOK }}" >> .env
+          echo "# Database configuration" >> .env
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+          echo "POSTGRES_URI=postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5434/${{ secrets.POSTGRES_DB }}" >> .env
+
+      # Copy config file if needed
+      - name: Ensure config directory exists
+        run: mkdir -p config
+
+      - name: Create config.yml
+        run: |
+          if [ ! -f config/config.yml ]; then
+            cp config/config.example.yml config/config.yml
+          fi
+
+      # Build Docker images for both bot and database
+      - name: Build Docker image for ARM
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          tags: salt-bot:latest
+          outputs: type=docker,dest=salt-bot-image.tar
+          build-args: |
+            TARGETPLATFORM=linux/arm64
+
+      # Update the secrets in Kubernetes manifests
+      - name: Update secrets in Kubernetes manifests
+        run: |
+          sed -i "s|TOKEN: .*|TOKEN: \"${{ secrets.BOT_TOKEN }}\"|g" k3s/secret.yaml
+          sed -i "s|FEEDBACK_WEBHOOK: .*|FEEDBACK_WEBHOOK: \"${{ secrets.FEEDBACK_WEBHOOK }}\"|g" k3s/secret.yaml
+          sed -i "s|POSTGRES_USER: .*|POSTGRES_USER: \"${{ secrets.POSTGRES_USER }}\"|g" k3s/secret.yaml
+          sed -i "s|POSTGRES_PASSWORD: .*|POSTGRES_PASSWORD: \"${{ secrets.POSTGRES_PASSWORD }}\"|g" k3s/secret.yaml
+          sed -i "s|POSTGRES_DB: .*|POSTGRES_DB: \"${{ secrets.POSTGRES_DB }}\"|g" k3s/secret.yaml
+          sed -i "s|POSTGRES_URI: .*|POSTGRES_URI: \"postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5434/${{ secrets.POSTGRES_DB }}\"|g" k3s/secret.yaml
+
+      # Update config.yml in ConfigMap if needed
+      - name: Update config in ConfigMap
+        run: |
+          # Extract the current config.yml content
+          CONFIG_CONTENT=$(sed 's/^/              /' config/config.yml)
+          # Update the configmap-files.yaml with the current config.yml content
+          sed -i "s|config.yml: .*|config.yml: |\n$CONFIG_CONTENT|g" k3s/configmap-files.yaml
+
+      - name: Copy Docker image to K3s server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.K3S_SERVER_HOST }}
+          username: ${{ secrets.K3S_SERVER_USERNAME }}
+          key: ${{ secrets.K3S_SERVER_SSH_KEY }}
+          port: ${{ secrets.K3S_SERVER_SSH_PORT }}
+          source: 'salt-bot-image.tar'
+          target: '/tmp'
+
+      - name: Copy Kubernetes files to K3s server
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.K3S_SERVER_HOST }}
+          username: ${{ secrets.K3S_SERVER_USERNAME }}
+          key: ${{ secrets.K3S_SERVER_SSH_KEY }}
+          port: ${{ secrets.K3S_SERVER_SSH_PORT }}
+          source: 'k3s/*'
+          target: '/home/${{ secrets.K3S_SERVER_USERNAME }}'
+          strip_components: 1
+
+      - name: Deploy to K3s
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.K3S_SERVER_HOST }}
+          username: ${{ secrets.K3S_SERVER_USERNAME }}
+          key: ${{ secrets.K3S_SERVER_SSH_KEY }}
+          port: ${{ secrets.K3S_SERVER_SSH_PORT }}
+          script: |
+            # Ensure the directory exists
+            mkdir -p /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s
+
+            # Load the Docker image into the local repository
+            sudo docker load < /tmp/salt-bot-image.tar
+
+            # Get the actual image ID after loading
+            IMAGE_ID=$(sudo docker images --format "{{.Repository}}:{{.Tag}}" | grep "salt-bot" | head -n 1)
+            echo "Using image ID: $IMAGE_ID"
+
+            # Tag the image for your local registry
+            sudo docker tag $IMAGE_ID 192.168.0.103:5000/salt-bot:latest
+
+            # Push to local registry
+            sudo docker push 192.168.0.103:5000/salt-bot:latest
+
+            # Apply Kubernetes manifests in the correct order
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/namespace.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/network-policy.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/pvc.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/configmap.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/configmap-files.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/secret.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/postgres-deployment.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/postgres-service.yaml
+
+            # Update the deployment.yaml with the new image tag
+            sudo sed -i "s|\${DOCKER_IMAGE}:\${TAG}|192.168.0.103:5000/salt-bot:latest|g" /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-deployment.yaml
+
+            # Apply the bot deployment
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-deployment.yaml
+
+            # Force a restart of the deployment to ensure it picks up the new image
+            sudo kubectl rollout restart deployment/salt-bot -n salt-bot
+
+            # Verify deployment status
+            sudo kubectl rollout status deployment/salt-bot -n salt-bot
+
+            # Clean up
+            sudo rm /tmp/salt-bot-image.tar
