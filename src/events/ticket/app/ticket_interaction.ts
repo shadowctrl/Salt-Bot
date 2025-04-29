@@ -9,7 +9,7 @@ const event: BotEvent = {
     name: discord.Events.InteractionCreate,
     execute: async (interaction: discord.Interaction, client: discord.Client): Promise<void> => {
         // Only handle button interactions and select menu interactions
-        if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) {
+        if (!interaction.isButton() && !interaction.isStringSelectMenu()) {
             return;
         }
 
@@ -162,11 +162,6 @@ const event: BotEvent = {
                 if (interaction.customId === "ticket_category_select") {
                     const categoryId = interaction.values[0];
                     await createTicket(interaction, categoryId);
-                }
-            } else if (interaction.isModalSubmit()) {
-                // Handle modal submissions
-                if (interaction.customId === "ticket_close_modal") {
-                    await handleTicketCloseModal(interaction, client, ticketRepo);
                 }
             }
         } catch (error) {
@@ -570,142 +565,6 @@ const handleDeleteTicket = async (
                 new discord.EmbedBuilder()
                     .setTitle("Error")
                     .setDescription("An error occurred while processing the delete request.")
-                    .setColor("Red")
-            ]
-        });
-    }
-};
-
-// Handle ticket close modal submission
-const handleTicketCloseModal = async (
-    interaction: discord.ModalSubmitInteraction,
-    client: discord.Client,
-    ticketRepo: TicketRepository
-): Promise<void> => {
-    await interaction.deferReply();
-
-    try {
-        // Get the ticket
-        const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId!);
-
-        if (!ticket) {
-            await interaction.editReply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("Not a Ticket Channel")
-                        .setDescription("This is not a valid ticket channel.")
-                        .setColor("Red")
-                ]
-            });
-            return;
-        }
-
-        // Get the reason from the modal
-        const reason = interaction.fields.getTextInputValue("ticket_close_reason") || "No reason provided";
-
-        // Update ticket status
-        await ticketRepo.updateTicketStatus(
-            ticket.id,
-            ITicketStatus.CLOSED,
-            interaction.user.id,
-            reason
-        );
-
-        // Get the ticket message configuration
-        const ticketMessage = await ticketRepo.getTicketMessage(ticket.category.id);
-        const category = ticket.category;
-
-        // Create close message
-        const closeEmbed = new discord.EmbedBuilder()
-            .setTitle(`Ticket #${ticket.ticketNumber} Closed`)
-            .setDescription(ticketMessage?.closeMessage || "This ticket has been closed.")
-            .addFields(
-                { name: "Ticket ID", value: `#${ticket.ticketNumber}`, inline: true },
-                { name: "Category", value: `${category.emoji || "🎫"} ${category.name}`, inline: true },
-                { name: "Status", value: `🔴 Closed`, inline: true },
-                { name: "Closed By", value: `<@${interaction.user.id}>`, inline: true },
-                { name: "Closed At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
-                { name: "Reason", value: reason, inline: false }
-            )
-            .setColor("Red")
-            .setFooter({ text: `Use /ticket reopen to reopen this ticket | ID: ${ticket.id}` })
-            .setTimestamp();
-
-        // Get the channel
-        const channel = interaction.channel as discord.TextChannel;
-
-        // Send close message
-        await channel.send({ embeds: [closeEmbed] });
-
-        // Update channel permissions
-        try {
-            // Lock the channel
-            await channel.permissionOverwrites.edit(
-                interaction.guild!.roles.everyone,
-                { SendMessages: false }
-            );
-
-            // Create action row with management buttons
-            const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-                .addComponents(
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_reopen")
-                        .setLabel("Reopen")
-                        .setStyle(discord.ButtonStyle.Success),
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_archive")
-                        .setLabel("Archive")
-                        .setStyle(discord.ButtonStyle.Secondary),
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_delete")
-                        .setLabel("Delete")
-                        .setStyle(discord.ButtonStyle.Danger)
-                );
-
-            // Send success message
-            await interaction.editReply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("Ticket Closed")
-                        .setDescription("The ticket has been closed successfully.")
-                        .setColor("Green")
-                ],
-                components: [actionRow]
-            });
-
-            // Generate and send transcript
-            try {
-                await createAndSendTranscript(
-                    channel,
-                    interaction.user,
-                    reason,
-                    ticket.id,
-                    ticketRepo.dataSource
-                );
-            } catch (transcriptError) {
-                client.logger.error(`[TICKET_CLOSE] Error creating transcript: ${transcriptError}`);
-                // Continue even if transcript fails - just log the error
-            }
-        } catch (error) {
-            client.logger.error(`[TICKET_CLOSE] Error updating permissions: ${error}`);
-
-            // Send warning message
-            await interaction.editReply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("Partial Success")
-                        .setDescription("The ticket was marked as closed, but channel permissions could not be updated.")
-                        .setColor("Yellow")
-                ]
-            });
-        }
-    } catch (error) {
-        client.logger.error(`[TICKET_CLOSE] Error handling close modal: ${error}`);
-        await interaction.editReply({
-            embeds: [
-                new discord.EmbedBuilder()
-                    .setTitle("Error")
-                    .setDescription("An error occurred while closing the ticket.")
                     .setColor("Red")
             ]
         });
