@@ -7,9 +7,13 @@ services:
                 condition: service_healthy
         env_file:
             - .env
+        command: ["sh", "-c", "yarn install && yarn build && yarn start"]
         volumes:
+            - ./src:/app/src
             - ./logs:/app/logs
             - ./config:/app/config
+            - ./tsconfig.json:/app/tsconfig.json
+            - ./package.json:/app/package.json
         networks:
             - salt-network
 
