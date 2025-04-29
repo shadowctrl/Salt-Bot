@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: salt-postgres
+  namespace: salt-bot
+spec:
+  serviceName: 'salt-postgres'
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salt-postgres
+  template:
+    metadata:
+      labels:
+        app: salt-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          ports:
+            - containerPort: 5434
+          env:
+            - name: POSTGRES_PORT
+              value: '5434'
+            - name: PGPORT
+              value: '5434'
+          envFrom:
+            - secretRef:
+                name: salt-bot-secrets
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 1Gi
