@@ -130,9 +130,6 @@ dist
 .pnp.*
 yarn.lock
 
-# yaml config
-/config/config.yml
-
 # vscode
 .vscode
 
