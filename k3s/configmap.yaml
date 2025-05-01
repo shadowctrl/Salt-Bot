@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: salt-bot-config
+  namespace: salt-bot
+data:
+  DEBUG_MODE: 'false'

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salt-bot
+  namespace: salt-bot
+  labels:
+    app: salt-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salt-bot
+  template:
+    metadata:
+      labels:
+        app: salt-bot
+    spec:
+      containers:
+        - name: salt-bot
+          image: ${DOCKER_IMAGE}:${TAG}
+          envFrom:
+            - configMapRef:
+                name: salt-bot-config
+            - secretRef:
+                name: salt-bot-secrets
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: logs-volume
+              mountPath: /app/logs
+      volumes:
+        - name: config-volume
+          configMap:
+            name: salt-bot-config-files
+        - name: logs-volume
+          persistentVolumeClaim:
+            claimName: salt-bot-logs-pvc
