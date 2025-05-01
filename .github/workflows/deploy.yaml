@@ -69,15 +69,15 @@ jobs:
 
           # Create a new file with updated content
           cat << EOF > /tmp/new_configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: salt-bot-config-files
-  namespace: salt-bot
-data:
-  config.yml: |
-$CONFIG_CONTENT
-EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: salt-bot-config-files
+            namespace: salt-bot
+          data:
+            config.yml: |
+          $CONFIG_CONTENT
+          EOF
 
           # Replace the original file
           mv /tmp/new_configmap.yaml k3s/configmap-files.yaml
