@@ -67,7 +67,7 @@ jobs:
           # Extract the current config.yml content
           CONFIG_CONTENT=$(sed 's/^/              /' config/config.yml)
           # Update the configmap-files.yaml with the current config.yml content
-          sed -i "s|config.yml: .*|config.yml: |\n$CONFIG_CONTENT|g" k3s/configmap-files.yaml
+          sed -i "s|config.yml:.*|config.yml: |\n$CONFIG_CONTENT|g" k3s/configmap-files.yaml
 
       - name: Copy Docker image to K3s server
         uses: appleboy/scp-action@v0.1.4
