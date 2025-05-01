@@ -22,7 +22,7 @@ jobs:
         run: |
           echo "# Bot configuration" > .env
           echo "DEBUG_MODE=false" >> .env
-          echo "TOKEN=${{ secrets.BOT_TOKEN }}" >> .env
+          echo "TOKEN=${{ secrets.TOKEN }}" >> .env
           echo "FEEDBACK_WEBHOOK=${{ secrets.FEEDBACK_WEBHOOK }}" >> .env
           echo "# Database configuration" >> .env
           echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
@@ -54,7 +54,7 @@ jobs:
       # Update the secrets in Kubernetes manifests
       - name: Update secrets in Kubernetes manifests
         run: |
-          sed -i "s|TOKEN: .*|TOKEN: \"${{ secrets.BOT_TOKEN }}\"|g" k3s/secret.yaml
+          sed -i "s|TOKEN: .*|TOKEN: \"${{ secrets.TOKEN }}\"|g" k3s/secret.yaml
           sed -i "s|FEEDBACK_WEBHOOK: .*|FEEDBACK_WEBHOOK: \"${{ secrets.FEEDBACK_WEBHOOK }}\"|g" k3s/secret.yaml
           sed -i "s|POSTGRES_USER: .*|POSTGRES_USER: \"${{ secrets.POSTGRES_USER }}\"|g" k3s/secret.yaml
           sed -i "s|POSTGRES_PASSWORD: .*|POSTGRES_PASSWORD: \"${{ secrets.POSTGRES_PASSWORD }}\"|g" k3s/secret.yaml
