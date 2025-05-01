@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: salt-bot-logs-pv
+  labels:
+    type: local
+    app: salt-bot
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: '/mnt/data/salt-bot-logs'

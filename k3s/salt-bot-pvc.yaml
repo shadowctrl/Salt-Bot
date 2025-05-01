@@ -4,8 +4,9 @@ metadata:
   name: salt-bot-logs-pvc
   namespace: salt-bot
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 500Mi
