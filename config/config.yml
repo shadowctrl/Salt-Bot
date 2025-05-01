@@ -1,5 +1,5 @@
 bot:
-    owners: 
+    owners:
         - "678402714765361182" # Your Discord ID
     support:
         link: https://discord.gg/XzE9hSbsNb
@@ -21,20 +21,20 @@ bot:
             - name: <channelsize> Channels!
               type: WATCHING
     command:
-        prefix: "!" # Command Prefix
-        disable_message: true
+        prefix: "!"
+        disable_message: false
         cooldown_message: You are on `<duration>` cooldown!
         register_specific_commands:
-            enabled: true
-            commands: 
+            enabled: false
+            commands:
                 - node
     log:
-        command: "1234567890" # Command Log Channel ID
-        server: "1234567890" # New/Left Server Log Channel ID
+        command: "1359771203102969866" # Command Log Channel ID
+        server: "1359771216197713930" # New/Left Server Log Channel ID
 
 embed:
     color:
-        default: Burple
+        default: Blurple
         error: Red
         success: Green
         warning: Yellow
