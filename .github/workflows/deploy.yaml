@@ -87,7 +87,7 @@ jobs:
           key: ${{ secrets.K3S_SERVER_SSH_KEY }}
           port: ${{ secrets.K3S_SERVER_SSH_PORT }}
           source: 'k3s/*'
-          target: '/home/${{ secrets.K3S_SERVER_USERNAME }}'
+          target: '/home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot'
           strip_components: 1
 
       - name: Deploy to K3s
