@@ -64,10 +64,23 @@ jobs:
       # Update config.yml in ConfigMap if needed
       - name: Update config in ConfigMap
         run: |
-          # Extract the current config.yml content
+          # Extract the current config.yml content with proper indentation
           CONFIG_CONTENT=$(sed 's/^/              /' config/config.yml)
-          # Update the configmap-files.yaml with the current config.yml content
-          sed -i -e "s~config.yml:.*~config.yml: |\n$CONFIG_CONTENT~g" k3s/configmap-files.yaml
+
+          # Create a new file with updated content
+          cat << EOF > /tmp/new_configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: salt-bot-config-files
+  namespace: salt-bot
+data:
+  config.yml: |
+$CONFIG_CONTENT
+EOF
+
+          # Replace the original file
+          mv /tmp/new_configmap.yaml k3s/configmap-files.yaml
 
       - name: Copy Docker image to K3s server
         uses: appleboy/scp-action@v0.1.4
