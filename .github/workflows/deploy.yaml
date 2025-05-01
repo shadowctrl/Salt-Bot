@@ -128,20 +128,20 @@ jobs:
             sudo docker push 192.168.0.103:5000/salt-bot:latest
 
             # Apply Kubernetes manifests in the correct order
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/namespace.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/network-policy.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/pvc.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/configmap.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/configmap-files.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/secret.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/postgres-deployment.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/postgres-service.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/namespace.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/network-policy.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/pvc.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/configmap.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/configmap-files.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/secret.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/postgres-deployment.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/postgres-service.yaml
 
             # Update the deployment.yaml with the new image tag
-            sudo sed -i "s|\${DOCKER_IMAGE}:\${TAG}|192.168.0.103:5000/salt-bot:latest|g" /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-deployment.yaml
+            sudo sed -i "s|\${DOCKER_IMAGE}:\${TAG}|192.168.0.103:5000/salt-bot:latest|g" /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/salt-deployment.yaml
 
             # Apply the bot deployment
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-deployment.yaml
+            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/salt-deployment.yaml
 
             # Force a restart of the deployment to ensure it picks up the new image
             sudo kubectl rollout restart deployment/salt-bot -n salt-bot
