@@ -2,7 +2,7 @@ name: Deploy Salt Bot to K3s
 on:
   push:
     branches:
-      - feat/workflow
+      - prod
 
 jobs:
   build-and-deploy:
