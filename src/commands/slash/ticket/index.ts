@@ -6,6 +6,8 @@ import { closeTicket } from "./close";
 import { configTicket } from "./config";
 import { infoTicket } from "./info";
 import { transcriptTicket } from "./transcript";
+import { addUserToTicket } from "./add";
+import { removeUserFromTicket } from "./remove";
 
 const ticketCommand: SlashCommand = {
     cooldown: 5,
@@ -175,6 +177,24 @@ const ticketCommand: SlashCommand = {
                     option.setName("user")
                         .setDescription("Send the transcript to this user (optional)")
                         .setRequired(false))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("add")
+                .setDescription("Add a user to the current ticket")
+                .addUserOption(option =>
+                    option.setName("user")
+                        .setDescription("The user to add to the ticket")
+                        .setRequired(true))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("remove")
+                .setDescription("Remove a user from the current ticket")
+                .addUserOption(option =>
+                    option.setName("user")
+                        .setDescription("The user to remove from the ticket")
+                        .setRequired(true))
         ),
 
     execute: async (
@@ -218,6 +238,12 @@ const ticketCommand: SlashCommand = {
                         break;
                     case "transcript":
                         await transcriptTicket(interaction, client);
+                        break;
+                    case "add":
+                        await addUserToTicket(interaction, client);
+                        break;
+                    case "remove":
+                        await removeUserFromTicket(interaction, client);
                         break;
                     default:
                         await interaction.reply({
