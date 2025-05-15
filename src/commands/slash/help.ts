@@ -19,7 +19,7 @@ const helpCommand: SlashCommand = {
             const botUser = client.user;
             if (!botUser) return;
 
-            let prefix = client.config.bot.command.prefix;
+            let prefix = client.config.bot.command.disable_message ? '/' : client.config.bot.command.prefix;
             const uptime = Math.round(process.uptime());
 
             // Get commands from collections

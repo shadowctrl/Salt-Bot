@@ -18,7 +18,7 @@ const command: Command = {
             const botUser = client.user;
             if (!botUser) return;
 
-            let prefix = client.config.bot.command.prefix;
+            let prefix = client.config.bot.command.disable_message ? '/' : client.config.bot.command.prefix;
             const uptime = Math.round(process.uptime());
 
             const sent = await message.reply("🏓 Finding all commands for you...");

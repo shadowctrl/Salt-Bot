@@ -8,6 +8,7 @@ import { infoTicket } from "./info";
 import { transcriptTicket } from "./transcript";
 import { addUserToTicket } from "./add";
 import { removeUserFromTicket } from "./remove";
+import { claimTicket } from "./claim";
 
 const ticketCommand: SlashCommand = {
     cooldown: 5,
@@ -195,6 +196,11 @@ const ticketCommand: SlashCommand = {
                     option.setName("user")
                         .setDescription("The user to remove from the ticket")
                         .setRequired(true))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("claim")
+                .setDescription("Claim the current ticket as a support agent")
         ),
 
     execute: async (
@@ -244,6 +250,9 @@ const ticketCommand: SlashCommand = {
                         break;
                     case "remove":
                         await removeUserFromTicket(interaction, client);
+                        break;
+                    case "claim":
+                        await claimTicket(interaction, client);
                         break;
                     default:
                         await interaction.reply({

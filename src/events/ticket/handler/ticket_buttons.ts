@@ -46,6 +46,10 @@ const event: BotEvent = {
                 if (!interaction.isButton()) return;
                 await handleDeleteButton(interaction, client, ticketRepo);
             }
+            else if (interaction.customId === "ticket_claim") {
+                if (!interaction.isButton()) return;
+                await handleClaimButton(interaction, client, ticketRepo);
+            }
         } catch (error) {
             client.logger.error(`[TICKET_BUTTON] Error handling interaction: ${error}`);
 
@@ -887,6 +891,223 @@ const handleDeleteButton = async (
             }
         } catch (responseError) {
             client.logger.error(`[TICKET_DELETE] Failed to send error response: ${responseError}`);
+        }
+    }
+};
+
+/**
+ * Handle the claim button click
+ */
+const handleClaimButton = async (
+    interaction: discord.ButtonInteraction,
+    client: discord.Client,
+    ticketRepo: TicketRepository
+): Promise<void> => {
+    try {
+        // Check if this is a ticket channel
+        const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
+
+        if (!ticket) {
+            interaction.reply({
+                embeds: [
+                    new discord.EmbedBuilder()
+                        .setTitle("Not a Ticket Channel")
+                        .setDescription("This is not a valid ticket channel.")
+                        .setColor("Red")
+                ],
+                flags: discord.MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        // Check if the ticket is already claimed
+        if (ticket.claimedById) {
+            // If the same user clicked the button, they can unclaim
+            if (ticket.claimedById === interaction.user.id) {
+                await interaction.deferReply();
+
+                // Unclaim the ticket
+                await ticketRepo.unclaimTicket(ticket.id);
+
+                // Get the channel
+                const channel = interaction.channel as discord.TextChannel;
+
+                // Create unclaim message
+                const unclaimEmbed = new discord.EmbedBuilder()
+                    .setTitle("Ticket Unclaimed")
+                    .setDescription(`This ticket is no longer being handled by <@${interaction.user.id}>.`)
+                    .setColor("Orange")
+                    .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
+                    .setTimestamp();
+
+                // Send message to channel
+                await channel.send({ embeds: [unclaimEmbed] });
+
+                // Create new action row with claim button
+                const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
+                    .addComponents(
+                        new discord.ButtonBuilder()
+                            .setCustomId("ticket_claim")
+                            .setLabel("Claim Ticket")
+                            .setStyle(discord.ButtonStyle.Primary)
+                            .setEmoji("👋"),
+                        new discord.ButtonBuilder()
+                            .setCustomId("ticket_close")
+                            .setLabel("Close Ticket")
+                            .setStyle(discord.ButtonStyle.Danger)
+                            .setEmoji("🔒")
+                    );
+
+                // Update the original message with new buttons
+                if (interaction.message) {
+                    await interaction.message.edit({
+                        components: [actionRow]
+                    }).catch(err => {
+                        client.logger.warn(`[TICKET_CLAIM] Could not update message: ${err}`);
+                    });
+                }
+
+                // Send success message
+                await interaction.editReply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("Ticket Unclaimed")
+                            .setDescription("You have successfully unclaimed this ticket.")
+                            .setColor("Green")
+                    ]
+                });
+
+                client.logger.info(`[TICKET_CLAIM] ${interaction.user.tag} unclaimed ticket #${ticket.ticketNumber}`);
+            } else {
+                // Someone else has claimed the ticket
+                const claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
+                const claimerName = claimer ? claimer.tag : "Unknown";
+
+                interaction.reply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("Ticket Already Claimed")
+                            .setDescription(`This ticket is already being handled by ${claimer ? `<@${claimer.id}>` : "someone else"}.`)
+                            .addFields({
+                                name: "Claimed By",
+                                value: claimerName,
+                                inline: true
+                            })
+                            .setColor("Red")
+                    ],
+                    flags: discord.MessageFlags.Ephemeral
+                });
+                return;
+            }
+            return;
+        }
+
+        // Check permissions - only support role or admin should be able to claim
+        const member = interaction.member as discord.GuildMember;
+        const supportRoleId = ticket.category.supportRoleId;
+
+        const hasPermission =
+            member.permissions.has(discord.PermissionFlagsBits.ManageChannels) ||
+            (supportRoleId && member.roles.cache.has(supportRoleId));
+
+        if (!hasPermission) {
+            interaction.reply({
+                embeds: [
+                    new discord.EmbedBuilder()
+                        .setTitle("Permission Denied")
+                        .setDescription("You don't have permission to claim tickets. Only support team members can claim tickets.")
+                        .setColor("Red")
+                ],
+                flags: discord.MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        await interaction.deferReply();
+
+        // Claim the ticket
+        await ticketRepo.claimTicket(ticket.id, interaction.user.id);
+
+        // Get the channel
+        const channel = interaction.channel as discord.TextChannel;
+
+        // Create claim message
+        const claimEmbed = new discord.EmbedBuilder()
+            .setTitle("Ticket Claimed")
+            .setDescription(`This ticket is now being handled by <@${interaction.user.id}>.`)
+            .addFields(
+                { name: "Claimed By", value: `<@${interaction.user.id}>`, inline: true },
+                { name: "Claimed At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
+            )
+            .setColor("Blue")
+            .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
+            .setTimestamp();
+
+        // Send message to channel
+        await channel.send({ embeds: [claimEmbed] });
+
+        // Create new action row with unclaim button
+        const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
+            .addComponents(
+                new discord.ButtonBuilder()
+                    .setCustomId("ticket_claim")
+                    .setLabel("Unclaim Ticket")
+                    .setStyle(discord.ButtonStyle.Secondary)
+                    .setEmoji("🔄"),
+                new discord.ButtonBuilder()
+                    .setCustomId("ticket_close")
+                    .setLabel("Close Ticket")
+                    .setStyle(discord.ButtonStyle.Danger)
+                    .setEmoji("🔒")
+            );
+
+        // Update the original message with new buttons
+        if (interaction.message) {
+            await interaction.message.edit({
+                components: [actionRow]
+            }).catch(err => {
+                client.logger.warn(`[TICKET_CLAIM] Could not update message: ${err}`);
+            });
+        }
+
+        // Send success message
+        await interaction.editReply({
+            embeds: [
+                new discord.EmbedBuilder()
+                    .setTitle("Ticket Claimed")
+                    .setDescription("You have successfully claimed this ticket. You are now responsible for handling this support request.")
+                    .setColor("Green")
+            ]
+        });
+
+        client.logger.info(`[TICKET_CLAIM] ${interaction.user.tag} claimed ticket #${ticket.ticketNumber}`);
+    } catch (error) {
+        client.logger.error(`[TICKET_CLAIM] Error claiming ticket: ${error}`);
+
+        // Try to respond based on interaction state
+        try {
+            if (interaction.deferred) {
+                await interaction.editReply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("Error")
+                            .setDescription("An error occurred while claiming the ticket.")
+                            .setColor("Red")
+                    ]
+                });
+            } else if (!interaction.replied) {
+                await interaction.reply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("Error")
+                            .setDescription("An error occurred while claiming the ticket.")
+                            .setColor("Red")
+                    ],
+                    flags: discord.MessageFlags.Ephemeral
+                });
+            }
+        } catch (responseError) {
+            client.logger.error(`[TICKET_CLAIM] Failed to send error response: ${responseError}`);
         }
     }
 };
