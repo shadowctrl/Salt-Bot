@@ -29,6 +29,12 @@ export const infoTicket = async (
             closer = await client.users.fetch(ticket.closedById).catch(() => null);
         }
 
+        // Get claimer user (if ticket is claimed)
+        let claimer = null;
+        if (ticket.claimedById) {
+            claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
+        }
+
         // Format creation time
         const creationTime = new Date(ticket.createdAt);
         const creationTimestamp = Math.floor(creationTime.getTime() / 1000);
@@ -38,6 +44,13 @@ export const infoTicket = async (
         if (ticket.closedAt) {
             const closedTime = new Date(ticket.closedAt);
             closedTimestamp = Math.floor(closedTime.getTime() / 1000);
+        }
+
+        // Format claimed time (if claimed)
+        let claimedTimestamp = null;
+        if (ticket.claimedAt) {
+            const claimedTime = new Date(ticket.claimedAt);
+            claimedTimestamp = Math.floor(claimedTime.getTime() / 1000);
         }
 
         // Get category information
@@ -52,9 +65,17 @@ export const infoTicket = async (
                 { name: "Created By", value: creator ? `${creator} (${creator.tag})` : `Unknown User (${ticket.creatorId})`, inline: true },
                 { name: "Created At", value: `<t:${creationTimestamp}:F>`, inline: true }
             )
-            .setColor(ticket.status === "open" ? "Green" : (ticket.status === "closed" ? "Red" : "Blue"))
+            .setColor(ticket.status === "open" ? (ticket.claimedById ? "Blue" : "Green") : (ticket.status === "closed" ? "Red" : "Blue"))
             .setFooter({ text: `Ticket ID: ${ticket.id}` })
             .setTimestamp();
+
+        // Add claimer information if ticket is claimed
+        if (ticket.claimedById && claimer) {
+            embed.addFields(
+                { name: "Claimed By", value: `${claimer} (${claimer.tag})`, inline: true },
+                { name: "Claimed At", value: claimedTimestamp ? `<t:${claimedTimestamp}:F>` : "Unknown", inline: true }
+            );
+        }
 
         // Add closer information if ticket is closed
         if (ticket.status !== "open" && closer) {
@@ -99,4 +120,4 @@ export const infoTicket = async (
             embeds: [new EmbedTemplate(client).error("An error occurred while getting ticket information.")]
         });
     }
-}
+};

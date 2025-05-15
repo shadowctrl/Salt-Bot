@@ -220,6 +220,8 @@ export interface ITicket {
     creatorId: string;
     closedById?: string;
     closedAt?: Date;
+    claimedById?: string | null;
+    claimedAt?: Date | null;
     status: ITicketStatus;
     closeReason?: string;
     createdAt: Date;

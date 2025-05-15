@@ -425,6 +425,64 @@ export class TicketRepository {
     }
 
     /**
+     * Claims a ticket for a staff member
+     * @param ticketId - Ticket ID
+     * @param userId - ID of the user claiming the ticket
+     * @returns Updated ticket
+     */
+    async claimTicket(
+        ticketId: string,
+        userId: string
+    ): Promise<ITicket | null> {
+        try {
+            const ticket = await this.ticketRepo.findOne({
+                where: { id: ticketId }
+            });
+
+            if (!ticket) {
+                return null;
+            }
+
+            // Update claim information
+            ticket.claimedById = userId;
+            ticket.claimedAt = new Date();
+
+            return await this.ticketRepo.save(ticket);
+        } catch (error) {
+            client.logger.error(`[TICKET_REPO] Error claiming ticket: ${error}`);
+            return null;
+        }
+    }
+
+    /**
+     * Unclaims a ticket
+     * @param ticketId - Ticket ID
+     * @returns Updated ticket
+     */
+    async unclaimTicket(
+        ticketId: string
+    ): Promise<ITicket | null> {
+        try {
+            const ticket = await this.ticketRepo.findOne({
+                where: { id: ticketId }
+            });
+
+            if (!ticket) {
+                return null;
+            }
+
+            // Remove claim information
+            ticket.claimedById = null;
+            ticket.claimedAt = null;
+
+            return await this.ticketRepo.save(ticket);
+        } catch (error) {
+            client.logger.error(`[TICKET_REPO] Error unclaiming ticket: ${error}`);
+            return null;
+        }
+    }
+
+    /**
      * Gets a ticket by ID
      * @param ticketId - Ticket ID
      * @returns Ticket or null if not found

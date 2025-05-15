@@ -33,6 +33,12 @@ export const createAndSendTranscript = async (
             return client.logger.error(`[TRANSCRIPT] Could not fetch ticket creator with ID ${ticket.creatorId}`);
         }
 
+        // Fetch the claimer if the ticket was claimed
+        let claimer = null;
+        if (ticket.claimedById) {
+            claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
+        }
+
         // Get guild configuration to find the transcript channel
         const guildConfig = await ticketRepo.getGuildConfig(channel.guildId);
         if (!guildConfig) {
@@ -70,6 +76,7 @@ export const createAndSendTranscript = async (
         **User:** ${creator.tag} (${creator.id})
         **Ticket Number:** ${ticket.ticketNumber}
         **Category:** ${ticket.category?.name || 'Unknown'}
+        ${claimer ? `**Handled by:** ${claimer.tag}` : ''}
         **Closed by:** ${user.tag}
         **Reason:** ${reason || 'No reason provided'}
         **Closed at:** <t:${Math.floor(Date.now() / 1000)}:F>

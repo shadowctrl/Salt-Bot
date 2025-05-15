@@ -23,6 +23,12 @@ export class Ticket implements ITicket {
     @Column({ nullable: true, type: 'timestamp' })
     closedAt?: Date;
 
+    @Column({ nullable: true, type: 'varchar' })
+    claimedById?: string | null;
+
+    @Column({ nullable: true, type: 'timestamp' })
+    claimedAt?: Date | null;
+
     @Column({
         type: "enum",
         enum: ITicketStatus,

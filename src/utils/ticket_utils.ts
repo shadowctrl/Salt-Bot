@@ -163,9 +163,14 @@ export const createTicket = async (
                 .setFooter({ text: `Use /ticket close to close this ticket | ID: ${ticket.id}` })
                 .setTimestamp();
 
-            // Create action row with close button
+            // Create action row with buttons
             const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                 .addComponents(
+                    new discord.ButtonBuilder()
+                        .setCustomId("ticket_claim")
+                        .setLabel("Claim Ticket")
+                        .setStyle(discord.ButtonStyle.Primary)
+                        .setEmoji("👋"),
                     new discord.ButtonBuilder()
                         .setCustomId("ticket_close")
                         .setLabel("Close Ticket")

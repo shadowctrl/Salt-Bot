@@ -22,7 +22,7 @@ bot:
               type: WATCHING
     command:
         prefix: "!"
-        disable_message: false
+        disable_message: true
         cooldown_message: You are on `<duration>` cooldown!
         register_specific_commands:
             enabled: false
