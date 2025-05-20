@@ -7,7 +7,6 @@ import { ConfigManager } from "./utils/config";
 import CommandLogger from "./utils/command_logger";
 import { Command, SlashCommand } from "./types";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 /**
@@ -40,22 +39,16 @@ const createClient = (): discord.Client => {
         shards: "auto",
     });
 
-    // Initialize client properties
     client.logger = new Logger();
     client.cmdLogger = new CommandLogger();
-
-    // Initialize collections
     client.slashCommands = new discord.Collection<string, SlashCommand>();
     client.commands = new discord.Collection<string, Command>();
     client.cooldowns = new discord.Collection<string, number>();
-
-    // Load configuration
     client.config = loadConfig(client);
 
     return client;
 };
 
-// Create the client instance
 const client = createClient();
 
 export default client;

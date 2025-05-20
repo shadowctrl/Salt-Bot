@@ -67,30 +67,25 @@ export class UserDataRepository {
             const userData = await this.findByUserId(userId);
 
             if (!userData) {
-                // User not found, create with new premium period
                 const expiryDate = new Date();
                 expiryDate.setDate(expiryDate.getDate() + additionalDays);
                 return this.setUserPremium(userId, expiryDate);
             }
 
             if (!userData.premiumStatus || !userData.premiumExpiresAt) {
-                // User doesn't have active premium, set new period
                 const expiryDate = new Date();
                 expiryDate.setDate(expiryDate.getDate() + additionalDays);
                 userData.premiumStatus = true;
                 userData.premiumExpiresAt = expiryDate;
             } else {
-                // User has active premium, extend it
                 const currentExpiry = new Date(userData.premiumExpiresAt);
                 const now = new Date();
 
-                // If already expired, start fresh from now
                 if (currentExpiry < now) {
                     const expiryDate = new Date();
                     expiryDate.setDate(expiryDate.getDate() + additionalDays);
                     userData.premiumExpiresAt = expiryDate;
                 } else {
-                    // If not expired, add days to current expiry
                     currentExpiry.setDate(currentExpiry.getDate() + additionalDays);
                     userData.premiumExpiresAt = currentExpiry;
                 }
@@ -142,11 +137,8 @@ export class UserDataRepository {
                 return [false, null];
             }
 
-            // Check if premium has expired
             if (userData.premiumStatus && userData.premiumExpiresAt &&
                 new Date(userData.premiumExpiresAt) < new Date()) {
-
-                // Automatically update to expired status
                 userData.premiumStatus = false;
                 userData.premiumExpiresAt = null;
                 await this.userDataRepo.save(userData);
@@ -168,8 +160,6 @@ export class UserDataRepository {
     async getAllPremiumUsers(): Promise<UserData[]> {
         try {
             const users = await this.userDataRepo.find();
-
-            // Filter for users with active premium status
             return users.filter(user =>
                 user.premiumStatus &&
                 user.premiumExpiresAt &&

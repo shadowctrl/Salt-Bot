@@ -3,14 +3,12 @@ import { DataSource } from "typeorm";
 import { ConfigManager } from "../../../utils/config";
 import { BotEvent } from "../../../types";
 
-// Load entities
 import { UserData } from "../entities/user_data";
 import { PremiumCoupon } from "../entities/premium_coupons";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
 import { ChatHistoryEntry } from "../entities/chat_history";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 export const AppDataSource = new DataSource({
@@ -43,10 +41,7 @@ const event: BotEvent = {
     execute: async (client: discord.Client): Promise<void> => {
         try {
             const dataSource = await initializeDatabase(client);
-
-            // Add dataSource to client for global access
             (client as any).dataSource = dataSource;
-
             client.logger.success(`[DATABASE] Connected to PostgreSQL database.`);
         } catch (error) {
             client.logger.error(`[DATABASE] Failed to connect to PostgreSQL: ${error}`);

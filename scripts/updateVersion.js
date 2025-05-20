@@ -14,13 +14,11 @@ const path = require('path');
  */
 const updateVersionInFiles = () => {
     try {
-        // Read version from VERSION file
         const versionFilePath = path.join(process.cwd(), 'VERSION');
         const version = fs.readFileSync(versionFilePath, 'utf8').trim();
 
         console.log(`Updating project to version ${version}...`);
 
-        // Update package.json
         const updatePackageJson = () => {
             const packageJsonPath = path.join(process.cwd(), 'package.json');
             const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -34,12 +32,10 @@ const updateVersionInFiles = () => {
             }
         };
 
-        // Update README.md
         const updateReadme = () => {
             const readmePath = path.join(process.cwd(), 'README.md');
             let readmeContent = fs.readFileSync(readmePath, 'utf8');
 
-            // Update the version badge
             const updatedReadme = readmeContent.replace(
                 /!\[Version\]\(https:\/\/img\.shields\.io\/badge\/version-([0-9]+\.[0-9]+\.[0-9]+)-blue\)/g,
                 `![Version](https://img.shields.io/badge/version-${version}-blue)`
@@ -53,7 +49,6 @@ const updateVersionInFiles = () => {
             }
         };
 
-        // Execute updates
         updatePackageJson();
         updateReadme();
 
@@ -64,5 +59,4 @@ const updateVersionInFiles = () => {
     }
 };
 
-// Run the update
 updateVersionInFiles();

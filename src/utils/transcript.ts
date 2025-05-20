@@ -19,7 +19,6 @@ export const createAndSendTranscript = async (
     dataSource: any
 ): Promise<void> => {
     try {
-        // Get ticket information from database
         const ticketRepo = new TicketRepository(dataSource);
         const ticket = await ticketRepo.getTicket(ticketId);
 
@@ -27,25 +26,21 @@ export const createAndSendTranscript = async (
             return client.logger.error(`[TRANSCRIPT] Could not find ticket with ID ${ticketId}`);
         }
 
-        // Fetch the creator of the ticket
         const creator = await client.users.fetch(ticket.creatorId).catch(() => null);
         if (!creator) {
             return client.logger.error(`[TRANSCRIPT] Could not fetch ticket creator with ID ${ticket.creatorId}`);
         }
 
-        // Fetch the claimer if the ticket was claimed
         let claimer = null;
         if (ticket.claimedById) {
             claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
         }
 
-        // Get guild configuration to find the transcript channel
         const guildConfig = await ticketRepo.getGuildConfig(channel.guildId);
         if (!guildConfig) {
             return client.logger.error(`[TRANSCRIPT] Could not find guild config for ${channel.guildId}`);
         }
 
-        // Get the transcript channel (if configured in database)
         const transcriptChannelId = guildConfig.ticketButton?.logChannelId;
         if (!transcriptChannelId) {
             client.logger.warn(`[TRANSCRIPT] No transcript channel configured for guild ${channel.guildId}`);
@@ -58,17 +53,15 @@ export const createAndSendTranscript = async (
             return;
         }
 
-        // Create a transcript of the channel
         client.logger.info(`[TRANSCRIPT] Creating transcript for ticket #${ticket.ticketNumber}`);
 
         const attachment = await createTranscript(channel, {
-            limit: 10000, // Limit of messages to fetch (adjust as needed)
+            limit: 10000,
             saveImages: true,
             poweredBy: false,
             filename: `ticket-${ticket.ticketNumber}.html`,
         }) as AttachmentBuffer;
 
-        // Create an embed for the transcript
         const embed = new EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber} | Transcript`)
             .setDescription(`
@@ -85,13 +78,11 @@ export const createAndSendTranscript = async (
             .setFooter({ text: 'Salt Bot Ticket System', iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 
-        // Send transcript to the transcript channel
         await (transcriptChannel as TextChannel).send({
             embeds: [embed],
             files: [attachment],
         });
 
-        // Optionally also DM the transcript to the user who created the ticket
         try {
             const userEmbed = new EmbedBuilder()
                 .setTitle(`Ticket #${ticket.ticketNumber} Closed`)
@@ -114,7 +105,6 @@ export const createAndSendTranscript = async (
     }
 };
 
-// Define the interface for the attachment buffer
 interface AttachmentBuffer extends AttachmentBuilder {
     attachment: Buffer;
 }
@@ -124,14 +114,12 @@ interface AttachmentBuffer extends AttachmentBuilder {
  */
 export const updateDatabaseSchema = async (dataSource: any): Promise<void> => {
     try {
-        // Check if the column exists
         const ticketButtonRepo = dataSource.getRepository('ticket_buttons');
         const hasLogChannelColumn = await ticketButtonRepo.query(
             `SELECT column_name FROM information_schema.columns 
        WHERE table_name='ticket_buttons' AND column_name='log_channel_id'`
         );
 
-        // Add the column if it doesn't exist
         if (!hasLogChannelColumn.length) {
             await dataSource.query(
                 `ALTER TABLE ticket_buttons ADD COLUMN log_channel_id VARCHAR(255)`

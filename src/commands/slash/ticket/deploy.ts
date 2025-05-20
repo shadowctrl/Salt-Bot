@@ -9,7 +9,6 @@ export const deployTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if user has proper permissions
         if (!interaction.memberPermissions?.has(discord.PermissionFlagsBits.Administrator)) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("You need Administrator permission to deploy the ticket panel.")]
@@ -17,7 +16,6 @@ export const deployTicket = async (
             return;
         }
 
-        // Get the specified channel
         const targetChannel = interaction.options.getChannel("channel") as discord.TextChannel;
         if (!targetChannel || !(targetChannel instanceof discord.TextChannel)) {
             await interaction.editReply({
@@ -26,7 +24,6 @@ export const deployTicket = async (
             return;
         }
 
-        // Check if bot has permissions to send messages in the target channel
         const botMember = await interaction.guild?.members.fetchMe();
         const botPermissions = targetChannel.permissionsFor(botMember!);
 
@@ -44,10 +41,7 @@ export const deployTicket = async (
             return;
         }
 
-        // Get ticket repository
         const ticketRepo = new TicketRepository((client as any).dataSource);
-
-        // Get guild config
         const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
         if (!guildConfig) {
             await interaction.editReply({
@@ -59,7 +53,6 @@ export const deployTicket = async (
             return;
         }
 
-        // Check if ticket system is enabled
         if (!guildConfig.isEnabled) {
             await interaction.editReply({
                 embeds: [
@@ -70,7 +63,6 @@ export const deployTicket = async (
             return;
         }
 
-        // Get ticket button configuration
         const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
         if (!buttonConfig) {
             await interaction.editReply({
@@ -79,7 +71,6 @@ export const deployTicket = async (
             return;
         }
 
-        // Create the embed
         const ticketEmbed = new discord.EmbedBuilder()
             .setTitle(buttonConfig.embedTitle || "Need Help?")
             .setDescription(buttonConfig.embedDescription || "Click the button below to create a ticket")
@@ -87,12 +78,9 @@ export const deployTicket = async (
             .setFooter({ text: "Powered by Salt Bot", iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 
-        // Get categories
         const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
         if (categories.length > 0) {
             const enabledCategories = categories.filter(cat => cat.isEnabled);
-
-            // Add category info to embed if there are categories
             if (enabledCategories.length > 0) {
                 const categoryList = enabledCategories.map(cat =>
                     `${cat.emoji || "🎫"} **${cat.name}** - ${cat.description || "No description"}`
@@ -100,7 +88,6 @@ export const deployTicket = async (
             }
         }
 
-        // Get button style
         let style = discord.ButtonStyle.Primary;
         switch (buttonConfig.style?.toUpperCase()) {
             case "SECONDARY":
@@ -114,7 +101,6 @@ export const deployTicket = async (
                 break;
         }
 
-        // Create the button row
         const buttonRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
             .addComponents(
                 new discord.ButtonBuilder()
@@ -124,26 +110,22 @@ export const deployTicket = async (
                     .setStyle(style)
             );
 
-        // Send the panel
         const panelMessage = await targetChannel.send({
             embeds: [ticketEmbed],
             components: [buttonRow]
         });
 
-        // Update the message ID and channel ID in the database
         await ticketRepo.configureTicketButton(interaction.guildId!, {
             messageId: panelMessage.id,
             channelId: targetChannel.id
         });
 
-        // Update select menu config if using categories
         if (categories.length > 1) {
             await ticketRepo.configureSelectMenu(interaction.guildId!, {
                 messageId: panelMessage.id
             });
         }
 
-        // Send confirmation message
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket panel deployed successfully!")

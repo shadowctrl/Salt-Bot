@@ -9,7 +9,6 @@ export const claimTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if this is a ticket channel
         const ticketRepo = new TicketRepository((client as any).dataSource);
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
 
@@ -20,14 +19,10 @@ export const claimTicket = async (
             return;
         }
 
-        // Check if the ticket is already claimed
         if (ticket.claimedById) {
-            // If claimed by the same user who's trying to claim it now, let them unclaim it
             if (ticket.claimedById === interaction.user.id) {
-                // Unclaim the ticket
                 await ticketRepo.unclaimTicket(ticket.id);
 
-                // Create unclaim message
                 const unclaimEmbed = new discord.EmbedBuilder()
                     .setTitle("Ticket Unclaimed")
                     .setDescription(`This ticket is no longer being handled by <@${interaction.user.id}>.`)
@@ -35,20 +30,15 @@ export const claimTicket = async (
                     .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
                     .setTimestamp();
 
-                // Send message to channel
                 const channel = interaction.channel as discord.TextChannel;
                 await channel.send({ embeds: [unclaimEmbed] });
 
-                // Find the buttons message and update it if possible
                 try {
                     const messages = await channel.messages.fetch({ limit: 10 });
-
                     let buttonMessage: discord.Message | undefined;
 
-                    // Iterate through messages to find one with our buttons
                     messages.forEach(msg => {
                         if (msg.author.id === client.user?.id && msg.components.length > 0) {
-                            // Check if any message component has our custom IDs
                             let hasTicketButtons = false;
 
                             msg.components.forEach(row => {
@@ -70,7 +60,6 @@ export const claimTicket = async (
                     });
 
                     if (buttonMessage) {
-                        // Create new action row with claim button
                         const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                             .addComponents(
                                 new discord.ButtonBuilder()
@@ -93,7 +82,6 @@ export const claimTicket = async (
                     client.logger.warn(`[TICKET_CLAIM] Could not find or update message with buttons: ${err}`);
                 }
 
-                // Send success message
                 await interaction.editReply({
                     embeds: [new EmbedTemplate(client).success("You have successfully unclaimed this ticket.")]
                 });
@@ -102,7 +90,6 @@ export const claimTicket = async (
                 return;
             }
 
-            // Ticket is claimed by someone else
             const claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
             await interaction.editReply({
                 embeds: [
@@ -114,10 +101,8 @@ export const claimTicket = async (
             return;
         }
 
-        // Check permissions - only support role or admin should be able to claim
         const member = interaction.member as discord.GuildMember;
         const supportRoleId = ticket.category.supportRoleId;
-
         const hasPermission =
             member.permissions.has(discord.PermissionFlagsBits.ManageChannels) ||
             (supportRoleId && member.roles.cache.has(supportRoleId));
@@ -133,10 +118,8 @@ export const claimTicket = async (
             return;
         }
 
-        // Claim the ticket
         await ticketRepo.claimTicket(ticket.id, interaction.user.id);
 
-        // Create claim message
         const claimEmbed = new discord.EmbedBuilder()
             .setTitle("Ticket Claimed")
             .setDescription(`This ticket is now being handled by <@${interaction.user.id}>.`)
@@ -148,20 +131,15 @@ export const claimTicket = async (
             .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
             .setTimestamp();
 
-        // Send message to channel
         const channel = interaction.channel as discord.TextChannel;
         await channel.send({ embeds: [claimEmbed] });
 
-        // Find the buttons message and update it if possible
         try {
             const messages = await channel.messages.fetch({ limit: 10 });
-
             let buttonMessage: discord.Message | undefined;
 
-            // Iterate through messages to find one with our buttons
             messages.forEach(msg => {
                 if (msg.author.id === client.user?.id && msg.components.length > 0) {
-                    // Check if any message component has our custom IDs
                     let hasTicketButtons = false;
 
                     msg.components.forEach(row => {
@@ -183,7 +161,6 @@ export const claimTicket = async (
             });
 
             if (buttonMessage) {
-                // Create new action row with unclaim button
                 const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                     .addComponents(
                         new discord.ButtonBuilder()
@@ -206,7 +183,6 @@ export const claimTicket = async (
             client.logger.warn(`[TICKET_CLAIM] Could not find or update message with buttons: ${err}`);
         }
 
-        // Send success message
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success(

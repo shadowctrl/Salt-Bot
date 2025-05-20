@@ -8,11 +8,9 @@ import { createAndSendTranscript } from '../../../utils/transcript';
 const event: BotEvent = {
     name: discord.Events.InteractionCreate,
     execute: async (interaction: discord.Interaction, client: discord.Client): Promise<void> => {
-        // Only handle button interactions and select menu interactions
         if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
 
         try {
-            // Check if dataSource is initialized
             if (!(client as any).dataSource) {
                 client.logger.error("[TICKET_BUTTON] Database connection is not available");
                 return;
@@ -20,40 +18,30 @@ const event: BotEvent = {
 
             const ticketRepo = new TicketRepository((client as any).dataSource);
 
-            // Handle ticket button interactions
             if (interaction.customId === "create_ticket") {
                 if (!interaction.isButton()) return;
                 await handleCreateTicketButton(interaction, client, ticketRepo);
-            }
-            // Handle ticket category selection
-            else if (interaction.isStringSelectMenu() && interaction.customId === "ticket_category_select") {
+            } else if (interaction.isStringSelectMenu() && interaction.customId === "ticket_category_select") {
                 await handleCategorySelect(interaction, client, ticketRepo);
-            }
-            // Handle ticket management buttons
-            else if (interaction.customId === "ticket_close") {
+            } else if (interaction.customId === "ticket_close") {
                 if (!interaction.isButton()) return;
                 await handleCloseButton(interaction, client, ticketRepo);
-            }
-            else if (interaction.customId === "ticket_reopen") {
+            } else if (interaction.customId === "ticket_reopen") {
                 if (!interaction.isButton()) return;
                 await handleReopenButton(interaction, client, ticketRepo);
-            }
-            else if (interaction.customId === "ticket_archive") {
+            } else if (interaction.customId === "ticket_archive") {
                 if (!interaction.isButton()) return;
                 await handleArchiveButton(interaction, client, ticketRepo);
-            }
-            else if (interaction.customId === "ticket_delete") {
+            } else if (interaction.customId === "ticket_delete") {
                 if (!interaction.isButton()) return;
                 await handleDeleteButton(interaction, client, ticketRepo);
-            }
-            else if (interaction.customId === "ticket_claim") {
+            } else if (interaction.customId === "ticket_claim") {
                 if (!interaction.isButton()) return;
                 await handleClaimButton(interaction, client, ticketRepo);
             }
         } catch (error) {
             client.logger.error(`[TICKET_BUTTON] Error handling interaction: ${error}`);
 
-            // Try to respond to the interaction if it hasn't been acknowledged
             if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
                 try {
                     await interaction.reply({
@@ -78,10 +66,8 @@ const handleCreateTicketButton = async (
     ticketRepo: TicketRepository
 ) => {
     try {
-        // Immediately defer reply to prevent timeout issues
         await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
-        // Get guild config
         const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
         if (!guildConfig || !guildConfig.isEnabled) {
             return interaction.editReply({
@@ -89,7 +75,6 @@ const handleCreateTicketButton = async (
             });
         }
 
-        // Check if user already has an open ticket
         const guildTickets = await ticketRepo.getGuildTickets(interaction.guildId!);
         const userTickets = guildTickets.filter(ticket =>
             ticket.creatorId === interaction.user.id &&
@@ -97,7 +82,6 @@ const handleCreateTicketButton = async (
         );
 
         if (userTickets.length > 0) {
-            // User already has an open ticket
             const existingTicket = userTickets[0];
             const ticketChannel = client.channels.cache.get(existingTicket.channelId) as discord.TextChannel;
 
@@ -109,15 +93,11 @@ const handleCreateTicketButton = async (
                     ]
                 });
             } else {
-                // Channel no longer exists, but ticket record does - clean up
                 await ticketRepo.updateTicketStatus(existingTicket.id, ITicketStatus.CLOSED, "system", "Ticket channel was deleted");
             }
         }
 
-        // Get categories
         const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
-
-        // Filter for enabled categories only
         const enabledCategories = categories.filter(category => category.isEnabled);
 
         if (enabledCategories.length === 0) {
@@ -126,18 +106,15 @@ const handleCreateTicketButton = async (
             });
         }
 
-        // If there's only one category, create ticket directly
         if (enabledCategories.length === 1) {
             await createTicket(interaction, client, ticketRepo, enabledCategories[0].id);
             return;
         }
 
-        // Otherwise, show category selection menu
         const selectMenu = new discord.StringSelectMenuBuilder()
             .setCustomId("ticket_category_select")
             .setPlaceholder("Select a ticket category");
 
-        // Add options for each category
         enabledCategories.forEach(category => {
             selectMenu.addOptions({
                 label: category.name,
@@ -147,10 +124,7 @@ const handleCreateTicketButton = async (
             });
         });
 
-        // Get select menu config
         const menuConfig = await ticketRepo.getSelectMenuConfig(interaction.guildId!);
-
-        // Create embed for category selection
         const selectEmbed = new discord.EmbedBuilder()
             .setTitle(menuConfig?.embedTitle || "Create a Ticket")
             .setDescription(menuConfig?.embedDescription || "Please select a category for your ticket")
@@ -158,11 +132,9 @@ const handleCreateTicketButton = async (
             .setFooter({ text: "Powered by Salt Bot", iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 
-        // Create action row with select menu
         const actionRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
             .addComponents(selectMenu);
 
-        // Send menu to user
         await interaction.editReply({
             embeds: [selectEmbed],
             components: [actionRow]
@@ -171,14 +143,11 @@ const handleCreateTicketButton = async (
         client.logger.error(`[TICKET_BUTTON] Error handling create ticket button: ${error}`);
 
         try {
-            // Check if we can still edit the reply
             if (interaction.deferred) {
                 await interaction.editReply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while processing your request.")]
                 });
-            }
-            // If we can't edit, try to reply if we haven't already
-            else if (!interaction.replied) {
+            } else if (!interaction.replied) {
                 await interaction.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while processing your request.")],
                     flags: discord.MessageFlags.Ephemeral
@@ -199,7 +168,6 @@ const handleCategorySelect = async (
     ticketRepo: TicketRepository
 ) => {
     try {
-        // Immediately defer update to prevent timeout issues
         await interaction.deferUpdate();
 
         const categoryId = interaction.values[0];
@@ -207,7 +175,6 @@ const handleCategorySelect = async (
     } catch (error) {
         client.logger.error(`[TICKET_BUTTON] Error handling category select: ${error}`);
 
-        // Try to follow up with an error message
         try {
             await interaction.followUp({
                 embeds: [new EmbedTemplate(client).error("An error occurred while processing your selection.")],
@@ -231,11 +198,9 @@ const createTicket = async (
     let newTicketChannel: discord.TextChannel | null = null;
 
     try {
-        // Get category
         const category = await ticketRepo.getTicketCategory(categoryId);
         if (!category) {
             try {
-                // Safely follow up if the category doesn't exist
                 await interaction.followUp({
                     embeds: [new EmbedTemplate(client).error("The selected category no longer exists.")],
                     flags: discord.MessageFlags.Ephemeral
@@ -246,7 +211,6 @@ const createTicket = async (
             return;
         }
 
-        // Safely update the interaction
         try {
             await interaction.editReply({
                 embeds: [
@@ -259,13 +223,9 @@ const createTicket = async (
             });
         } catch (editError) {
             client.logger.warn(`[TICKET_CREATE] Could not update loading message: ${editError}`);
-            // Continue with ticket creation even if we can't update the message
         }
 
-        // Generate channel name (temporary)
         const tempChannelName = `ticket-new`;
-
-        // Create ticket channel
         const guild = interaction.guild!;
 
         newTicketChannel = await guild.channels.create({
@@ -297,7 +257,6 @@ const createTicket = async (
             ]
         });
 
-        // Create ticket in database
         const ticket = await ticketRepo.createTicket(
             interaction.guildId!,
             interaction.user.id,
@@ -305,14 +264,10 @@ const createTicket = async (
             categoryId
         );
 
-        // Log success early so we know the ticket was created even if there are UI issues
         client.logger.info(`[TICKET_CREATE] User ${interaction.user.tag} created ticket #${ticket.ticketNumber} in category ${category.name}`);
-
-        // Rename the channel with the actual ticket number
         const channelName = `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`;
         await newTicketChannel.setName(channelName);
 
-        // If category has a support role, add it to channel permissions
         if (category.supportRoleId) {
             try {
                 await newTicketChannel.permissionOverwrites.create(
@@ -325,20 +280,16 @@ const createTicket = async (
                 );
             } catch (permissionError) {
                 client.logger.warn(`[TICKET_CREATE] Could not set permissions for support role ${category.supportRoleId}: ${permissionError}`);
-                // Continue with ticket creation even if role permissions fail
             }
         }
 
-        // Get ticket welcome message
         const ticketMessage = category.ticketMessage;
         const welcomeMessage = ticketMessage?.welcomeMessage ||
             `Welcome to your ticket in the **${category.name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`;
 
-        // Format creation time
         const creationTime = new Date();
         const creationTimestamp = Math.floor(creationTime.getTime() / 1000);
 
-        // Create welcome embed
         const welcomeEmbed = new discord.EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber}`)
             .setDescription(welcomeMessage)
@@ -353,7 +304,6 @@ const createTicket = async (
             .setFooter({ text: `Use /ticket close to close this ticket | ID: ${ticket.id}` })
             .setTimestamp();
 
-        // Create action row with close button
         const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
             .addComponents(
                 new discord.ButtonBuilder()
@@ -363,7 +313,6 @@ const createTicket = async (
                     .setEmoji("🔒")
             );
 
-        // Send welcome message to ticket channel
         await newTicketChannel.send({
             content: ticketMessage?.includeSupportTeam && category.supportRoleId ?
                 `<@${interaction.user.id}> | <@&${category.supportRoleId}>` :
@@ -372,10 +321,8 @@ const createTicket = async (
             components: [actionRow]
         });
 
-        // Try multiple ways to notify the user about the new ticket
         let notificationSent = false;
 
-        // First try to edit the reply if possible
         try {
             await interaction.editReply({
                 embeds: [
@@ -389,7 +336,6 @@ const createTicket = async (
             client.logger.warn(`[TICKET_CREATE] Could not edit reply: ${editError}`);
         }
 
-        // If edit failed, try followUp
         if (!notificationSent) {
             try {
                 await interaction.followUp({
@@ -405,15 +351,12 @@ const createTicket = async (
             }
         }
 
-        // If all notification attempts failed, log this but the ticket is still created
         if (!notificationSent) {
             client.logger.warn(`[TICKET_CREATE] Could not notify user about new ticket, but ticket #${ticket.ticketNumber} was created successfully`);
         }
 
     } catch (error) {
         client.logger.error(`[TICKET_CREATE] Error creating ticket: ${error}`);
-
-        // Try to notify the user of the error
         try {
             if (interaction.deferred) {
                 await interaction.editReply({
@@ -434,7 +377,6 @@ const createTicket = async (
             client.logger.error(`[TICKET_CREATE] Failed to send error response: ${responseError}`);
         }
 
-        // Clean up the ticket channel if it was created before the error
         if (newTicketChannel) {
             try {
                 await newTicketChannel.delete();
@@ -455,7 +397,6 @@ const handleCloseButton = async (
     ticketRepo: TicketRepository
 ) => {
     try {
-        // Check if the button is being used in a ticket channel
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
         if (!ticket) {
             return interaction.reply({
@@ -464,7 +405,6 @@ const handleCloseButton = async (
             });
         }
 
-        // Check if the ticket is already closed
         if (ticket.status !== "open") {
             return interaction.reply({
                 embeds: [new EmbedTemplate(client).error("This ticket is already closed.")],
@@ -472,12 +412,10 @@ const handleCloseButton = async (
             });
         }
 
-        // Create modal for close reason
         const modal = new discord.ModalBuilder()
             .setCustomId("ticket_close_modal")
             .setTitle("Close Ticket");
 
-        // Add reason input
         const reasonInput = new discord.TextInputBuilder()
             .setCustomId("ticket_close_reason")
             .setLabel("Reason for closing the ticket")
@@ -490,14 +428,10 @@ const handleCloseButton = async (
 
         modal.addComponents(actionRow);
 
-        // Show the modal - this already responds to the interaction
         await interaction.showModal(modal);
-
-        // We'll handle the modal submission in a separate event handler
     } catch (error) {
         client.logger.error(`[TICKET_CLOSE] Error showing close modal: ${error}`);
 
-        // Try to notify the user of the error
         if (!interaction.replied) {
             try {
                 await interaction.reply({
@@ -522,7 +456,6 @@ const handleReopenButton = async (
     try {
         await interaction.deferReply();
 
-        // Check if the command is being used in a ticket channel
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
         if (!ticket) {
             return interaction.editReply({
@@ -530,23 +463,18 @@ const handleReopenButton = async (
             });
         }
 
-        // Check if the ticket is closed
         if (ticket.status === "open") {
             return interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("This ticket is already open.")]
             });
         }
 
-        // Update ticket status in database
         await ticketRepo.updateTicketStatus(
             ticket.id,
             ITicketStatus.OPEN,
         );
 
-        // Get the channel
         const channel = interaction.channel as discord.TextChannel;
-
-        // Create reopen message embed
         const reopenEmbed = new discord.EmbedBuilder()
             .setTitle("Ticket Reopened")
             .setDescription("This ticket has been reopened.")
@@ -557,18 +485,13 @@ const handleReopenButton = async (
             .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
             .setTimestamp();
 
-        // Send reopen message
         await channel.send({ embeds: [reopenEmbed] });
 
-        // Update channel permissions to allow messages again
         try {
-            // Reset permissions for everyone
             await channel.permissionOverwrites.create(
                 interaction.guild!.roles.everyone,
                 { SendMessages: null }
             );
-
-            // Set permissions for original ticket creator
             await channel.permissionOverwrites.create(
                 ticket.creatorId,
                 {
@@ -578,7 +501,6 @@ const handleReopenButton = async (
                 }
             );
 
-            // If there's a support role for this category, set permissions for it
             if (ticket.category.supportRoleId) {
                 await channel.permissionOverwrites.create(
                     ticket.category.supportRoleId,
@@ -590,7 +512,6 @@ const handleReopenButton = async (
                 );
             }
 
-            // Create close button
             const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                 .addComponents(
                     new discord.ButtonBuilder()
@@ -644,7 +565,6 @@ const handleArchiveButton = async (
     try {
         await interaction.deferReply();
 
-        // Check if the command is being used in a ticket channel
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
         if (!ticket) {
             return interaction.editReply({
@@ -652,14 +572,12 @@ const handleArchiveButton = async (
             });
         }
 
-        // Check if the ticket is already archived
         if (ticket.status === "archived") {
             return interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("This ticket is already archived.")]
             });
         }
 
-        // Update ticket status in database
         await ticketRepo.updateTicketStatus(
             ticket.id,
             ITicketStatus.ARCHIVED,
@@ -667,7 +585,6 @@ const handleArchiveButton = async (
             "Ticket archived"
         );
 
-        // Create archive message embed
         const archiveEmbed = new discord.EmbedBuilder()
             .setTitle("Ticket Archived")
             .setDescription("This ticket has been archived and will be stored for reference.")
@@ -676,12 +593,9 @@ const handleArchiveButton = async (
             )
             .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
             .setTimestamp();
-
-        // Send archive message
+            
         const channel = interaction.channel as discord.TextChannel;
         await channel.send({ embeds: [archiveEmbed] });
-
-        // Confirmation message
         await interaction.editReply({
             embeds: [new EmbedTemplate(client).success("Ticket archived successfully.")]
         });
@@ -714,10 +628,7 @@ const handleDeleteButton = async (
     ticketRepo: TicketRepository
 ) => {
     try {
-        // First, immediately defer the reply to avoid timeout issues
         await interaction.deferReply();
-
-        // Check if being used in a ticket channel
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
         if (!ticket) {
             return interaction.editReply({
@@ -725,14 +636,12 @@ const handleDeleteButton = async (
             });
         }
 
-        // Check if user has permission to delete tickets
         if (!interaction.memberPermissions?.has(discord.PermissionFlagsBits.ManageChannels)) {
             return interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("You need Manage Channels permission to delete tickets.")]
             });
         }
 
-        // Create confirmation buttons
         const confirmRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
             .addComponents(
                 new discord.ButtonBuilder()
@@ -744,8 +653,6 @@ const handleDeleteButton = async (
                     .setLabel("Cancel")
                     .setStyle(discord.ButtonStyle.Secondary)
             );
-
-        // Send confirmation message
         const confirmMessage = await interaction.editReply({
             embeds: [
                 new discord.EmbedBuilder()
@@ -756,13 +663,12 @@ const handleDeleteButton = async (
             components: [confirmRow]
         });
 
-        // Create collector for confirmation buttons with proper type checking
         const collector = (confirmMessage as discord.Message).createMessageComponentCollector({
             filter: (i): i is discord.ButtonInteraction =>
                 i.isButton() &&
                 ['confirm_delete', 'cancel_delete'].includes(i.customId) &&
                 i.user.id === interaction.user.id,
-            time: 30000 // 30 seconds timeout
+            time: 30000
         });
 
         collector.on("collect", async (i: discord.ButtonInteraction) => {
@@ -779,17 +685,13 @@ const handleDeleteButton = async (
                 }
 
                 if (i.customId === "confirm_delete") {
-                    // Get channel for deletion
                     const channel = interaction.channel as discord.TextChannel;
-
-                    // Create delete message embed for user notification
                     const deleteEmbed = new discord.EmbedBuilder()
                         .setTitle("Ticket Deleted")
                         .setDescription(`Ticket #${ticket.ticketNumber} has been deleted by ${interaction.user.tag}.`)
                         .setColor("Red")
                         .setTimestamp();
 
-                    // Mark as closed instead of completely deleting from database
                     await ticketRepo.updateTicketStatus(
                         ticket.id,
                         ITicketStatus.CLOSED,
@@ -797,22 +699,17 @@ const handleDeleteButton = async (
                         "Ticket deleted by staff"
                     );
 
-                    // Log successful database update early
                     client.logger.info(`[TICKET_DELETE] Ticket #${ticket.ticketNumber} marked as closed in database`);
 
-                    // Send notification to user that created the ticket
                     try {
                         const creator = await client.users.fetch(ticket.creatorId);
                         await creator.send({ embeds: [deleteEmbed] }).catch((dmError) => {
                             client.logger.debug(`[TICKET_DELETE] Could not DM ticket creator: ${dmError}`);
-                            // Ignore if DM fails - this is expected sometimes
                         });
                     } catch (userError) {
                         client.logger.warn(`[TICKET_DELETE] Could not fetch or message ticket creator: ${userError}`);
-                        // Continue with deletion even if notification fails
                     }
 
-                    // Update message before deleting channel
                     try {
                         await i.editReply({
                             embeds: [new EmbedTemplate(client).success("Deleting ticket...")],
@@ -820,20 +717,15 @@ const handleDeleteButton = async (
                         });
                     } catch (editError) {
                         client.logger.warn(`[TICKET_DELETE] Could not update confirmation message: ${editError}`);
-                        // Continue with deletion even if message update fails
                     }
 
-                    // Delete the channel after a short delay
                     setTimeout(async () => {
                         try {
                             await channel.delete();
                             client.logger.info(`[TICKET_DELETE] Ticket #${ticket.ticketNumber} channel deleted by ${interaction.user.tag}`);
                         } catch (deleteError) {
                             client.logger.error(`[TICKET_DELETE] Error deleting channel: ${deleteError}`);
-
-                            // Try to notify the user if channel deletion fails
                             try {
-                                // Send a DM to the user who tried to delete
                                 await interaction.user.send({
                                     embeds: [
                                         new EmbedTemplate(client).error("Failed to delete the ticket channel.")
@@ -878,7 +770,6 @@ const handleDeleteButton = async (
         client.logger.error(`[TICKET_DELETE] Error in delete ticket handler: ${error}`);
 
         try {
-            // Based on interaction state, choose appropriate response method
             if (interaction.deferred) {
                 await interaction.editReply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while processing your delete request.")]
@@ -904,7 +795,6 @@ const handleClaimButton = async (
     ticketRepo: TicketRepository
 ): Promise<void> => {
     try {
-        // Check if this is a ticket channel
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
 
         if (!ticket) {
@@ -920,19 +810,12 @@ const handleClaimButton = async (
             return;
         }
 
-        // Check if the ticket is already claimed
         if (ticket.claimedById) {
-            // If the same user clicked the button, they can unclaim
             if (ticket.claimedById === interaction.user.id) {
                 await interaction.deferReply();
 
-                // Unclaim the ticket
                 await ticketRepo.unclaimTicket(ticket.id);
-
-                // Get the channel
                 const channel = interaction.channel as discord.TextChannel;
-
-                // Create unclaim message
                 const unclaimEmbed = new discord.EmbedBuilder()
                     .setTitle("Ticket Unclaimed")
                     .setDescription(`This ticket is no longer being handled by <@${interaction.user.id}>.`)
@@ -940,10 +823,7 @@ const handleClaimButton = async (
                     .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
                     .setTimestamp();
 
-                // Send message to channel
                 await channel.send({ embeds: [unclaimEmbed] });
-
-                // Create new action row with claim button
                 const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                     .addComponents(
                         new discord.ButtonBuilder()
@@ -958,7 +838,6 @@ const handleClaimButton = async (
                             .setEmoji("🔒")
                     );
 
-                // Update the original message with new buttons
                 if (interaction.message) {
                     await interaction.message.edit({
                         components: [actionRow]
@@ -967,7 +846,6 @@ const handleClaimButton = async (
                     });
                 }
 
-                // Send success message
                 await interaction.editReply({
                     embeds: [
                         new discord.EmbedBuilder()
@@ -979,7 +857,6 @@ const handleClaimButton = async (
 
                 client.logger.info(`[TICKET_CLAIM] ${interaction.user.tag} unclaimed ticket #${ticket.ticketNumber}`);
             } else {
-                // Someone else has claimed the ticket
                 const claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
                 const claimerName = claimer ? claimer.tag : "Unknown";
 
@@ -1002,7 +879,6 @@ const handleClaimButton = async (
             return;
         }
 
-        // Check permissions - only support role or admin should be able to claim
         const member = interaction.member as discord.GuildMember;
         const supportRoleId = ticket.category.supportRoleId;
 
@@ -1025,13 +901,8 @@ const handleClaimButton = async (
 
         await interaction.deferReply();
 
-        // Claim the ticket
         await ticketRepo.claimTicket(ticket.id, interaction.user.id);
-
-        // Get the channel
         const channel = interaction.channel as discord.TextChannel;
-
-        // Create claim message
         const claimEmbed = new discord.EmbedBuilder()
             .setTitle("Ticket Claimed")
             .setDescription(`This ticket is now being handled by <@${interaction.user.id}>.`)
@@ -1043,10 +914,7 @@ const handleClaimButton = async (
             .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
             .setTimestamp();
 
-        // Send message to channel
         await channel.send({ embeds: [claimEmbed] });
-
-        // Create new action row with unclaim button
         const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
             .addComponents(
                 new discord.ButtonBuilder()
@@ -1061,7 +929,6 @@ const handleClaimButton = async (
                     .setEmoji("🔒")
             );
 
-        // Update the original message with new buttons
         if (interaction.message) {
             await interaction.message.edit({
                 components: [actionRow]
@@ -1069,8 +936,7 @@ const handleClaimButton = async (
                 client.logger.warn(`[TICKET_CLAIM] Could not update message: ${err}`);
             });
         }
-
-        // Send success message
+        
         await interaction.editReply({
             embeds: [
                 new discord.EmbedBuilder()
@@ -1083,8 +949,6 @@ const handleClaimButton = async (
         client.logger.info(`[TICKET_CLAIM] ${interaction.user.tag} claimed ticket #${ticket.ticketNumber}`);
     } catch (error) {
         client.logger.error(`[TICKET_CLAIM] Error claiming ticket: ${error}`);
-
-        // Try to respond based on interaction state
         try {
             if (interaction.deferred) {
                 await interaction.editReply({

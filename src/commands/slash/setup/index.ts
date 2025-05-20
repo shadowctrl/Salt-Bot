@@ -45,23 +45,17 @@ const setupCommand: SlashCommand = {
         client: discord.Client
     ) => {
         try {
-            // Initial reply to acknowledge the command
             await interaction.deferReply();
 
-            // Check if database is connected
             if (!(client as any).dataSource) {
                 return interaction.editReply({
                     embeds: [new EmbedTemplate(client).error("Database connection is not available.")]
                 });
             }
 
-            // Get the ticket repository
             const ticketRepo = new TicketRepository((client as any).dataSource);
-
-            // Create or get guild config
             const guildConfig = await ticketRepo.getOrCreateGuildConfig(interaction.guildId!);
 
-            // Get specified channel or use current channel
             const ticketChannel = interaction.options.getChannel("ticket_channel") || interaction.channel;
             if (!ticketChannel || !(ticketChannel instanceof discord.TextChannel)) {
                 return interaction.editReply({
@@ -69,10 +63,7 @@ const setupCommand: SlashCommand = {
                 });
             }
 
-            // Get specified supporter role or leave it null
             const supportersRole = interaction.options.getRole("ticket_supporters");
-
-            // Get specified transcript channel or leave it null
             const transcriptChannel = interaction.options.getChannel("transcript_channel") as discord.TextChannel | null;
 
             const ticketDiscordCategory = await interaction.guild!.channels.create({
@@ -95,10 +86,8 @@ const setupCommand: SlashCommand = {
                 ]
             });
 
-            // Convert APIRole to discord.Role if needed
             let supporterRole: discord.Role | null = null;
             if (supportersRole) {
-                // Get the actual Role object from the cache if available
                 const guild = interaction.guild;
                 if (guild) {
                     try {
@@ -117,7 +106,6 @@ const setupCommand: SlashCommand = {
                 }
             }
 
-            // Show initial setup message
             await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
@@ -142,8 +130,6 @@ const setupCommand: SlashCommand = {
                         .setColor("Blue")
                 ]
             });
-
-            // Create basic configuration
 
             // 1. Configure the button
             await ticketRepo.configureTicketButton(interaction.guildId!, {
@@ -182,7 +168,6 @@ const setupCommand: SlashCommand = {
                 embedDescription: client.config.ticket.default.select_menu.embed_description,
             });
 
-            // Ask if user wants to deploy now
             const deployButtons = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                 .addComponents(
                     new discord.ButtonBuilder()
@@ -210,19 +195,17 @@ const setupCommand: SlashCommand = {
                 components: [deployButtons]
             });
 
-            // Create collector for the deploy buttons with proper error handling
             try {
                 const collector = deployMessage.createMessageComponentCollector({
                     filter: (i) =>
                         (i.customId === "deploy_now" || i.customId === "deploy_later") &&
                         i.user.id === interaction.user.id,
-                    time: 60000, // 1 minute timeout
-                    max: 1 // Only collect one interaction
+                    time: 60000,
+                    max: 1
                 });
 
                 collector.on("collect", async (buttonInteraction) => {
                     try {
-                        // Immediately defer to prevent issues
                         await buttonInteraction.deferUpdate().catch(() => {
                             client.logger.debug("[SETUP] Failed to defer button update - interaction may have expired");
                         });
@@ -235,7 +218,6 @@ const setupCommand: SlashCommand = {
                                 ticketChannel as discord.TextChannel
                             );
                         } else {
-                            // User chose to deploy later
                             await buttonInteraction.editReply({
                                 embeds: [
                                     new discord.EmbedBuilder()
@@ -248,7 +230,6 @@ const setupCommand: SlashCommand = {
                                 ],
                                 components: []
                             }).catch(() => {
-                                // If the edit fails, try a followUp as fallback
                                 interaction.followUp({
                                     embeds: [
                                         new EmbedTemplate(client).info("Setup complete! You can deploy the ticket panel later with `/ticket deploy`.")
@@ -259,7 +240,6 @@ const setupCommand: SlashCommand = {
                         }
                     } catch (error) {
                         client.logger.error(`[SETUP] Error handling button interaction: ${error}`);
-                        // Try to send a followUp if the interaction can't be updated
                         try {
                             await interaction.followUp({
                                 embeds: [new EmbedTemplate(client).error("An error occurred during deployment.")],
@@ -273,7 +253,6 @@ const setupCommand: SlashCommand = {
 
                 collector.on("end", async (collected, reason) => {
                     if (reason === "time" && collected.size === 0) {
-                        // Only try to edit if no interaction was collected
                         try {
                             await interaction.editReply({
                                 embeds: [
@@ -298,8 +277,6 @@ const setupCommand: SlashCommand = {
             }
         } catch (error) {
             client.logger.error(`[SETUP] Error in setup command: ${error}`);
-
-            // Try to respond if possible
             try {
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({

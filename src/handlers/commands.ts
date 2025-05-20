@@ -4,7 +4,6 @@ import discord from "discord.js";
 import { ConfigManager } from "../utils/config";
 import { BotEvent, Command, SlashCommand } from "../types";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 /**
@@ -24,12 +23,10 @@ const loadCommandsRecursive = async (
         const itemPath = path.join(directory, item.name);
 
         if (item.isDirectory()) {
-            // Recursively process subdirectories
             const subCommands = await loadCommandsRecursive(itemPath, fileFilter);
             commands.push(...subCommands);
         } else if (fileFilter(item.name)) {
             try {
-                // Check if there's an index.ts/js file that exports the command
                 const { default: command } = await import(itemPath);
 
                 if (command) {
@@ -47,14 +44,12 @@ const loadCommandsRecursive = async (
 const event: BotEvent = {
     name: discord.Events.ClientReady,
     execute: async (client: discord.Client): Promise<void> => {
-        // Validate client ID
         const clientID = client.user?.id;
         if (!clientID) {
             client.logger.error("[COMMAND] Client ID is undefined");
             return;
         }
 
-        // Initialize collections for commands
         const commands = new discord.Collection<
             string,
             Command | SlashCommand
@@ -67,8 +62,6 @@ const event: BotEvent = {
                 messageCommandsDir,
                 (file) => file.endsWith(".js") || file.endsWith(".ts")
             )) as Command[];
-
-            // Register message commands to both collections
             messageCommands.forEach((command) => {
                 client.commands.set(command.name, command);
                 commands.set(command.name, command);
@@ -96,7 +89,6 @@ const event: BotEvent = {
             }
         });
 
-        // Log command registration statistics
         client.logger.info(
             `[COMMAND] Loaded ${client.commands.size} message commands.`
         );

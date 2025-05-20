@@ -9,7 +9,6 @@ export const removeUserFromTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if this is a ticket channel
         const ticketRepo = new TicketRepository((client as any).dataSource);
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
 
@@ -20,7 +19,6 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Check permissions - either support role, ticket creator, or manage channels permission
         const member = interaction.member as discord.GuildMember;
         const supportRoleId = ticket.category.supportRoleId;
 
@@ -36,7 +34,6 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Get the user to remove
         const userToRemove = interaction.options.getUser("user");
         if (!userToRemove) {
             await interaction.editReply({
@@ -45,7 +42,6 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Make sure they're not trying to remove the ticket creator
         if (userToRemove.id === ticket.creatorId) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("You cannot remove the ticket creator from the ticket.")]
@@ -53,7 +49,6 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Check if it's a bot
         if (userToRemove.bot && userToRemove.id !== client.user?.id) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("You cannot remove bots from tickets.")]
@@ -61,10 +56,7 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Get the channel
         const channel = interaction.channel as discord.TextChannel;
-
-        // Check if user already doesn't have access
         const permissions = channel.permissionsFor(userToRemove.id);
         if (!permissions?.has(discord.PermissionFlagsBits.ViewChannel)) {
             await interaction.editReply({
@@ -73,15 +65,11 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        // Remove the user from the channel
         await channel.permissionOverwrites.delete(userToRemove.id);
-
-        // Send success message
         await interaction.editReply({
             embeds: [new EmbedTemplate(client).success(`${userToRemove} has been removed from the ticket.`)]
         });
 
-        // Notify in the channel about the removed user
         await channel.send({
             embeds: [
                 new discord.EmbedBuilder()

@@ -269,6 +269,20 @@ export interface ISelectMenuConfig {
     guildConfig: IGuildConfig;
 }
 
+export interface IChatbotConfig {
+    id: string;
+    guildId: string;
+    channelId: string;
+    apiKey: string;
+    baseUrl: string;
+    chatbotName: string;
+    responseType: string;
+    cooldown: number;
+    enabled: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 //-----------INTERFACE-----------//
 
 export interface BotPresence {

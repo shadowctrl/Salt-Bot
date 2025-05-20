@@ -13,7 +13,6 @@ const handleCommandPrerequisites = async (
     command: Command
 ): Promise<boolean> => {
     try {
-        // Check if the message still exists
         try {
             await message.fetch();
         } catch (error) {
@@ -81,7 +80,6 @@ const handleCommandPrerequisites = async (
 
         return true;
     } catch (error: Error | any) {
-        // If the error is related to message not found, just log it as debug and return false
         if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
             client.logger.debug(`[MESSAGE_CREATE] Message no longer exists: ${error}`);
             return false;
@@ -104,7 +102,6 @@ const executeCommand = async (
     args: string[]
 ): Promise<void> => {
     try {
-        // Check if the message still exists
         try {
             await message.fetch();
         } catch (error) {
@@ -136,7 +133,6 @@ const executeCommand = async (
         }
         
     } catch (error: Error | any) {
-        // If the error is related to message not found, just log it as debug
         if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
             client.logger.debug(`[MESSAGE_CREATE] Message no longer exists during execution: ${error}`);
             return;
@@ -144,7 +140,6 @@ const executeCommand = async (
 
         client.logger.error(`[MESSAGE_CREATE] Error executing command: ${error}`);
         try {
-            // Send error message to the channel directly instead of replying
             if (message.channel?.isTextBased() && 'send' in message.channel) {
                 await message.channel.send({
                     embeds: [new EmbedTemplate(client).error("❌ An error occurred while executing the command.")]
@@ -184,7 +179,6 @@ const event: BotEvent = {
 
             if (!(client as any).dataSource) {
                 try {
-                    // Send error message to the channel directly instead of replying
                     if (message.channel?.isTextBased() && 'send' in message.channel) {
                         await message.channel.send({
                             embeds: [new EmbedTemplate(client).error("❌ Database connection is not available.")]
@@ -200,7 +194,6 @@ const event: BotEvent = {
                 await executeCommand(client, message, command, args);
             }
         } catch (error: Error | any) {
-            // If the error is related to message not found, just log it as debug
             if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
                 client.logger.debug(`[MESSAGE_CREATE] Message no longer exists in event handler: ${error}`);
                 return;
@@ -208,7 +201,6 @@ const event: BotEvent = {
 
             client.logger.error(`[MESSAGE_CREATE] Error in event handler: ${error}`);
             try {
-                // Send error message to the channel directly if possible
                 if (message?.channel?.isTextBased() && 'send' in message.channel) {
                     await message.channel.send({
                         embeds: [new EmbedTemplate(client).error("❌ An error occurred while processing your message.")]

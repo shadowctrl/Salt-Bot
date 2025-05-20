@@ -103,7 +103,6 @@ export class ChatHistoryRepository {
      */
     async trimHistory(guildId: string, userId: string, maxLength: number): Promise<void> {
         try {
-            // Count non-system messages
             const nonSystemCount = await this.historyRepo.count({
                 where: {
                     guildId,
@@ -111,8 +110,6 @@ export class ChatHistoryRepository {
                     role: Not("system")
                 }
             });
-
-            // Count system messages
             const systemCount = await this.historyRepo.count({
                 where: {
                     guildId,
@@ -123,12 +120,8 @@ export class ChatHistoryRepository {
 
             const nonSystemAllowed = maxLength - systemCount;
 
-            // If we have more non-system messages than allowed, delete the oldest ones
             if (nonSystemCount > nonSystemAllowed && nonSystemAllowed >= 0) {
-                // Find the oldest messages to delete
                 const toDelete = nonSystemCount - nonSystemAllowed;
-
-                // Get the oldest entries to delete
                 const oldestEntries = await this.historyRepo.find({
                     where: {
                         guildId,
@@ -142,10 +135,7 @@ export class ChatHistoryRepository {
                 });
 
                 if (oldestEntries.length > 0) {
-                    // Get IDs of entries to delete
                     const idsToDelete = oldestEntries.map(entry => entry.id);
-
-                    // Delete entries
                     await this.historyRepo.delete(idsToDelete);
                 }
             }

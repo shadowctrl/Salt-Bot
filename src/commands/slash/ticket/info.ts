@@ -9,7 +9,6 @@ export const infoTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if the command is being used in a ticket channel
         const ticketRepo = new TicketRepository((client as any).dataSource);
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
 
@@ -20,43 +19,34 @@ export const infoTicket = async (
             return;
         }
 
-        // Get creator user
         const creator = await client.users.fetch(ticket.creatorId).catch(() => null);
-
-        // Get closer user (if ticket is closed)
         let closer = null;
         if (ticket.closedById) {
             closer = await client.users.fetch(ticket.closedById).catch(() => null);
         }
 
-        // Get claimer user (if ticket is claimed)
         let claimer = null;
         if (ticket.claimedById) {
             claimer = await client.users.fetch(ticket.claimedById).catch(() => null);
         }
 
-        // Format creation time
         const creationTime = new Date(ticket.createdAt);
         const creationTimestamp = Math.floor(creationTime.getTime() / 1000);
 
-        // Format closed time (if closed)
         let closedTimestamp = null;
         if (ticket.closedAt) {
             const closedTime = new Date(ticket.closedAt);
             closedTimestamp = Math.floor(closedTime.getTime() / 1000);
         }
 
-        // Format claimed time (if claimed)
         let claimedTimestamp = null;
         if (ticket.claimedAt) {
             const claimedTime = new Date(ticket.claimedAt);
             claimedTimestamp = Math.floor(claimedTime.getTime() / 1000);
         }
 
-        // Get category information
         const category = ticket.category;
 
-        // Create embed with detailed ticket information
         const embed = new discord.EmbedBuilder()
             .setTitle(`Ticket Information: #${ticket.ticketNumber}`)
             .setDescription(`This is ticket #${ticket.ticketNumber} in the ${category.emoji || "🎫"} **${category.name}** category.`)
@@ -69,7 +59,6 @@ export const infoTicket = async (
             .setFooter({ text: `Ticket ID: ${ticket.id}` })
             .setTimestamp();
 
-        // Add claimer information if ticket is claimed
         if (ticket.claimedById && claimer) {
             embed.addFields(
                 { name: "Claimed By", value: `${claimer} (${claimer.tag})`, inline: true },
@@ -77,7 +66,6 @@ export const infoTicket = async (
             );
         }
 
-        // Add closer information if ticket is closed
         if (ticket.status !== "open" && closer) {
             embed.addFields(
                 { name: "Closed By", value: `${closer} (${closer.tag})`, inline: true },
@@ -86,7 +74,6 @@ export const infoTicket = async (
             );
         }
 
-        // Add category support role if available
         if (category.supportRoleId) {
             embed.addFields({
                 name: "Support Role",
@@ -95,7 +82,6 @@ export const infoTicket = async (
             });
         }
 
-        // Add ticket channel category information
         const channel = interaction.channel as discord.TextChannel;
         if (channel.parent) {
             embed.addFields({
@@ -105,14 +91,12 @@ export const infoTicket = async (
             });
         }
 
-        // Add Discord channel ID
         embed.addFields({
             name: "Channel ID",
             value: interaction.channelId,
             inline: true
         });
 
-        // Send the information
         await interaction.editReply({ embeds: [embed] });
     } catch (error) {
         client.logger.error(`[TICKET_INFO] Error getting ticket info: ${error}`);

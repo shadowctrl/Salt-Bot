@@ -42,10 +42,7 @@ class PremiumHandler {
         expiryDays: number = 30
     ): Promise<string[] | null> => {
         try {
-            // Generate initial batch of codes
             let codes = this.generateCouponCodes(count);
-
-            // Check for existing codes
             const existingCodes = new Set<string>();
 
             for (const code of codes) {
@@ -55,11 +52,9 @@ class PremiumHandler {
                 }
             }
 
-            // Filter out duplicates and generate new ones if needed
             codes = codes.filter(code => !existingCodes.has(code));
 
             if (codes.length < count) {
-                // Generate additional codes to replace duplicates
                 const additionalCodes = this.generateCouponCodes(count * 2);
 
                 for (const code of additionalCodes) {
@@ -72,19 +67,16 @@ class PremiumHandler {
                 }
             }
 
-            // Create coupon batch
             const couponData = codes.map(code => ({
                 code,
                 userId
             }));
 
             const createdCoupons = await this.couponRepo.createCouponBatch(couponData);
-
             if (createdCoupons.length === 0) {
                 return null;
             }
 
-            // Schedule deletion of expired coupons
             setSafeTimeout(async () => {
                 await this.couponRepo.deleteExpiredCoupons(codes);
             }, expiryDays * 24 * 60 * 60 * 1000);
@@ -110,23 +102,19 @@ class PremiumHandler {
         premiumDurationDays: number = 30
     ): Promise<boolean> => {
         try {
-            // Find the coupon
             const coupon = await this.couponRepo.findByCode(code);
 
             if (!coupon || !coupon.status) {
-                return false; // Coupon not found or already used
+                return false;
             }
 
-            // Mark coupon as used first to prevent race conditions
             const marked = await this.couponRepo.markCouponAsUsed(code);
 
             if (!marked) {
                 return false;
             }
 
-            // Apply premium status to user
             const result = await this.userRepo.extendPremium(userId, premiumDurationDays);
-
             return !!result;
         } catch (error) {
             client.logger.error(`[PREMIUM_HANDLER] Error redeeming coupon: ${error}`);
@@ -158,7 +146,7 @@ class PremiumHandler {
     public checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
         try {
             const userData = await this.userRepo.checkPremiumStatus(userId);
-            return userData; // This now returns [boolean, Date | null] directly
+            return userData;
         } catch (error) {
             client.logger.error(`[PREMIUM_HANDLER] Error checking premium status: ${error}`);
             return [false, null];

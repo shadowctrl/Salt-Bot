@@ -8,24 +8,18 @@ import { createAndSendTranscript } from '../../../utils/transcript';
 const event: BotEvent = {
     name: discord.Events.InteractionCreate,
     execute: async (interaction: discord.Interaction, client: discord.Client): Promise<void> => {
-        // Only handle modal submissions
         if (!interaction.isModalSubmit()) return;
 
         try {
-            // Check if dataSource is initialized
             if (!(client as any).dataSource) {
                 client.logger.error("[TICKET_MODAL] Database connection is not available");
                 return;
             }
-
-            // Handle ticket close modal
             if (interaction.customId === "ticket_close_modal") {
                 await handleTicketCloseModal(interaction, client);
             }
         } catch (error) {
             client.logger.error(`[TICKET_MODAL] Error handling modal submission: ${error}`);
-
-            // Only try to respond if the interaction hasn't been acknowledged
             if (!interaction.replied && !interaction.deferred) {
                 try {
                     await interaction.reply({
@@ -48,10 +42,7 @@ const handleTicketCloseModal = async (
     client: discord.Client
 ) => {
     try {
-        // First check if the modal is valid before deferring
         const ticketRepo = new TicketRepository((client as any).dataSource);
-
-        // Get the ticket
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId!);
         if (!ticket) {
             await interaction.reply({
@@ -61,19 +52,13 @@ const handleTicketCloseModal = async (
             return;
         }
 
-        // Now defer the update since we confirmed it's a valid ticket
         await interaction.deferUpdate().catch(deferError => {
             client.logger.warn(`[TICKET_MODAL] Could not defer modal: ${deferError}`);
-            // Continue anyway - we'll try to reply directly if needed
         });
 
-        // Get reason from modal
         const reason = interaction.fields.getTextInputValue("ticket_close_reason") || "No reason provided";
-
-        // Log that we're updating the database, in case later steps fail
         client.logger.info(`[TICKET_CLOSE] Closing ticket #${ticket.ticketNumber} with reason: ${reason}`);
 
-        // Update ticket status in database early
         await ticketRepo.updateTicketStatus(
             ticket.id,
             ITicketStatus.CLOSED,
@@ -81,11 +66,8 @@ const handleTicketCloseModal = async (
             reason
         );
 
-        // Get the ticket message configuration
         const ticketMessage = await ticketRepo.getTicketMessage(ticket.category.id);
         const category = ticket.category;
-
-        // Create close message embed
         const closeEmbed = new discord.EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber} Closed`)
             .setDescription(ticketMessage?.closeMessage || "This ticket has been closed.")
@@ -101,23 +83,17 @@ const handleTicketCloseModal = async (
             .setFooter({ text: `Use /ticket reopen to reopen this ticket | ID: ${ticket.id}` })
             .setTimestamp();
 
-        // Get the channel
         const channel = interaction.channel as discord.TextChannel;
-
-        // Send the close message to the channel
         await channel.send({ embeds: [closeEmbed] }).catch(sendError => {
             client.logger.error(`[TICKET_CLOSE] Error sending close message: ${sendError}`);
-            // Continue with the process even if we can't send the message
         });
 
-        // Update channel permissions to prevent further messages
         try {
             await channel.permissionOverwrites.create(
                 interaction.guild!.roles.everyone,
                 { SendMessages: false }
             );
 
-            // Create action row with management buttons
             const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                 .addComponents(
                     new discord.ButtonBuilder()
@@ -134,8 +110,6 @@ const handleTicketCloseModal = async (
                         .setStyle(discord.ButtonStyle.Danger)
                 );
 
-            // Send a response with management buttons
-            // Use a safer approach - check if we can use followUp or if we need to send directly
             try {
                 if (interaction.deferred) {
                     await interaction.followUp({
@@ -143,7 +117,6 @@ const handleTicketCloseModal = async (
                         components: [actionRow]
                     });
                 } else {
-                    // If not deferred, try a direct reply
                     await interaction.reply({
                         embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
                         components: [actionRow]
@@ -151,7 +124,6 @@ const handleTicketCloseModal = async (
                 }
             } catch (replyError) {
                 client.logger.warn(`[TICKET_CLOSE] Could not send confirmation: ${replyError}`);
-                // Send to channel as fallback
                 await channel.send({
                     embeds: [new EmbedTemplate(client).success("Ticket closed successfully.")],
                     components: [actionRow]
@@ -160,7 +132,6 @@ const handleTicketCloseModal = async (
                 });
             }
 
-            // Generate and send transcript
             try {
                 await createAndSendTranscript(
                     channel,
@@ -171,14 +142,11 @@ const handleTicketCloseModal = async (
                 );
             } catch (transcriptError) {
                 client.logger.error(`[TICKET_CLOSE] Error creating transcript: ${transcriptError}`);
-                // We've already handled the main closing process, so just log this error
             }
         } catch (error) {
             client.logger.error(`[TICKET_CLOSE] Error updating permissions: ${error}`);
 
-            // Safely notify about permission issues
             try {
-                // Send to channel since it's more reliable
                 await channel.send({
                     embeds: [
                         new EmbedTemplate(client).warning("Ticket marked as closed, but could not update channel permissions.")
@@ -193,7 +161,6 @@ const handleTicketCloseModal = async (
         client.logger.error(`[TICKET_MODAL] Error handling close modal: ${error}`);
 
         try {
-            // Check interaction state before trying to respond
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while closing the ticket.")],
@@ -207,8 +174,6 @@ const handleTicketCloseModal = async (
             }
         } catch (responseError) {
             client.logger.error(`[TICKET_MODAL] Failed to send error response: ${responseError}`);
-
-            // Final fallback: try to send to the channel directly
             try {
                 const channel = interaction.channel as discord.TextChannel;
                 if (channel) {

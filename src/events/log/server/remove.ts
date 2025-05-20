@@ -7,7 +7,6 @@ const event: BotEvent = {
         guild: discord.Guild,
         client: discord.Client
     ): Promise<void> => {
-        // Create detailed embed for server leave
         const embed = new discord.EmbedBuilder()
             .setTitle("Server Left")
             .setAuthor({ name: guild.name, iconURL: guild.iconURL() || "" })
@@ -38,7 +37,6 @@ const event: BotEvent = {
             .setFooter({ text: `Now in ${client.guilds.cache.size} servers` })
             .setTimestamp();
 
-        // Get and validate log channel
         const logChannel = client.channels.cache.get(
             client.config.bot.log.server
         ) as discord.TextChannel;
@@ -47,7 +45,6 @@ const event: BotEvent = {
                 `[SERVER] Log channel is not a text channel`
             );
 
-        // Send embed and log event
         logChannel.send({ embeds: [embed] });
         client.logger.info(`[SERVER] Left ${guild.name} (${guild.id})`);
     },

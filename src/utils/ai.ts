@@ -143,7 +143,6 @@ class ChatHistory {
      */
     public async getRecentMessages(count: number): Promise<OpenAI.Responses.EasyInputMessage[]> {
         const entries = await this.repository.getRecentMessages(this.guildId, this.userId, count);
-        // Reverse to get chronological order
         return this.repository.convertToOpenAIMessages(entries.reverse());
     }
 
