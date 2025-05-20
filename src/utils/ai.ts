@@ -24,13 +24,17 @@ class LLM {
 
     /**
      * Invokes the LLM with the given messages and model.
-     * @param {OpenAI.Responses.EasyInputMessage[]} messages - The messages to send to the LLM.
+     * @param {OpenAI.Chat.Completions.ChatCompletionMessageParam[]} messages - The messages to send to the LLM.
      * @param {string} model - The model to use for the LLM.
-     * @param {...any} args - Additional arguments for the LLM invocation.
+     * @param {object} options - Additional options for the API call.
      * @returns {Promise<OpenAI.Chat.Completions.ChatCompletion>} - The LLM's response.
      * @throws {Error} - Throws an error if the API request fails.
      */
-    public async invoke(messages: OpenAI.Responses.EasyInputMessage[], model: string, ...args: any): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    public async invoke(
+        messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        model: string,
+        options?: Record<string, any>
+    ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
         let retries = 0;
 
         while (true) {
@@ -38,7 +42,7 @@ class LLM {
                 const response = await this.openai_client.chat.completions.create({
                     model: model,
                     messages: messages,
-                    ...args
+                    ...(options || {})
                 });
 
                 if (!response) {
@@ -111,9 +115,9 @@ class ChatHistory {
 
     /**
      * Adds a message to the history.
-     * @param {OpenAI.Responses.EasyInputMessage} message - The message to add.
+     * @param {OpenAI.Chat.Completions.ChatCompletionMessageParam} message - The message to add.
      */
-    private async addMessage(message: OpenAI.Responses.EasyInputMessage): Promise<void> {
+    private async addMessage(message: OpenAI.Chat.Completions.ChatCompletionMessageParam): Promise<void> {
         await this.repository.addMessage(
             this.guildId,
             this.userId,
@@ -130,9 +134,9 @@ class ChatHistory {
 
     /**
      * Gets the entire conversation history.
-     * @returns {Promise<OpenAI.Responses.EasyInputMessage[]>} - The conversation history.
+     * @returns {Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]>} - The conversation history.
      */
-    public async getHistory(): Promise<OpenAI.Responses.EasyInputMessage[]> {
+    public async getHistory(): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
         const entries = await this.repository.getHistory(this.guildId, this.userId);
         return this.repository.convertToOpenAIMessages(entries);
     }
@@ -140,9 +144,9 @@ class ChatHistory {
     /**
      * Gets a window of the most recent messages.
      * @param {number} count - Number of messages to retrieve.
-     * @returns {Promise<OpenAI.Responses.EasyInputMessage[]>} - The most recent messages.
+     * @returns {Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]>} - The most recent messages.
      */
-    public async getRecentMessages(count: number): Promise<OpenAI.Responses.EasyInputMessage[]> {
+    public async getRecentMessages(count: number): Promise<OpenAI.Chat.Completions.ChatCompletionMessageParam[]> {
         const entries = await this.repository.getRecentMessages(this.guildId, this.userId, count);
         return this.repository.convertToOpenAIMessages(entries.reverse());
     }

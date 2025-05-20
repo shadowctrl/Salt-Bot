@@ -177,7 +177,7 @@ export class ChatHistoryRepository {
      * @param entries - Chat history entries
      * @returns OpenAI format messages
      */
-    convertToOpenAIMessages(entries: ChatHistoryEntry[]): OpenAI.Responses.EasyInputMessage[] {
+    convertToOpenAIMessages(entries: ChatHistoryEntry[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
         return entries.map(entry => ({
             role: entry.role as "system" | "user" | "assistant",
             content: entry.content

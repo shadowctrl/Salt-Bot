@@ -147,12 +147,16 @@ const handleSetup = async (
 
         try {
             const llm = new LLM(apiKey, baseUrl, client);
-            await llm.invoke([{ role: "user", content: "Say 'API connection successful'" }], modelName, { max_tokens: 50 });
+            await llm.invoke(
+                [{ role: "user", content: "Say 'API connection successful'" }],
+                modelName,
+                { max_tokens: 50 }
+            );
         } catch (error) {
             await interaction.editReply({
                 embeds: [
-                    new EmbedTemplate(client).error("Failed to verify API credentials.")
-                        .setDescription(`Error connecting to the LLM provider: ${error instanceof Error ? error.message : String(error)}`)
+                    new EmbedTemplate(client).error("Failed to connect to the API.")
+                        .setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)
                 ]
             });
             return;
