@@ -26,6 +26,7 @@ export class ChatbotConfigRepository {
         guildId: string,
         channelId: string,
         apiKey: string,
+        modelName: string,
         baseUrl: string = "https://api.openai.com/v1",
         chatbotName: string = "AI Assistant",
         responseType: string = ""
@@ -35,10 +36,11 @@ export class ChatbotConfigRepository {
             config.guildId = guildId;
             config.channelId = channelId;
             config.apiKey = apiKey;
+            config.modelName = modelName;
             config.baseUrl = baseUrl;
             config.chatbotName = chatbotName;
             config.responseType = responseType;
-            config.cooldown = 5; // Default cooldown
+            config.cooldown = 5;
             config.enabled = true;
 
             return await this.configRepo.save(config);

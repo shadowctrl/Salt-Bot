@@ -20,6 +20,9 @@ export class ChatbotConfig {
     @Column({ default: "Salty" })
     chatbotName!: string;
 
+    @Column({ nullable: false, default: "gpt-4o-mini" })
+    modelName!: string;
+
     @Column({ type: "text", nullable: true, default: "Friendly" })
     responseType!: string;
 

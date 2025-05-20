@@ -55,6 +55,10 @@ const chatbotCommand: SlashCommand = {
                         .setDescription("The API key for the chatbot service")
                         .setRequired(false))
                 .addStringOption(option =>
+                    option.setName("model_name")
+                        .setDescription("The model name for the chatbot")
+                        .setRequired(false))
+                .addStringOption(option =>
                     option.setName("base_url")
                         .setDescription("The base URL for the chatbot API")
                         .setRequired(false))
@@ -235,6 +239,7 @@ const handleSetup = async (
             interaction.guildId!,
             channel.id,
             apiKey,
+            modelName,
             baseUrl,
             name,
             responseType
@@ -268,6 +273,7 @@ const handleSetup = async (
                     .setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.`)
                     .addFields(
                         { name: "Name", value: name, inline: true },
+                        { name: "Model", value: modelName, inline: true },
                         { name: "Cooldown", value: "5 seconds", inline: true },
                         { name: "API", value: baseUrl, inline: true }
                     )
@@ -301,11 +307,12 @@ const handleSettings = async (
         }
 
         const apiKey = interaction.options.getString("api_key");
+        const modelName = interaction.options.getString("model_name");
         const baseUrl = interaction.options.getString("base_url");
         const name = interaction.options.getString("name");
         const responseType = interaction.options.getString("response_type");
 
-        if (!apiKey && !baseUrl && !name && !responseType) {
+        if (!apiKey && !modelName && !baseUrl && !name && !responseType) {
             await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
@@ -313,6 +320,7 @@ const handleSettings = async (
                         .setDescription(`Current settings for the chatbot in <#${existingConfig.channelId}>`)
                         .addFields(
                             { name: "Name", value: existingConfig.chatbotName, inline: true },
+                            { name: "Model", value: existingConfig.modelName, inline: true },
                             { name: "Cooldown", value: `${existingConfig.cooldown} seconds`, inline: true },
                             { name: "API", value: existingConfig.baseUrl, inline: true },
                             { name: "API Key", value: "••••••••" + existingConfig.apiKey.slice(-4), inline: true },
@@ -328,9 +336,33 @@ const handleSettings = async (
 
         const updates: Partial<ChatbotConfig> = {};
         if (apiKey) updates.apiKey = apiKey;
+        if (modelName) updates.modelName = modelName;
         if (baseUrl) updates.baseUrl = baseUrl;
         if (name) updates.chatbotName = name;
         if (responseType !== null) updates.responseType = responseType || "";
+
+        if (apiKey || modelName || baseUrl) {
+            try {
+                const llm = new LLM(
+                    apiKey || existingConfig.apiKey,
+                    baseUrl || existingConfig.baseUrl,
+                    client
+                );
+                await llm.invoke(
+                    [{ role: "user", content: "Say 'API connection successful'" }],
+                    modelName || existingConfig.modelName,
+                    { max_tokens: 50 }
+                );
+            } catch (error) {
+                await interaction.editReply({
+                    embeds: [
+                        new EmbedTemplate(client).error("Failed to connect to the API with the new settings.")
+                            .setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)
+                    ]
+                });
+                return;
+            }
+        }
 
         const updatedConfig = await chatbotRepo.updateConfig(interaction.guildId!, updates);
         if (!updatedConfig) {
@@ -346,6 +378,7 @@ const handleSettings = async (
                     .setDescription(`The chatbot settings have been updated for <#${updatedConfig.channelId}>.`)
                     .addFields(
                         { name: "Name", value: updatedConfig.chatbotName, inline: true },
+                        { name: "Model", value: updatedConfig.modelName, inline: true },
                         { name: "Cooldown", value: `${updatedConfig.cooldown} seconds`, inline: true },
                         { name: "API", value: updatedConfig.baseUrl, inline: true }
                     )
@@ -495,6 +528,7 @@ const handleInfo = async (
             .setDescription(`Information about the chatbot in ${channelInfo}`)
             .addFields(
                 { name: "Name", value: existingConfig.chatbotName, inline: true },
+                { name: "Model", value: existingConfig.modelName, inline: true },
                 { name: "Enabled", value: existingConfig.enabled ? "Yes" : "No", inline: true },
                 { name: "Cooldown", value: `${existingConfig.cooldown} seconds`, inline: true },
                 { name: "API", value: existingConfig.baseUrl, inline: true },
