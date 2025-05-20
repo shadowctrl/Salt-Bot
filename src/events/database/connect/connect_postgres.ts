@@ -8,6 +8,7 @@ import { UserData } from "../entities/user_data";
 import { PremiumCoupon } from "../entities/premium_coupons";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
+import { ChatHistoryEntry } from "../entities/chat_history";
 
 // Load environment variables
 const configManager = ConfigManager.getInstance();
@@ -17,7 +18,11 @@ export const AppDataSource = new DataSource({
     url: configManager.getPostgresUri(),
     synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
-    entities: [UserData, PremiumCoupon, BlockedUser, BlockReason, GuildConfig, TicketCategory, TicketButton, TicketMessage, Ticket, SelectMenuConfig],
+    entities: [
+        UserData, PremiumCoupon, BlockedUser, BlockReason,
+        GuildConfig, TicketCategory, TicketButton, TicketMessage,
+        Ticket, SelectMenuConfig, ChatHistoryEntry
+    ],
     subscribers: [],
     migrations: [],
 });
