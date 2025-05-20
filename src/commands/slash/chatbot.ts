@@ -1,4 +1,5 @@
 import discord from "discord.js";
+import { LLM } from "../../utils/ai";
 import { SlashCommand } from "../../types";
 import { EmbedTemplate } from "../../utils/embed_template";
 import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
@@ -19,15 +20,19 @@ const chatbotCommand: SlashCommand = {
             subcommand
                 .setName("setup")
                 .setDescription("Set up a chatbot in a channel")
+                .addStringOption(option =>
+                    option.setName("api_key")
+                        .setDescription("The API key for the chatbot service (OpenAI, Groq, etc.)")
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName("model_name")
+                        .setDescription("The model name for the chatbot (e.g., gpt-4o-mini, compound-beta, claude-3.5-sonnet)")
+                        .setRequired(true))
                 .addChannelOption(option =>
                     option.setName("channel")
                         .setDescription("The channel to use for the chatbot")
                         .addChannelTypes(discord.ChannelType.GuildText)
-                        .setRequired(true))
-                .addStringOption(option =>
-                    option.setName("api_key")
-                        .setDescription("The API key for the chatbot service")
-                        .setRequired(true))
+                        .setRequired(false))
                 .addStringOption(option =>
                     option.setName("base_url")
                         .setDescription("The base URL for the chatbot API (default: OpenAI)")
@@ -133,15 +138,68 @@ const handleSetup = async (
             return;
         }
 
-        const channel = interaction.options.getChannel("channel", true) as discord.TextChannel;
+        let channel = interaction.options.getChannel("channel") as discord.TextChannel | null;
         const apiKey = interaction.options.getString("api_key", true);
+        const modelName = interaction.options.getString("model_name", true);
         const baseUrl = interaction.options.getString("base_url") || "https://api.openai.com/v1";
         const name = interaction.options.getString("name") || "AI Assistant";
-        const responseType = interaction.options.getString("response_type") || "";
+        const responseType = interaction.options.getString("response_type") || "Friendly and helpful";
 
-        if (!channel.isTextBased() || channel.isDMBased()) {
+        try {
+            const llm = new LLM(apiKey, baseUrl, client);
+            await llm.invoke([{ role: "user", content: "Say 'API connection successful'" }], modelName, { max_tokens: 50 });
+        } catch (error) {
             await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("Please select a valid text channel.")]
+                embeds: [
+                    new EmbedTemplate(client).error("Failed to verify API credentials.")
+                        .setDescription(`Error connecting to the LLM provider: ${error instanceof Error ? error.message : String(error)}`)
+                ]
+            });
+            return;
+        }
+
+        let createdNewChannel = false;
+
+        if (!channel) {
+            const currentChannel = interaction.channel as discord.TextChannel;
+            const categoryId = currentChannel.parentId;
+
+            try {
+                channel = await interaction.guild!.channels.create({
+                    name: `${name.toLowerCase().replace(/\s+/g, '-')}-chat`,
+                    type: discord.ChannelType.GuildText,
+                    parent: categoryId || undefined,
+                    permissionOverwrites: [
+                        {
+                            id: interaction.guild!.roles.everyone,
+                            allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages]
+                        },
+                        {
+                            id: client.user!.id,
+                            allow: [
+                                discord.PermissionFlagsBits.ViewChannel,
+                                discord.PermissionFlagsBits.SendMessages,
+                                discord.PermissionFlagsBits.EmbedLinks,
+                                discord.PermissionFlagsBits.ReadMessageHistory
+                            ]
+                        }
+                    ]
+                });
+                createdNewChannel = true;
+            } catch (error) {
+                await interaction.editReply({
+                    embeds: [
+                        new EmbedTemplate(client).error("Failed to create chatbot channel.")
+                            .setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)
+                    ]
+                });
+                return;
+            }
+        }
+
+        if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+            await interaction.editReply({
+                embeds: [new EmbedTemplate(client).error("Invalid channel type. Please select a valid text channel.")]
             });
             return;
         }
@@ -161,6 +219,12 @@ const handleSetup = async (
                 ]
             });
             return;
+        }
+
+        try {
+            await channel.setRateLimitPerUser(5, "Chatbot rate limit");
+        } catch (error) {
+            client.logger.warn(`[CHATBOT_SETUP] Could not set channel rate limit: ${error}`);
         }
 
         const config = await chatbotRepo.createConfig(
@@ -197,7 +261,7 @@ const handleSetup = async (
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Chatbot set up successfully!")
-                    .setDescription(`The chatbot has been configured for ${channel}. Users can now chat with the bot in that channel.`)
+                    .setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.`)
                     .addFields(
                         { name: "Name", value: name, inline: true },
                         { name: "Cooldown", value: "5 seconds", inline: true },

@@ -27,21 +27,22 @@ class LLM {
      * @param {OpenAI.Responses.EasyInputMessage[]} messages - The messages to send to the LLM.
      * @param {string} model - The model to use for the LLM.
      * @param {...any} args - Additional arguments for the LLM invocation.
-     * @returns {Promise<OpenAI.Responses.Response>} - The response from the LLM.
+     * @returns {Promise<OpenAI.Chat.Completions.ChatCompletion>} - The LLM's response.
+     * @throws {Error} - Throws an error if the API request fails.
      */
-    public async invoke(messages: OpenAI.Responses.EasyInputMessage[], model: string, ...args: any): Promise<OpenAI.Responses.Response> {
+    public async invoke(messages: OpenAI.Responses.EasyInputMessage[], model: string, ...args: any): Promise<OpenAI.Chat.Completions.ChatCompletion> {
         let retries = 0;
 
         while (true) {
             try {
-                const response = await this.openai_client.responses.create({
+                const response = await this.openai_client.chat.completions.create({
                     model: model,
                     messages: messages,
                     ...args
                 });
 
-                if (!response || !response.status || response.status === "failed") {
-                    throw new Error("Failed to get a valid response from the LLM.");
+                if (!response) {
+                    throw new Error("No response from LLM");
                 }
 
                 return response;

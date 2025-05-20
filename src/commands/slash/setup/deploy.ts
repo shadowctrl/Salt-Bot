@@ -1,6 +1,7 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../../utils/embed_template";
 import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { wait } from "../../../utils/extras";
 
 /**
  * Helper function to deploy the ticket system
@@ -23,6 +24,8 @@ export const deployTicketSystem = async (
         }).catch(() => {
             client.logger.debug("[SETUP] Failed to update loading state - continuing with deployment");
         });
+
+        await wait(2000);
 
         const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
 
