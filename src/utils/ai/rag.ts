@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { Embedding } from './llm';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { IProcessingOptions, IMetadata, IDocument } from '../../types';
 
 /**
