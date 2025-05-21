@@ -10,6 +10,7 @@ import { BlockedUser, BlockReason } from "../entities/blocked_users";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
 import { ChatHistoryEntry } from "../entities/chat_history";
 import { ChatbotConfig } from "../entities/chatbot_config";
+import { RagDocument, RagChunk } from "../entities/rag_data";
 
 const configManager = ConfigManager.getInstance();
 
@@ -21,7 +22,8 @@ export const AppDataSource = new DataSource({
     entities: [
         UserData, PremiumCoupon, BlockedUser, BlockReason,
         GuildConfig, TicketCategory, TicketButton, TicketMessage,
-        Ticket, SelectMenuConfig, ChatHistoryEntry, ChatbotConfig
+        Ticket, SelectMenuConfig, ChatHistoryEntry, ChatbotConfig,
+        RagDocument, RagChunk
     ],
     subscribers: [],
     migrations: [],
