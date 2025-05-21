@@ -457,6 +457,35 @@ export class TicketRepository {
     }
 
     /**
+     * Updates the owner (creator) of a ticket
+     * @param ticketId - Ticket ID
+     * @param newOwnerId - ID of the new ticket owner
+     * @returns Updated ticket or null if the operation failed
+     */
+    async updateTicketOwner(
+        ticketId: string,
+        newOwnerId: string
+    ): Promise<ITicket | null> {
+        try {
+            const ticket = await this.ticketRepo.findOne({
+                where: { id: ticketId },
+                relations: ['category']
+            });
+
+            if (!ticket) {
+                return null;
+            }
+
+            ticket.creatorId = newOwnerId;
+
+            return await this.ticketRepo.save(ticket);
+        } catch (error) {
+            client.logger.error(`[TICKET_REPO] Error updating ticket owner: ${error}`);
+            return null;
+        }
+    }
+
+    /**
      * Gets a ticket by ID
      * @param ticketId - Ticket ID
      * @returns Ticket or null if not found

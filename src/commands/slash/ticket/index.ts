@@ -9,6 +9,7 @@ import { transcriptTicket } from "./transcript";
 import { addUserToTicket } from "./add";
 import { removeUserFromTicket } from "./remove";
 import { claimTicket } from "./claim";
+import { transferTicketOwner } from "./transfer_owner";
 
 const ticketCommand: SlashCommand = {
     cooldown: 5,
@@ -195,6 +196,15 @@ const ticketCommand: SlashCommand = {
             subcommand
                 .setName("claim")
                 .setDescription("Claim the current ticket as a support agent")
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("transfer_owner")
+                .setDescription("Transfer ownership of this ticket to another user")
+                .addUserOption(option =>
+                    option.setName("user")
+                        .setDescription("The user to transfer ticket ownership to")
+                        .setRequired(true))
         ),
 
     execute: async (
@@ -245,6 +255,9 @@ const ticketCommand: SlashCommand = {
                         break;
                     case "claim":
                         await claimTicket(interaction, client);
+                        break;
+                    case "transfer_owner":
+                        await transferTicketOwner(interaction, client);
                         break;
                     default:
                         await interaction.reply({
