@@ -62,6 +62,10 @@ class LLM {
     }
 }
 
+/**
+ * Embedding class for generating embeddings using a transformer model.
+ * This class uses the `@xenova/transformers` library to create embeddings for text.
+ */
 class Embedding {
     private readonly model: string;
     private readonly maxRetries: number;
@@ -73,10 +77,21 @@ class Embedding {
         this.retryDelayMs = retryDelayMs;
     }
 
+    /**
+     * Creates a pipeline for feature extraction using the specified model.
+     * @returns {Promise<FeatureExtractionPipeline>} - The feature extraction pipeline.
+     */
     private async getPipeline(): Promise<FeatureExtractionPipeline> {
         return await pipeline("feature-extraction", this.model);
     }
 
+    /**
+     * Generates embeddings for the given text.
+     * @param {string} text - The text to generate embeddings for.
+     * @param {object} options - Additional options for the pipeline.
+     * @returns {Promise<Tensor>} - The generated embeddings.
+     * @throws {Error} - Throws an error if the pipeline creation or embedding generation fails.
+     */
     public async create(
         text: string,
         options?: Record<string, any>

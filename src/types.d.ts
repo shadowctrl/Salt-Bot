@@ -283,6 +283,38 @@ export interface IChatbotConfig {
     updatedAt: Date;
 }
 
+interface IMetadata {
+    source: {
+        name: string;
+        path: string;
+        type: 'txt' | 'md';
+    };
+    createdAt: Date;
+    updatedAt: Date;
+    tags: string[];
+    chunkIndex: number;
+    totalChunks: number;
+    wordCount: number;
+    charCount: number;
+    hash?: string;
+}
+
+interface IDocument {
+    content: string;
+    metadata: IMetadata;
+    embedding?: number[];
+}
+
+interface IProcessingOptions {
+    chunkSize?: number;
+    chunkOverlap?: number;
+    tags?: string[];
+    skipEmbedding?: boolean;
+    deduplicate?: boolean;
+    customSeparators?: string[];
+    maxConcurrentEmbeddings?: number;
+}
+
 //-----------INTERFACE-----------//
 
 export interface BotPresence {
