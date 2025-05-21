@@ -44,7 +44,7 @@ export class RagChunk {
     @Column({ type: "integer", nullable: false })
     chunkIndex!: number;
 
-    @Column({ type: "vector", nullable: true })
+    @Column("float", { array: true, nullable: true })
     embedding!: number[];
 
     @ManyToOne(() => RagDocument, document => document.chunks, {

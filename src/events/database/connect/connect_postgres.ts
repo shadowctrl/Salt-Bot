@@ -2,6 +2,7 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 import { ConfigManager } from "../../../utils/config";
 import { BotEvent } from "../../../types";
+import { initializeVectorExtension } from "./initialize_extensions";
 
 import { UserData } from "../entities/user_data";
 import { PremiumCoupon } from "../entities/premium_coupons";
@@ -29,6 +30,7 @@ export const AppDataSource = new DataSource({
 export const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
     try {
         const dataSource = await AppDataSource.initialize();
+        await initializeVectorExtension(dataSource);
         return dataSource;
     } catch (error) {
         client.logger.error(`[DATABASE] Error initializing PostgreSQL: ${error}`);

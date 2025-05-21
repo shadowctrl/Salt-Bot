@@ -1,5 +1,5 @@
 import client from "../../../salt";
-import { Repository, DataSource } from "typeorm";
+import { Repository, DataSource, In } from "typeorm";
 import { RagDocument, RagChunk } from "../entities/rag_data";
 import { IDocument } from "../../../types";
 
@@ -117,17 +117,28 @@ export class RagRepository {
             }
 
             const documentIds = documents.map(doc => doc.id);
-            
-            const chunks = await this.chunkRepo
-                .createQueryBuilder('chunk')
-                .innerJoinAndSelect('chunk.document', 'document')
-                .where('document.id IN (:...documentIds)', { documentIds })
-                .orderBy(`chunk.embedding <-> :embedding`, 'ASC')
-                .setParameter('embedding', `[${queryEmbedding.join(',')}]`)
-                .limit(limit)
-                .getMany();
+            const hasVectorExtension = await this.dataSource.query(
+                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')"
+            );
 
-            return chunks;
+            if (hasVectorExtension[0].exists) {
+                return await this.chunkRepo
+                    .createQueryBuilder('chunk')
+                    .innerJoinAndSelect('chunk.document', 'document')
+                    .where('document.id IN (:...documentIds)', { documentIds })
+                    .orderBy(`chunk.embedding <-> :embedding`, 'ASC')
+                    .setParameter('embedding', `[${queryEmbedding.join(',')}]`)
+                    .limit(limit)
+                    .getMany();
+            } else {
+                client.logger.warn(`[RAG_REPO] Vector extension not available, using fallback search method`);
+                const allChunks = await this.chunkRepo.find({
+                    where: { document: { id: In(documentIds) } },
+                    relations: ['document'],
+                    take: limit
+                });
+                return allChunks;
+            }
         } catch (error) {
             client.logger.error(`[RAG_REPO] Error searching similar chunks: ${error}`);
             return [];
