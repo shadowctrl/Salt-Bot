@@ -150,7 +150,7 @@ const handleSetup = async (
         const responseType = interaction.options.getString("response_type") || "Friendly and helpful";
 
         try {
-            const llm = new LLM(apiKey, baseUrl, client);
+            const llm = new LLM(apiKey, baseUrl);
             await llm.invoke(
                 [{ role: "user", content: "Say 'API connection successful'" }],
                 modelName,
@@ -345,8 +345,7 @@ const handleSettings = async (
             try {
                 const llm = new LLM(
                     apiKey || existingConfig.apiKey,
-                    baseUrl || existingConfig.baseUrl,
-                    client
+                    baseUrl || existingConfig.baseUrl
                 );
                 await llm.invoke(
                     [{ role: "user", content: "Say 'API connection successful'" }],

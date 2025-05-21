@@ -1,21 +1,19 @@
 import { OpenAI } from "openai";
-import discord from "discord.js";
+import { pipeline, FeatureExtractionPipeline, Tensor } from '@xenova/transformers';
 
 /**
  * LLM class for interacting with OpenAI's API.
  */
 class LLM {
-    private readonly client: discord.Client;
     private readonly openai_client: OpenAI;
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
 
-    constructor(apiKey: string, baseUrl: string, client: discord.Client, maxRetries: number = 3, retryDelayMs: number = 1000) {
+    constructor(apiKey: string, baseUrl: string, maxRetries: number = 3, retryDelayMs: number = 1000) {
         this.openai_client = new OpenAI({
             baseURL: baseUrl,
             apiKey: apiKey,
         });
-        this.client = client;
         this.maxRetries = maxRetries;
         this.retryDelayMs = retryDelayMs;
     }
@@ -64,4 +62,54 @@ class LLM {
     }
 }
 
-export default LLM;
+class Embedding {
+    private readonly model: string;
+    private readonly maxRetries: number;
+    private readonly retryDelayMs: number;
+
+    constructor(model: string = "Xenova/all-MiniLM-L6-v2", maxRetries: number = 3, retryDelayMs: number = 1000) {
+        this.model = model;
+        this.maxRetries = maxRetries;
+        this.retryDelayMs = retryDelayMs;
+    }
+
+    private async getPipeline(): Promise<FeatureExtractionPipeline> {
+        return await pipeline("feature-extraction", this.model);
+    }
+
+    public async create(
+        text: string,
+        options?: Record<string, any>
+    ): Promise<Tensor> {
+
+        const extractor = await this.getPipeline();
+        if (!extractor) {
+            throw new Error("Failed to create pipeline");
+        }
+
+        let retries = 0;
+
+        while (true) {
+            try {
+                const embeddings = await extractor(text, options);
+
+                if (!embeddings) {
+                    throw new Error("No embeddings returned");
+                }
+
+                return embeddings;
+            } catch (error: Error | any) {
+                retries++;
+
+                if (retries >= this.maxRetries) {
+                    throw new Error(`Failed to generate embeddings after ${this.maxRetries} attempts: ${error.message}`);
+                }
+
+                await new Promise(resolve => setTimeout(resolve, this.retryDelayMs));
+                console.log(`Retrying embedding generation, attempt ${retries + 1} of ${this.maxRetries}`);
+            }
+        }
+    }
+}
+
+export { LLM, Embedding };
