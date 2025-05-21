@@ -2,11 +2,14 @@ import discord from "discord.js";
 import { SlashCommand } from "../../../types";
 import { EmbedTemplate } from "../../../utils/embed_template";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+import { RagRepository } from "../../../events/database/repo/rag_data";
 
 import { handleSetup } from "./setup";
 import { handleSettings } from "./settings";
 import { handleDelete } from "./delete";
 import { handleInfo } from "./info";
+import { handleUploadRag } from "./upload_rag";
+import { handleDeleteRag } from "./delete_rag";
 
 const chatbotCommand: SlashCommand = {
     cooldown: 10,
@@ -83,6 +86,24 @@ const chatbotCommand: SlashCommand = {
             subcommand
                 .setName("info")
                 .setDescription("Get information about the chatbot configuration")
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("upload_rag")
+                .setDescription("Upload knowledge data for the chatbot to use")
+                .addAttachmentOption(option =>
+                    option.setName("file")
+                        .setDescription("Text or Markdown file with knowledge data (.txt, .md)")
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName("description")
+                        .setDescription("Optional description of the uploaded knowledge")
+                        .setRequired(false))
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("delete_rag")
+                .setDescription("Delete existing RAG knowledge data")
         ),
 
     execute: async (
@@ -113,6 +134,14 @@ const chatbotCommand: SlashCommand = {
                     break;
                 case "info":
                     await handleInfo(interaction, client, chatbotRepo);
+                    break;
+                case "upload_rag":
+                    const ragRepo = new RagRepository((client as any).dataSource);
+                    await handleUploadRag(interaction, client, ragRepo);
+                    break;
+                case "delete_rag":
+                    const deleteRagRepo = new RagRepository((client as any).dataSource);
+                    await handleDeleteRag(interaction, client, deleteRagRepo);
                     break;
                 default:
                     await interaction.editReply({
