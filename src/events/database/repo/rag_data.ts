@@ -15,6 +15,21 @@ export class RagRepository {
     }
 
     /**
+     * Check if the vector extension is available in the database
+     */
+    private async checkVectorExtensionAvailable(): Promise<boolean> {
+        try {
+            const result = await this.dataSource.query(
+                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')"
+            );
+            return result[0].exists;
+        } catch (error) {
+            client.logger.error(`[RAG_REPO] Error checking vector extension: ${error}`);
+            return false;
+        }
+    }
+
+    /**
      * Check if a guild already has RAG data
      */
     async hasRagData(guildId: string): Promise<boolean> {
@@ -117,11 +132,10 @@ export class RagRepository {
             }
 
             const documentIds = documents.map(doc => doc.id);
-            const hasVectorExtension = await this.dataSource.query(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')"
-            );
 
-            if (hasVectorExtension[0].exists) {
+            const hasVectorExtension = await this.checkVectorExtensionAvailable();
+
+            if (hasVectorExtension) {
                 return await this.chunkRepo
                     .createQueryBuilder('chunk')
                     .innerJoinAndSelect('chunk.document', 'document')
@@ -132,12 +146,11 @@ export class RagRepository {
                     .getMany();
             } else {
                 client.logger.warn(`[RAG_REPO] Vector extension not available, using fallback search method`);
-                const allChunks = await this.chunkRepo.find({
+                return await this.chunkRepo.find({
                     where: { document: { id: In(documentIds) } },
                     relations: ['document'],
                     take: limit
                 });
-                return allChunks;
             }
         } catch (error) {
             client.logger.error(`[RAG_REPO] Error searching similar chunks: ${error}`);

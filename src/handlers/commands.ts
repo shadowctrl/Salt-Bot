@@ -95,6 +95,17 @@ const event: BotEvent = {
         client.logger.info(
             `[COMMAND] Loaded ${slashCommands.length} slash commands.`
         );
+        client.logger.debug(`[COMMAND] Command names being registered: ${slashCommands.map(cmd => cmd.name).join(', ')}`);
+
+        const commandNames = new Set();
+        slashCommands.forEach(command => {
+            const name = command.name;
+            if (commandNames.has(name)) {
+                client.logger.error(`[COMMAND] Duplicate command name detected: ${name}`);
+            } else {
+                commandNames.add(name);
+            }
+        });
 
         try {
             const rest = new discord.REST({ version: "10" }).setToken(
