@@ -17,7 +17,7 @@ export class RagRepository {
     /**
      * Check if the vector extension is available in the database
      */
-    private async checkVectorExtensionAvailable(): Promise<boolean> {
+    private checkVectorExtensionAvailable = async (): Promise<boolean> => {
         try {
             const result = await this.dataSource.query(
                 "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')"
@@ -27,12 +27,12 @@ export class RagRepository {
             client.logger.error(`[RAG_REPO] Error checking vector extension: ${error}`);
             return false;
         }
-    }
+    };
 
     /**
      * Check if a guild already has RAG data
      */
-    async hasRagData(guildId: string): Promise<boolean> {
+    hasRagData = async (guildId: string): Promise<boolean> => {
         try {
             const count = await this.documentRepo.count({
                 where: { guildId }
@@ -42,18 +42,18 @@ export class RagRepository {
             client.logger.error(`[RAG_REPO] Error checking RAG data: ${error}`);
             return false;
         }
-    }
+    };
 
     /**
      * Store processed documents and chunks
      */
-    async storeRagData(
+    storeRagData = async (
         guildId: string,
         fileName: string,
         fileType: string,
         description: string | null,
         processedDocuments: IDocument[]
-    ): Promise<RagDocument | null> {
+    ): Promise<RagDocument | null> => {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -67,6 +67,7 @@ export class RagRepository {
             document.chunkCount = processedDocuments.length;
 
             const savedDocument = await queryRunner.manager.save(document);
+            const hasVectorExtension = await this.checkVectorExtensionAvailable();
 
             for (const doc of processedDocuments) {
                 const chunk = new RagChunk();
@@ -78,7 +79,19 @@ export class RagRepository {
                     chunk.embedding = doc.embedding;
                 }
 
-                await queryRunner.manager.save(chunk);
+                const savedChunk = await queryRunner.manager.save(chunk);
+
+                if (hasVectorExtension && doc.embedding) {
+                    try {
+                        const vectorString = `[${doc.embedding.join(',')}]`;
+                        await queryRunner.query(
+                            `UPDATE rag_chunks SET embedding_vector = $1::vector WHERE id = $2`,
+                            [vectorString, savedChunk.id]
+                        );
+                    } catch (vectorError) {
+                        client.logger.warn(`[RAG_REPO] Failed to store vector for chunk ${savedChunk.id}: ${vectorError}`);
+                    }
+                }
             }
 
             await queryRunner.commitTransaction();
@@ -90,12 +103,12 @@ export class RagRepository {
         } finally {
             await queryRunner.release();
         }
-    }
+    };
 
     /**
      * Delete all RAG data for a guild
      */
-    async deleteRagData(guildId: string): Promise<boolean> {
+    deleteRagData = async (guildId: string): Promise<boolean> => {
         try {
             const documents = await this.documentRepo.find({
                 where: { guildId }
@@ -111,16 +124,16 @@ export class RagRepository {
             client.logger.error(`[RAG_REPO] Error deleting RAG data: ${error}`);
             return false;
         }
-    }
+    };
 
     /**
      * Search for relevant RAG chunks based on embedding similarity
      */
-    async searchSimilarChunks(
+    searchSimilarChunks = async (
         guildId: string,
         queryEmbedding: number[],
         limit: number = 3
-    ): Promise<RagChunk[]> {
+    ): Promise<RagChunk[]> => {
         try {
             const documents = await this.documentRepo.find({
                 where: { guildId },
@@ -132,18 +145,64 @@ export class RagRepository {
             }
 
             const documentIds = documents.map(doc => doc.id);
-
             const hasVectorExtension = await this.checkVectorExtensionAvailable();
 
             if (hasVectorExtension) {
-                return await this.chunkRepo
-                    .createQueryBuilder('chunk')
-                    .innerJoinAndSelect('chunk.document', 'document')
-                    .where('document.id IN (:...documentIds)', { documentIds })
-                    .orderBy(`chunk.embedding <-> :embedding`, 'ASC')
-                    .setParameter('embedding', `[${queryEmbedding.join(',')}]`)
-                    .limit(limit)
-                    .getMany();
+                try {
+                    const columnExists = await this.dataSource.query(`
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.columns 
+                            WHERE table_name = 'rag_chunks' AND column_name = 'embedding_vector'
+                        )
+                    `);
+
+                    if (columnExists[0].exists) {
+                        const vectorString = `[${queryEmbedding.join(',')}]`;
+
+                        const results = await this.dataSource.query(`
+                            SELECT c.*, d.*
+                            FROM rag_chunks c
+                            INNER JOIN rag_documents d ON d.id = c."documentId"
+                            WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
+                            ORDER BY c.embedding_vector <-> $2::vector
+                            LIMIT $3
+                        `, [documentIds, vectorString, limit]);
+
+                        const chunks: RagChunk[] = [];
+                        for (const row of results) {
+                            const chunk = new RagChunk();
+                            chunk.id = row.id;
+                            chunk.content = row.content;
+                            chunk.chunkIndex = row.chunkIndex;
+                            chunk.embedding = row.embedding ? JSON.parse(row.embedding) : null;
+
+                            const document = new RagDocument();
+                            document.id = row.documentId;
+                            document.guildId = row.guildId;
+                            document.fileName = row.fileName;
+                            document.description = row.description;
+                            document.fileType = row.fileType;
+                            document.chunkCount = row.chunkCount;
+                            document.createdAt = row.createdAt;
+                            document.updatedAt = row.updatedAt;
+
+                            chunk.document = document;
+                            chunks.push(chunk);
+                        }
+
+                        return chunks;
+                    } else {
+                        client.logger.warn(`[RAG_REPO] Vector column not found, using fallback search`);
+                        throw new Error('Vector column not available');
+                    }
+                } catch (vectorError) {
+                    client.logger.warn(`[RAG_REPO] Vector search failed, falling back to simple search: ${vectorError}`);
+                    return await this.chunkRepo.find({
+                        where: { document: { id: In(documentIds) } },
+                        relations: ['document'],
+                        take: limit
+                    });
+                }
             } else {
                 client.logger.warn(`[RAG_REPO] Vector extension not available, using fallback search method`);
                 return await this.chunkRepo.find({
@@ -156,12 +215,12 @@ export class RagRepository {
             client.logger.error(`[RAG_REPO] Error searching similar chunks: ${error}`);
             return [];
         }
-    }
+    };
 
     /**
      * Get RAG document info for a guild
      */
-    async getRagDocumentInfo(guildId: string): Promise<RagDocument | null> {
+    getRagDocumentInfo = async (guildId: string): Promise<RagDocument | null> => {
         try {
             return await this.documentRepo.findOne({
                 where: { guildId },
@@ -171,5 +230,5 @@ export class RagRepository {
             client.logger.error(`[RAG_REPO] Error getting RAG document info: ${error}`);
             return null;
         }
-    }
+    };
 }
