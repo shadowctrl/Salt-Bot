@@ -39,10 +39,6 @@ embed:
         success: Green
         warning: Yellow
 
-llm:
-    enabled: true
-    model_name: llama-3.3-70b-versatile
-
 ticket:
     default:
         button:
