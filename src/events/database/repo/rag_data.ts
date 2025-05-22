@@ -30,6 +30,101 @@ export class RagRepository {
     };
 
     /**
+     * Ensure the vector column exists and has the correct type
+     */
+    private ensureVectorColumn = async (embeddingDimensions?: number): Promise<boolean> => {
+        try {
+            const hasVectorExtension = await this.checkVectorExtensionAvailable();
+            if (!hasVectorExtension) {
+                client.logger.warn('[RAG_REPO] Vector extension not available');
+                return false;
+            }
+
+            const dimensions = embeddingDimensions || 384;
+            const columnInfo = await this.dataSource.query(`
+                SELECT column_name, data_type, udt_name
+                FROM information_schema.columns 
+                WHERE table_name = 'rag_chunks' AND column_name = 'embedding_vector'
+            `);
+
+            if (columnInfo.length === 0) {
+                await this.dataSource.query(`
+                    ALTER TABLE rag_chunks 
+                    ADD COLUMN embedding_vector vector(${dimensions})
+                `);
+                client.logger.info(`[RAG_REPO] Added embedding_vector column with ${dimensions} dimensions`);
+            } else {
+                const column = columnInfo[0];
+                if (column.udt_name !== 'vector') {
+                    client.logger.warn(`[RAG_REPO] embedding_vector column exists but is ${column.udt_name}, not vector. Recreating...`);
+
+                    await this.dataSource.query(`
+                        ALTER TABLE rag_chunks 
+                        DROP COLUMN embedding_vector
+                    `);
+
+                    await this.dataSource.query(`
+                        ALTER TABLE rag_chunks 
+                        ADD COLUMN embedding_vector vector(${dimensions})
+                    `);
+
+                    client.logger.info(`[RAG_REPO] Recreated embedding_vector column as vector(${dimensions})`);
+                } else {
+                    try {
+                        const dimensionQuery = await this.dataSource.query(`
+                            SELECT atttypmod 
+                            FROM pg_attribute 
+                            WHERE attrelid = 'rag_chunks'::regclass 
+                            AND attname = 'embedding_vector'
+                        `);
+
+                        if (dimensionQuery[0] && dimensionQuery[0].atttypmod > 0) {
+                            const currentDimensions = dimensionQuery[0].atttypmod;
+                            if (currentDimensions !== dimensions) {
+                                client.logger.info(`[RAG_REPO] Dimension mismatch: current=${currentDimensions}, needed=${dimensions}. Recreating column...`);
+
+                                await this.dataSource.query(`
+                                    ALTER TABLE rag_chunks 
+                                    DROP COLUMN embedding_vector
+                                `);
+
+                                await this.dataSource.query(`
+                                    ALTER TABLE rag_chunks 
+                                    ADD COLUMN embedding_vector vector(${dimensions})
+                                `);
+
+                                client.logger.info(`[RAG_REPO] Recreated embedding_vector column with ${dimensions} dimensions`);
+                            } else {
+                                client.logger.debug(`[RAG_REPO] Vector column already exists with correct dimensions (${dimensions})`);
+                            }
+                        }
+                    } catch (dimensionError) {
+                        client.logger.warn(`[RAG_REPO] Could not check vector dimensions, assuming column is correct: ${dimensionError}`);
+                    }
+                }
+            }
+
+            const verifyColumn = await this.dataSource.query(`
+                SELECT column_name, udt_name
+                FROM information_schema.columns 
+                WHERE table_name = 'rag_chunks' AND column_name = 'embedding_vector'
+            `);
+
+            if (verifyColumn.length > 0 && verifyColumn[0].udt_name === 'vector') {
+                client.logger.debug('[RAG_REPO] Vector column verified successfully');
+                return true;
+            } else {
+                client.logger.error('[RAG_REPO] Vector column verification failed');
+                return false;
+            }
+
+        } catch (error) {
+            client.logger.error(`[RAG_REPO] Error ensuring vector column: ${error}`);
+            return false;
+        }
+    };
+
+    /**
      * Check if a guild already has RAG data
      */
     hasRagData = async (guildId: string): Promise<boolean> => {
@@ -59,6 +154,14 @@ export class RagRepository {
         await queryRunner.startTransaction();
 
         try {
+            let embeddingDimensions = 384; // Default
+            if (processedDocuments.length > 0 && processedDocuments[0].embedding) {
+                embeddingDimensions = processedDocuments[0].embedding.length;
+                client.logger.info(`[RAG_REPO] Detected embedding dimensions: ${embeddingDimensions}`);
+            }
+
+            const vectorColumnReady = await this.ensureVectorColumn(embeddingDimensions);
+
             const document = new RagDocument();
             document.guildId = guildId;
             document.fileName = fileName;
@@ -67,7 +170,6 @@ export class RagRepository {
             document.chunkCount = processedDocuments.length;
 
             const savedDocument = await queryRunner.manager.save(document);
-            const hasVectorExtension = await this.checkVectorExtensionAvailable();
 
             for (const doc of processedDocuments) {
                 const chunk = new RagChunk();
@@ -81,13 +183,14 @@ export class RagRepository {
 
                 const savedChunk = await queryRunner.manager.save(chunk);
 
-                if (hasVectorExtension && doc.embedding) {
+                if (vectorColumnReady && doc.embedding) {
                     try {
                         const vectorString = `[${doc.embedding.join(',')}]`;
                         await queryRunner.query(
                             `UPDATE rag_chunks SET embedding_vector = $1::vector WHERE id = $2`,
                             [vectorString, savedChunk.id]
                         );
+                        client.logger.debug(`[RAG_REPO] Stored vector for chunk ${savedChunk.id}`);
                     } catch (vectorError) {
                         client.logger.warn(`[RAG_REPO] Failed to store vector for chunk ${savedChunk.id}: ${vectorError}`);
                     }
@@ -95,6 +198,7 @@ export class RagRepository {
             }
 
             await queryRunner.commitTransaction();
+            client.logger.info(`[RAG_REPO] Successfully stored ${processedDocuments.length} chunks with ${vectorColumnReady ? 'vector' : 'fallback'} search capability`);
             return savedDocument;
         } catch (error) {
             await queryRunner.rollbackTransaction();
@@ -141,26 +245,29 @@ export class RagRepository {
             });
 
             if (documents.length === 0) {
+                client.logger.debug('[RAG_REPO] No documents found for guild');
                 return [];
             }
 
             const documentIds = documents.map(doc => doc.id);
-            const hasVectorExtension = await this.checkVectorExtensionAvailable();
+            const vectorColumnReady = await this.ensureVectorColumn(queryEmbedding.length);
 
-            if (hasVectorExtension) {
+            if (vectorColumnReady) {
                 try {
-                    const columnExists = await this.dataSource.query(`
-                        SELECT EXISTS (
-                            SELECT FROM information_schema.columns 
-                            WHERE table_name = 'rag_chunks' AND column_name = 'embedding_vector'
-                        )
-                    `);
+                    const vectorCount = await this.dataSource.query(`
+                        SELECT COUNT(*) as count
+                        FROM rag_chunks c
+                        INNER JOIN rag_documents d ON d.id = c."documentId"
+                        WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
+                    `, [documentIds]);
 
-                    if (columnExists[0].exists) {
+                    if (vectorCount[0].count > 0) {
                         const vectorString = `[${queryEmbedding.join(',')}]`;
 
                         const results = await this.dataSource.query(`
-                            SELECT c.*, d.*
+                            SELECT c.*, d.id as doc_id, d."guildId", d."fileName", d.description, 
+                                   d."fileType", d."chunkCount", d."createdAt" as doc_created_at, 
+                                   d."updatedAt" as doc_updated_at
                             FROM rag_chunks c
                             INNER JOIN rag_documents d ON d.id = c."documentId"
                             WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
@@ -168,49 +275,54 @@ export class RagRepository {
                             LIMIT $3
                         `, [documentIds, vectorString, limit]);
 
-                        const chunks: RagChunk[] = [];
-                        for (const row of results) {
-                            const chunk = new RagChunk();
-                            chunk.id = row.id;
-                            chunk.content = row.content;
-                            chunk.chunkIndex = row.chunkIndex;
-                            chunk.embedding = row.embedding ? JSON.parse(row.embedding) : null;
+                        if (results.length > 0) {
+                            const chunks: RagChunk[] = [];
+                            for (const row of results) {
+                                const chunk = new RagChunk();
+                                chunk.id = row.id;
+                                chunk.content = row.content;
+                                chunk.chunkIndex = row.chunkIndex;
+                                chunk.embedding = row.embedding ? JSON.parse(row.embedding) : null;
 
-                            const document = new RagDocument();
-                            document.id = row.documentId;
-                            document.guildId = row.guildId;
-                            document.fileName = row.fileName;
-                            document.description = row.description;
-                            document.fileType = row.fileType;
-                            document.chunkCount = row.chunkCount;
-                            document.createdAt = row.createdAt;
-                            document.updatedAt = row.updatedAt;
+                                const document = new RagDocument();
+                                document.id = row.doc_id;
+                                document.guildId = row.guildId;
+                                document.fileName = row.fileName;
+                                document.description = row.description;
+                                document.fileType = row.fileType;
+                                document.chunkCount = row.chunkCount;
+                                document.createdAt = row.doc_created_at;
+                                document.updatedAt = row.doc_updated_at;
 
-                            chunk.document = document;
-                            chunks.push(chunk);
+                                chunk.document = document;
+                                chunks.push(chunk);
+                            }
+
+                            client.logger.debug(`[RAG_REPO] Vector search returned ${chunks.length} results`);
+                            return chunks;
+                        } else {
+                            client.logger.warn('[RAG_REPO] Vector search returned no results, falling back to simple search');
                         }
-
-                        return chunks;
                     } else {
-                        client.logger.warn(`[RAG_REPO] Vector column not found, using fallback search`);
-                        throw new Error('Vector column not available');
+                        client.logger.warn('[RAG_REPO] No vector data available, using fallback search');
                     }
                 } catch (vectorError) {
                     client.logger.warn(`[RAG_REPO] Vector search failed, falling back to simple search: ${vectorError}`);
-                    return await this.chunkRepo.find({
-                        where: { document: { id: In(documentIds) } },
-                        relations: ['document'],
-                        take: limit
-                    });
                 }
             } else {
-                client.logger.warn(`[RAG_REPO] Vector extension not available, using fallback search method`);
-                return await this.chunkRepo.find({
-                    where: { document: { id: In(documentIds) } },
-                    relations: ['document'],
-                    take: limit
-                });
+                client.logger.info('[RAG_REPO] Vector column not ready, using fallback search');
             }
+
+            client.logger.debug('[RAG_REPO] Using fallback text-based search method');
+            const fallbackResults = await this.chunkRepo.find({
+                where: { document: { id: In(documentIds) } },
+                relations: ['document'],
+                take: limit,
+                order: { chunkIndex: 'ASC' }
+            });
+
+            client.logger.debug(`[RAG_REPO] Fallback search returned ${fallbackResults.length} results`);
+            return fallbackResults;
         } catch (error) {
             client.logger.error(`[RAG_REPO] Error searching similar chunks: ${error}`);
             return [];

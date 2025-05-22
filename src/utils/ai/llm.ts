@@ -70,6 +70,7 @@ class Embedding {
     private readonly model: string;
     private readonly maxRetries: number;
     private readonly retryDelayMs: number;
+    private pipeline: FeatureExtractionPipeline | null = null;
 
     constructor(model: string = "Xenova/all-MiniLM-L6-v2", maxRetries: number = 3, retryDelayMs: number = 1000) {
         this.model = model;
@@ -82,20 +83,23 @@ class Embedding {
      * @returns {Promise<FeatureExtractionPipeline>} - The feature extraction pipeline.
      */
     private async getPipeline(): Promise<FeatureExtractionPipeline> {
-        return await pipeline("feature-extraction", this.model);
+        if (!this.pipeline) {
+            this.pipeline = await pipeline("feature-extraction", this.model);
+        }
+        return this.pipeline;
     }
 
     /**
      * Generates embeddings for the given text.
      * @param {string} text - The text to generate embeddings for.
      * @param {object} options - Additional options for the pipeline.
-     * @returns {Promise<Tensor>} - The generated embeddings.
+     * @returns {Promise<number[]>} - The generated embeddings as a number array.
      * @throws {Error} - Throws an error if the pipeline creation or embedding generation fails.
      */
     public async create(
         text: string,
         options?: Record<string, any>
-    ): Promise<Tensor> {
+    ): Promise<number[]> {
 
         const extractor = await this.getPipeline();
         if (!extractor) {
@@ -106,13 +110,31 @@ class Embedding {
 
         while (true) {
             try {
-                const embeddings = await extractor(text, options);
+                const embeddings = await extractor(text, { pooling: 'mean', normalize: true, ...options });
 
                 if (!embeddings) {
                     throw new Error("No embeddings returned");
                 }
 
-                return embeddings;
+                let embeddingArray: number[];
+
+                if (embeddings.data) {
+                    embeddingArray = Array.from(embeddings.data as Float32Array | number[]);
+                } else if (Array.isArray(embeddings)) {
+                    embeddingArray = embeddings.flat();
+                } else {
+                    embeddingArray = Array.from(embeddings as any);
+                }
+
+                if (this.model.includes("all-MiniLM-L6-v2")) {
+                    if (embeddingArray.length > 384) {
+                        embeddingArray = embeddingArray.slice(0, 384);
+                    } else if (embeddingArray.length !== 384) {
+                        console.warn(`Expected 384 dimensions for ${this.model}, got ${embeddingArray.length}`);
+                    }
+                }
+
+                return embeddingArray;
             } catch (error: Error | any) {
                 retries++;
 
@@ -124,6 +146,17 @@ class Embedding {
                 console.log(`Retrying embedding generation, attempt ${retries + 1} of ${this.maxRetries}`);
             }
         }
+    }
+
+    /**
+     * Get the expected dimension size for the current model
+     * @returns {number} - The expected embedding dimension size
+     */
+    public getExpectedDimensions(): number {
+        if (this.model.includes("all-MiniLM-L6-v2")) {
+            return 384;
+        }
+        return 384;
     }
 }
 

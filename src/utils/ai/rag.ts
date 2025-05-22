@@ -27,19 +27,19 @@ class RAG {
     /**
      * Validates if the file has a supported extension
      */
-    private validateFile(filePath: string): void {
+    private validateFile = (filePath: string): void => {
         const validExtensions = ['.txt', '.md'];
         const ext = path.extname(filePath).toLowerCase();
 
         if (!validExtensions.includes(ext)) {
             throw new Error(`Invalid file extension. Supported extensions are: ${validExtensions.join(', ')}`);
         }
-    }
+    };
 
     /**
      * Safely reads file content with proper error handling
      */
-    private async readFile(filePath: string): Promise<string> {
+    private readFile = async (filePath: string): Promise<string> => {
         try {
             await fs.access(filePath);
             return await fs.readFile(filePath, 'utf-8');
@@ -49,15 +49,15 @@ class RAG {
             }
             throw new Error(`Failed to read file: ${error.message}`);
         }
-    }
+    };
 
     /**
      * Creates chunks from text using semantic chunking
      */
-    private async semanticChunking(
+    private semanticChunking = async (
         content: string,
         options: Required<IProcessingOptions> & { customSeparators: string[] }
-    ): Promise<string[]> {
+    ): Promise<string[]> => {
         const splitter = new RecursiveCharacterTextSplitter({
             chunkSize: options.chunkSize,
             chunkOverlap: options.chunkOverlap,
@@ -65,12 +65,12 @@ class RAG {
         });
 
         return await splitter.splitText(content);
-    }
+    };
 
     /**
      * Generates a simple hash for deduplication
      */
-    private generateContentHash(content: string): string {
+    private generateContentHash = (content: string): string => {
         let hash = 0;
         for (let i = 0; i < content.length; i++) {
             const char = content.charCodeAt(i);
@@ -78,19 +78,19 @@ class RAG {
             hash = hash & hash;
         }
         return hash.toString(16);
-    }
+    };
 
     /**
      * Creates metadata for a document chunk
      */
-    private createMetadata(
+    private createMetadata = (
         filePath: string,
         content: string,
         chunkIndex: number,
         totalChunks: number,
         tags: string[],
         generateHash = false
-    ): IMetadata {
+    ): IMetadata => {
         const now = new Date();
         const metadata: IMetadata = {
             source: {
@@ -112,16 +112,16 @@ class RAG {
         }
 
         return metadata;
-    }
+    };
 
     /**
      * Processes chunks in batches to control concurrency
      */
-    private async processChunksInBatches(
+    private processChunksInBatches = async (
         chunks: string[],
         filePath: string,
         options: Required<IProcessingOptions> & { customSeparators: string[] }
-    ): Promise<IDocument[]> {
+    ): Promise<IDocument[]> => {
         const documents: IDocument[] = [];
         const batchSize = options.maxConcurrentEmbeddings;
         const totalChunks = chunks.length;
@@ -155,8 +155,8 @@ class RAG {
 
                 if (!options.skipEmbedding) {
                     try {
-                        const embedding = await this.embedding.create(chunk);
-                        document.embedding = Array.from(embedding.data);
+                        const embeddingVector = await this.embedding.create(chunk);
+                        document.embedding = embeddingVector;
                     } catch (error: Error | any) {
                         console.error(`Failed to create embedding for chunk ${chunkIndex}: ${error.message}`);
                     }
@@ -170,15 +170,15 @@ class RAG {
         }
 
         return documents;
-    }
+    };
 
     /**
      * Process a single document file
      */
-    public async processDocument(
+    public processDocument = async (
         filePath: string,
         options?: IProcessingOptions
-    ): Promise<IDocument[]> {
+    ): Promise<IDocument[]> => {
         this.validateFile(filePath);
 
         const mergedOptions = {
@@ -191,15 +191,15 @@ class RAG {
         const chunks = await this.semanticChunking(content, mergedOptions);
 
         return this.processChunksInBatches(chunks, filePath, mergedOptions);
-    }
+    };
 
     /**
      * Process multiple document files
      */
-    public async processMultipleDocuments(
+    public processMultipleDocuments = async (
         filePaths: string[],
         options?: IProcessingOptions
-    ): Promise<IDocument[]> {
+    ): Promise<IDocument[]> => {
         const allDocuments: IDocument[] = [];
         const results = { success: 0, failed: 0, skipped: 0 };
 
@@ -216,16 +216,16 @@ class RAG {
 
         console.log(`Processing complete: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped.`);
         return allDocuments;
-    }
+    };
 
     /**
      * Process text content directly without a file
      */
-    public async processText(
+    public processText = async (
         text: string,
         source: { name: string; type: 'txt' | 'md' },
         options?: IProcessingOptions
-    ): Promise<IDocument[]> {
+    ): Promise<IDocument[]> => {
         const mergedOptions = {
             ...this.defaultOptions,
             ...options,
@@ -236,20 +236,20 @@ class RAG {
         const virtualFilePath = `memory://${source.name}.${source.type}`;
 
         return this.processChunksInBatches(chunks, virtualFilePath, mergedOptions);
-    }
+    };
 
     /**
      * Get embedding for a single query text
      * Useful for search operations
      */
-    public async getQueryEmbedding(text: string): Promise<number[]> {
+    public getQueryEmbedding = async (text: string): Promise<number[]> => {
         try {
-            const embedding = await this.embedding.create(text);
-            return Array.from(embedding.data);
+            const embeddingVector = await this.embedding.create(text);
+            return embeddingVector;
         } catch (error: Error | any) {
             throw new Error(`Failed to create query embedding: ${error.message}`);
         }
-    }
+    };
 }
 
 export default RAG;

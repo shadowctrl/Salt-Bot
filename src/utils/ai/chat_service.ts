@@ -3,7 +3,6 @@ import { DataSource } from "typeorm";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";
 import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
-import { ChatbotConfigRepository } from "../../events/database/repo/chatbot_config";
 import { RagRepository } from "../../events/database/repo/rag_data";
 import client from "../../salt";
 
@@ -12,13 +11,11 @@ import client from "../../salt";
  * Manages message processing, RAG context retrieval, and LLM responses
  */
 export class ChatbotService {
-    private chatbotRepo: ChatbotConfigRepository;
     private ragRepo: RagRepository;
     private dataSource: DataSource;
 
     constructor(dataSource: DataSource) {
         this.dataSource = dataSource;
-        this.chatbotRepo = new ChatbotConfigRepository(dataSource);
         this.ragRepo = new RagRepository(dataSource);
     }
 
@@ -136,7 +133,6 @@ When using this context:
             );
 
             const ragContext = await this.searchRagContext(userMessage, config.guildId);
-            console.log(ragContext);
             const systemPrompt = this.buildSystemPrompt(config, ragContext);
             const history = await chatHistory.getHistory();
             const filteredHistory = history.filter(msg => msg.role !== 'system');
