@@ -16,7 +16,8 @@ import client from "../../salt";
 export class ChatbotService {
     private ragRepo: RagRepository;
     private dataSource: DataSource;
-    private pendingTicketCreations: Map<string, {
+
+    private static pendingTicketCreations: Map<string, {
         categoryId: string;
         userMessage: string;
         guildId: string;
@@ -219,7 +220,10 @@ When using this context:
 
                         if (selectedCategory) {
                             const confirmationId = `ticket_confirm_${userId}_${Date.now()}`;
-                            this.pendingTicketCreations.set(confirmationId, {
+
+                            this.cleanupOldConfirmations();
+
+                            ChatbotService.pendingTicketCreations.set(confirmationId, {
                                 categoryId: selectedCategory.id,
                                 userMessage,
                                 guildId: config.guildId,
@@ -227,6 +231,8 @@ When using this context:
                                 userId,
                                 toolMessage: args.message || "A ticket will be created to assist you with your request."
                             });
+
+                            client.logger.debug(`[CHATBOT_SERVICE] Stored pending ticket creation with ID: ${confirmationId}`);
 
                             const confirmationEmbed = new discord.EmbedBuilder()
                                 .setTitle("🎫 Create Ticket Confirmation")
@@ -251,8 +257,6 @@ When using this context:
                                         .setStyle(discord.ButtonStyle.Secondary)
                                         .setEmoji("❌")
                                 );
-
-                            this.cleanupOldConfirmations();
 
                             await chatHistory.addUserMessage(userMessage);
                             await chatHistory.addAssistantMessage(`[Ticket creation requested for: ${args.ticket_category}]`);
@@ -312,12 +316,16 @@ When using this context:
         confirmed: boolean
     ): Promise<{ success: boolean; message: string; ticketChannel?: string }> => {
         try {
-            const pendingCreation = this.pendingTicketCreations.get(confirmationId);
+            client.logger.debug(`[CHATBOT_SERVICE] Looking for confirmation ID: ${confirmationId}`);
+            client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`);
+
+            const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
             if (!pendingCreation) {
                 return { success: false, message: "Ticket creation request has expired or is invalid." };
             }
 
-            this.pendingTicketCreations.delete(confirmationId);
+            ChatbotService.pendingTicketCreations.delete(confirmationId);
+            client.logger.debug(`[CHATBOT_SERVICE] Deleted confirmation ID: ${confirmationId}`);
 
             if (!confirmed) {
                 return { success: true, message: "Ticket creation has been cancelled." };
@@ -452,10 +460,11 @@ When using this context:
     private cleanupOldConfirmations = (): void => {
         const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
 
-        for (const [key, value] of this.pendingTicketCreations.entries()) {
+        for (const [key, value] of ChatbotService.pendingTicketCreations.entries()) {
             const timestamp = parseInt(key.split('_').pop() || '0');
             if (timestamp < fiveMinutesAgo) {
-                this.pendingTicketCreations.delete(key);
+                ChatbotService.pendingTicketCreations.delete(key);
+                client.logger.debug(`[CHATBOT_SERVICE] Cleaned up expired confirmation: ${key}`);
             }
         }
     };
