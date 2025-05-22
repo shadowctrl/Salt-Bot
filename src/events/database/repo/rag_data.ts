@@ -254,26 +254,31 @@ export class RagRepository {
 
             if (vectorColumnReady) {
                 try {
+                    // Fixed: Use correct column name without quotes and proper join syntax
                     const vectorCount = await this.dataSource.query(`
-                        SELECT COUNT(*) as count
-                        FROM rag_chunks c
-                        INNER JOIN rag_documents d ON d.id = c."documentId"
-                        WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
-                    `, [documentIds]);
+                    SELECT COUNT(*) as count
+                    FROM rag_chunks c
+                    INNER JOIN rag_documents d ON d.id = c.documentId
+                    WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
+                `, [documentIds]);
+
+                    client.logger.debug(`[RAG_REPO] Found ${vectorCount[0].count} chunks with vector data`);
 
                     if (vectorCount[0].count > 0) {
                         const vectorString = `[${queryEmbedding.join(',')}]`;
 
+                        // Fixed: Use correct column name and improved query
                         const results = await this.dataSource.query(`
-                            SELECT c.*, d.id as doc_id, d."guildId", d."fileName", d.description, 
-                                   d."fileType", d."chunkCount", d."createdAt" as doc_created_at, 
-                                   d."updatedAt" as doc_updated_at
-                            FROM rag_chunks c
-                            INNER JOIN rag_documents d ON d.id = c."documentId"
-                            WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
-                            ORDER BY c.embedding_vector <-> $2::vector
-                            LIMIT $3
-                        `, [documentIds, vectorString, limit]);
+                        SELECT c.*, d.id as doc_id, d."guildId", d."fileName", d.description, 
+                               d."fileType", d."chunkCount", d."createdAt" as doc_created_at, 
+                               d."updatedAt" as doc_updated_at,
+                               (c.embedding_vector <-> $2::vector) as distance
+                        FROM rag_chunks c
+                        INNER JOIN rag_documents d ON d.id = c.documentId
+                        WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
+                        ORDER BY c.embedding_vector <-> $2::vector
+                        LIMIT $3
+                    `, [documentIds, vectorString, limit]);
 
                         if (results.length > 0) {
                             const chunks: RagChunk[] = [];
@@ -298,13 +303,35 @@ export class RagRepository {
                                 chunks.push(chunk);
                             }
 
-                            client.logger.debug(`[RAG_REPO] Vector search returned ${chunks.length} results`);
+                            client.logger.debug(`[RAG_REPO] Vector search returned ${chunks.length} results with distances`);
                             return chunks;
                         } else {
-                            client.logger.warn('[RAG_REPO] Vector search returned no results, falling back to simple search');
+                            client.logger.warn('[RAG_REPO] Vector search returned no results, checking data...');
+
+                            // Debug query to check what's actually in the database
+                            const debugResults = await this.dataSource.query(`
+                            SELECT c.id, c.content, c.embedding_vector IS NOT NULL as has_vector
+                            FROM rag_chunks c
+                            INNER JOIN rag_documents d ON d.id = c.documentId
+                            WHERE d.id = ANY($1)
+                            LIMIT 5
+                        `, [documentIds]);
+
+                            client.logger.debug(`[RAG_REPO] Debug - Found ${debugResults.length} chunks, vector status: ${JSON.stringify(debugResults.map((r: { id: number, has_vector: boolean }) => ({ id: r.id, hasVector: r.has_vector })))}`);
                         }
                     } else {
                         client.logger.warn('[RAG_REPO] No vector data available, using fallback search');
+
+                        // Additional debug information
+                        const debugChunks = await this.dataSource.query(`
+                        SELECT COUNT(*) as total_chunks,
+                               COUNT(c.embedding_vector) as chunks_with_vectors
+                        FROM rag_chunks c
+                        INNER JOIN rag_documents d ON d.id = c.documentId
+                        WHERE d.id = ANY($1)
+                    `, [documentIds]);
+
+                        client.logger.debug(`[RAG_REPO] Debug info: Total chunks: ${debugChunks[0].total_chunks}, Chunks with vectors: ${debugChunks[0].chunks_with_vectors}`);
                     }
                 } catch (vectorError) {
                     client.logger.warn(`[RAG_REPO] Vector search failed, falling back to simple search: ${vectorError}`);
