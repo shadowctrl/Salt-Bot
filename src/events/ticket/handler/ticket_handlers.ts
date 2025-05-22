@@ -1,7 +1,7 @@
 import discord from "discord.js";
 import { BotEvent } from "../../../types";
-import { ITicketStatus } from "../../../events/database/entities/ticket_system";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { ITicketStatus } from "../../database/entities/ticket_system";
+import { TicketRepository } from "../../database/repo/ticket_system";
 import { EmbedTemplate } from "../../../utils/embed_template";
 import { createAndSendTranscript } from '../../../utils/transcript';
 
@@ -593,7 +593,7 @@ const handleArchiveButton = async (
             )
             .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
             .setTimestamp();
-            
+
         const channel = interaction.channel as discord.TextChannel;
         await channel.send({ embeds: [archiveEmbed] });
         await interaction.editReply({
@@ -936,7 +936,7 @@ const handleClaimButton = async (
                 client.logger.warn(`[TICKET_CLAIM] Could not update message: ${err}`);
             });
         }
-        
+
         await interaction.editReply({
             embeds: [
                 new discord.EmbedBuilder()

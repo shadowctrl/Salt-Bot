@@ -23,14 +23,29 @@ const event: BotEvent = {
                 await message.channel.sendTyping();
             }
 
-            const response = await chatbotService.processMessage(
+            const result = await chatbotService.processMessage(
                 message.content,
                 message.author.id,
-                config
+                config,
+                message.channelId
             );
 
-            if (response) {
-                const chunks = chatbotService.splitResponse(response);
+            if (!result) {
+                await message.reply({
+                    content: "I'm sorry, I couldn't process your message right now. Please try again later.",
+                    allowedMentions: { repliedUser: false }
+                });
+                return;
+            }
+
+            if (result.needsConfirmation && result.confirmationEmbed && result.confirmationButtons) {
+                await message.reply({
+                    embeds: [result.confirmationEmbed],
+                    components: [result.confirmationButtons],
+                    allowedMentions: { repliedUser: false }
+                });
+            } else if (result.response) {
+                const chunks = chatbotService.splitResponse(result.response);
 
                 for (const chunk of chunks) {
                     await message.reply({
@@ -42,11 +57,6 @@ const event: BotEvent = {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
-            } else {
-                await message.reply({
-                    content: "I'm sorry, I couldn't process your message right now. Please try again later.",
-                    allowedMentions: { repliedUser: false }
-                });
             }
 
         } catch (error) {

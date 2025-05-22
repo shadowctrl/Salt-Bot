@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import { ConfigManager } from "../../../utils/config";
 import { BotEvent } from "../../../types";
 import { initializeVectorExtension } from "./initialize_extensions";
+import { RagRepository } from "../repo/rag_data";
 
 import { UserData } from "../entities/user_data";
 import { PremiumCoupon } from "../entities/premium_coupons";
@@ -17,7 +18,7 @@ const configManager = ConfigManager.getInstance();
 export const AppDataSource = new DataSource({
     type: "postgres",
     url: configManager.getPostgresUri(),
-    synchronize: true, // Set to false in production
+    synchronize: false, // Set to false in production
     logging: configManager.isDebugMode(),
     entities: [
         UserData, PremiumCoupon, BlockedUser, BlockReason,
@@ -33,6 +34,13 @@ export const initializeDatabase = async (client: discord.Client): Promise<DataSo
     try {
         const dataSource = await AppDataSource.initialize();
         await initializeVectorExtension(dataSource);
+        try {
+            const ragRepo = new RagRepository(dataSource);
+            await ragRepo.initializeVectorColumns();
+        } catch (ragError) {
+            client.logger.warn(`[DATABASE] Could not initialize RAG vector columns: ${ragError}`);
+        }
+
         return dataSource;
     } catch (error) {
         client.logger.error(`[DATABASE] Error initializing PostgreSQL: ${error}`);
