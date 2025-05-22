@@ -10,6 +10,7 @@ import { handleDelete } from "./delete";
 import { handleInfo } from "./info";
 import { handleUploadRag } from "./upload_rag";
 import { handleDeleteRag } from "./delete_rag";
+import { handleClearHistory } from "./clear_history";
 
 const chatbotCommand: SlashCommand = {
     cooldown: 10,
@@ -22,6 +23,7 @@ const chatbotCommand: SlashCommand = {
     data: new discord.SlashCommandBuilder()
         .setName("chatbot")
         .setDescription("Manage the AI chatbot for your server")
+        .setDefaultMemberPermissions(discord.PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName("setup")
@@ -104,12 +106,18 @@ const chatbotCommand: SlashCommand = {
             subcommand
                 .setName("delete_rag")
                 .setDescription("Delete existing RAG knowledge data")
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("clear_history")
+                .setDescription("Clear your conversation history with the chatbot")
         ),
 
     execute: async (
         interaction: discord.ChatInputCommandInteraction,
         client: discord.Client
     ) => {
+
         await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
         try {
@@ -142,6 +150,9 @@ const chatbotCommand: SlashCommand = {
                 case "delete_rag":
                     const deleteRagRepo = new RagRepository((client as any).dataSource);
                     await handleDeleteRag(interaction, client, deleteRagRepo);
+                    break;
+                case "clear_history":
+                    await handleClearHistory(interaction, client);
                     break;
                 default:
                     await interaction.editReply({
