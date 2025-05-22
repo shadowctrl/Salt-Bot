@@ -2,6 +2,7 @@ import RAG from "./rag";
 import { DataSource } from "typeorm";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";
+import { createTicketWithTool } from "../../events/ticket/handler/ticket_handlers";
 import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
 import { RagRepository } from "../../events/database/repo/rag_data";
 import client from "../../salt";
