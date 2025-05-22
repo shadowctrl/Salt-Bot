@@ -26,6 +26,10 @@ export const createTicketTool = (client: discord.Client, categoryIds: Array<stri
             parameters: {
                 type: "object",
                 properties: {
+                    message: {
+                        type: "string",
+                        description: "The message to send to the user when creating the ticket."
+                    },
                     ticket_category: {
                         type: "string",
                         description: "The ticket category to create the ticket in.",
