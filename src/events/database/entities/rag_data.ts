@@ -58,13 +58,6 @@ export class RagChunk {
     })
     embedding!: number[];
 
-    @Column({
-        type: "text",
-        nullable: true,
-        name: "embedding_vector"
-    })
-    embeddingVector!: string;
-
     @ManyToOne(() => RagDocument, document => document.chunks, {
         onDelete: "CASCADE"
     })
