@@ -11,19 +11,34 @@ import { handleInfo } from "./info";
 import { handleUploadRag } from "./upload_rag";
 import { handleDeleteRag } from "./delete_rag";
 import { handleClearHistory } from "./clear_history";
+import { handleHelp } from "./help";
 
 const chatbotCommand: SlashCommand = {
     cooldown: 10,
     owner: false,
     userPerms: [discord.PermissionFlagsBits.Administrator],
-    botPerms: [
-        discord.PermissionFlagsBits.SendMessages,
-        discord.PermissionFlagsBits.EmbedLinks
-    ],
+    botPerms: [discord.PermissionFlagsBits.Administrator],
     data: new discord.SlashCommandBuilder()
         .setName("chatbot")
         .setDescription("Manage the AI chatbot for your server")
-        .setDefaultMemberPermissions(discord.PermissionFlagsBits.Administrator)
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("help")
+                .setDescription("Get comprehensive help and setup instructions for the chatbot")
+                .addStringOption(option =>
+                    option.setName("section")
+                        .setDescription("Specific help section to view")
+                        .setRequired(false)
+                        .addChoices(
+                            { name: "Overview", value: "overview" },
+                            { name: "Setup Guide", value: "setup" },
+                            { name: "AI Providers", value: "providers" },
+                            { name: "Parameters", value: "parameters" },
+                            { name: "Knowledge System (RAG)", value: "rag" },
+                            { name: "Examples", value: "examples" },
+                            { name: "Troubleshooting", value: "troubleshooting" }
+                        ))
+        )
         .addSubcommand(subcommand =>
             subcommand
                 .setName("setup")
@@ -131,6 +146,9 @@ const chatbotCommand: SlashCommand = {
             const subcommand = interaction.options.getSubcommand();
 
             switch (subcommand) {
+                case "help":
+                    await handleHelp(interaction, client, chatbotRepo);
+                    break;
                 case "setup":
                     await handleSetup(interaction, client, chatbotRepo);
                     break;

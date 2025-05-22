@@ -148,13 +148,14 @@ export const handleSetup = async (
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Chatbot set up successfully!")
-                    .setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.`)
+                    .setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.\n\nUse \`/chatbot settings\` to update the configuration or \`/chatbot delete\` to remove it.`)
                     .addFields(
                         { name: "Name", value: name, inline: true },
                         { name: "Model", value: modelName, inline: true },
                         { name: "Cooldown", value: "5 seconds", inline: true },
                         { name: "API", value: baseUrl, inline: true }
                     )
+                    .setFooter({ text: "Use \`/chatbot help\` for more additional setup!", iconURL: client.user?.displayAvatarURL() })
             ]
         });
 
