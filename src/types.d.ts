@@ -152,7 +152,7 @@ export interface BotEvent {
     execute: (...args) => void;
 }
 
-//-----------DATABASE-----------//
+//-----------DATABASE/OTHERS-----------//
 
 export interface IBlockUser {
     id?: string;
@@ -322,3 +322,20 @@ export interface BotPresence {
     type: discord.ActivityType;
 }
 
+interface OpenAIFunction {
+    type: "function";
+    function: {
+        name: string;
+        description: string;
+        parameters: {
+            type: "object";
+            properties: Record<string, {
+                type: string;
+                description: string;
+                enum?: string[];
+            }>;
+            required: string[];
+            additionalProperties: boolean;
+        };
+    };
+}
