@@ -102,7 +102,7 @@ export class RagRepository {
                 const hasVectorData = vectorDataCount[0].count > 0;
 
                 if (hasVectorData) {
-                    client.logger.info(`[RAG_REPO] Vector column exists with ${vectorDataCount[0].count} vectors, preserving data`);
+                    client.logger.debug(`[RAG_REPO] Vector column exists with ${vectorDataCount[0].count} vectors, preserving data`);
                     return true;
                 }
 

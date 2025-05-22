@@ -99,44 +99,49 @@ export class ChatbotService {
         }
 
         systemPrompt += `
-Guidelines:
-- Be helpful, informative, and engaging
-- Keep responses concise but thorough
-- Use Discord-friendly formatting when appropriate
-- If you don't know something, say so honestly
-- Stay in character as ${config.chatbotName}`;
+        Guidelines:
+        - Be helpful, informative, and engaging
+        - Keep responses concise but thorough
+        - Use Discord-friendly formatting when appropriate
+        - If you don't know something, say so honestly
+        - Stay in character as ${config.chatbotName}
+        - Answer questions directly without suggesting tickets unless explicitly needed`;
 
         if (includeTools) {
             systemPrompt += `
+            IMPORTANT - Ticket Creation Tool Guidelines:
+            ONLY use the create_ticket tool when:
+            - User EXPLICITLY asks to "create a ticket", "open a ticket", "talk to support", or "contact staff"
+            - User clearly expresses frustration and wants human help after you've provided assistance
+            - User has a complex technical issue that requires server admin intervention
+            - User is reporting bugs, server problems, or policy violations
+            - User specifically requests to escalate their issue
 
-Tool Usage Guidelines:
-- Use the create_ticket tool when:
-  * User explicitly asks to create a ticket
-  * User is not satisfied with your response and needs human help
-  * The question requires human intervention to resolve
-  * Technical issues that need staff assistance
-  * Complex problems that can't be solved through chat
-- Choose the most appropriate ticket category based on the user's issue
-- Provide a helpful message explaining why a ticket is being created`;
+            DO NOT use the create_ticket tool when:
+            - User is asking general questions you can answer
+            - User is just having a normal conversation
+            - User's question can be resolved with information or guidance
+            - User hasn't indicated they need human assistance
+            - This is the user's first question about a topic
+
+            Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
         }
 
         if (ragContext) {
             systemPrompt += `
+            You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
 
-You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
+            ${ragContext}
 
-${ragContext}
-
-When using this context:
-- Reference the information naturally in your response
-- If the context is relevant, use it to provide accurate, detailed answers
-- If the context doesn't relate to the question, you can still provide general help
-- Don't mention that you're using "context" or "knowledge base" explicitly`;
+            When using this context:
+                - Reference the information naturally in your response
+                - If the context is relevant, use it to provide accurate, detailed answers
+                - If the context doesn't relate to the question, you can still provide general help
+                - Don't mention that you're using "context" or "knowledge base" explicitly`;
         }
 
         return systemPrompt;
     };
-
     /**
      * Get available ticket categories for tool usage
      * @param guildId - Discord guild ID
@@ -258,9 +263,6 @@ When using this context:
                                         .setEmoji("❌")
                                 );
 
-                            await chatHistory.addUserMessage(userMessage);
-                            await chatHistory.addAssistantMessage(`[Ticket creation requested for: ${args.ticket_category}]`);
-
                             return {
                                 needsConfirmation: true,
                                 confirmationEmbed,
@@ -327,7 +329,17 @@ When using this context:
             ChatbotService.pendingTicketCreations.delete(confirmationId);
             client.logger.debug(`[CHATBOT_SERVICE] Deleted confirmation ID: ${confirmationId}`);
 
+            const chatHistory = new ChatHistory(
+                this.dataSource,
+                pendingCreation.userId,
+                pendingCreation.guildId,
+                20
+            );
+
             if (!confirmed) {
+                await chatHistory.addUserMessage(pendingCreation.userMessage);
+                await chatHistory.addAssistantMessage("I understand you don't need a ticket right now. Feel free to ask me anything else!");
+
                 return { success: true, message: "Ticket creation has been cancelled." };
             }
 
@@ -335,11 +347,17 @@ When using this context:
             const category = await ticketRepo.getTicketCategory(pendingCreation.categoryId);
 
             if (!category) {
+                await chatHistory.addUserMessage(pendingCreation.userMessage);
+                await chatHistory.addAssistantMessage("I apologize, but the ticket category is no longer available. Please try again or contact an administrator.");
+
                 return { success: false, message: "The selected ticket category no longer exists." };
             }
 
             const guild = client.guilds.cache.get(pendingCreation.guildId);
             if (!guild) {
+                await chatHistory.addUserMessage(pendingCreation.userMessage);
+                await chatHistory.addAssistantMessage("I apologize, but there was an issue accessing the server. Please try again or contact an administrator.");
+
                 return { success: false, message: "Server not found." };
             }
 
@@ -439,6 +457,9 @@ When using this context:
                 embeds: [welcomeEmbed],
                 components: [actionRow]
             });
+
+            await chatHistory.addUserMessage(pendingCreation.userMessage);
+            await chatHistory.addAssistantMessage(`I've created ticket #${ticket.ticketNumber} for you in the ${category.name} category. You can find it here: ${newTicketChannel}. A staff member will assist you shortly!`);
 
             client.logger.info(`[CHATBOT_SERVICE] Created ticket #${ticket.ticketNumber} via AI assistant for user ${pendingCreation.userId}`);
 
