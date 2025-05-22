@@ -44,7 +44,6 @@ const blockCommand: SlashCommand = {
         interaction: discord.ChatInputCommandInteraction,
         client: discord.Client
     ) => {
-        // Immediately acknowledge the interaction to prevent timeout
         await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
         const subcommand = interaction.options.getSubcommand();
@@ -57,7 +56,6 @@ const blockCommand: SlashCommand = {
         }
 
         try {
-            // Get repository from the client's dataSource
             const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
 
             switch (subcommand) {
@@ -102,7 +100,6 @@ const blockCommand: SlashCommand = {
                 }
 
                 case "status": {
-                    // Get user block info
                     const blockedUser = await blockedUserRepo.findByUserId(user.id);
 
                     if (!blockedUser) {
@@ -111,7 +108,6 @@ const blockCommand: SlashCommand = {
                         });
                     }
 
-                    // Create an embed to display the information
                     const embed = new discord.EmbedBuilder()
                         .setTitle(`Block Status for ${user.tag}`)
                         .setDescription(`Current status: ${blockedUser.status ? "🚫 **BLOCKED**" : "✅ **NOT BLOCKED**"}`)
@@ -120,14 +116,11 @@ const blockCommand: SlashCommand = {
                         .setFooter({ text: `User ID: ${user.id}` })
                         .setTimestamp();
 
-                    // Add block history if available
                     if (blockedUser.data && blockedUser.data.length > 0) {
-                        // Sort by timestamp, newest first
                         const sortedReasons = [...blockedUser.data].sort((a, b) =>
                             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
                         );
 
-                        // Add the most recent 10 reasons to the embed
                         const recentReasons = sortedReasons.slice(0, 10);
 
                         let historyText = "";

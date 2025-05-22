@@ -4,7 +4,6 @@ import chalk from "chalk";
 import { ILogger } from "../types";
 import { ConfigManager } from "./config";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 /**
@@ -40,8 +39,6 @@ class Logger implements ILogger {
         this.initializeLogDirectory();
         this.logFilePath = this.generateLogFilePath();
         this.isDebugEnabled = configManager.isDebugMode();
-
-        // Log debug mode status on initialization
         if (this.isDebugEnabled) {
             this.info("Debug mode is enabled");
         }
@@ -109,7 +106,6 @@ class Logger implements ILogger {
         );
         const monthFolderPath: string = path.join(yearFolderPath, month);
 
-        // Create directory structure if it doesn't exist
         [yearFolderPath, monthFolderPath].forEach((dirPath) => {
             if (!fs.existsSync(dirPath)) {
                 fs.mkdirSync(dirPath);
@@ -146,7 +142,6 @@ class Logger implements ILogger {
         message: LogMessage,
         forceLog: boolean = true
     ): void {
-        // Skip debug messages if debug mode is disabled
         if (!forceLog && !this.isDebugEnabled) {
             return;
         }

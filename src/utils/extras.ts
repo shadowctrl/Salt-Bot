@@ -28,17 +28,14 @@ const sendTempMessage = async (
     components: discord.ActionRowBuilder<discord.AnyComponentBuilder> | null = null,
     duration: number = 10000
 ): Promise<discord.Message | null> => {
-    // Error handling helper that ignores expected errors
     const handleError = (error: any, context: string): null => {
-        // Ignore common expected errors
         const ignoredErrors = [
             'Unknown Message',
             'MESSAGE_REFERENCE_UNKNOWN_MESSAGE',
             'Unknown Channel',
-            '50035'  // Invalid Form Body error code
+            '50035'
         ];
 
-        // Check if this is an error we should ignore in logs
         const shouldIgnore = ignoredErrors.some(errText =>
             error.message?.includes(errText) ||
             error.code?.toString() === errText
@@ -53,14 +50,12 @@ const sendTempMessage = async (
         return null;
     };
 
-    // Prepare message options
     const messageOptions: discord.MessageCreateOptions = { embeds: [embed] };
     if (components) messageOptions.components = [components.toJSON()];
 
     let msg: discord.Message | null = null;
 
     try {
-        // First, attempt to get the target channel
         const targetChannel = channel?.isTextBased()
             ? channel
             : message.channel?.isTextBased()
@@ -72,8 +67,6 @@ const sendTempMessage = async (
             return null;
         }
 
-        // Try to send as a normal message in the channel instead of a reply
-        // Ensure we only use send on TextBasedChannel types
         if ('send' in targetChannel) {
             msg = await targetChannel.send(messageOptions)
                 .catch(e => handleError(e, "sending to channel"));
@@ -82,9 +75,7 @@ const sendTempMessage = async (
         }
 
         if (!msg) {
-            // If channel send fails, fallback to reply only if message still exists
             try {
-                // Check if message still exists by attempting to fetch it
                 const messageExists = await message.fetch().catch(() => null);
 
                 if (messageExists) {
@@ -92,7 +83,6 @@ const sendTempMessage = async (
                         .catch(e => handleError(e, "replying to message"));
                 }
             } catch (error) {
-                // Ignore any errors in this fallback logic
                 handleError(error, "checking if message exists");
             }
         }
@@ -101,10 +91,8 @@ const sendTempMessage = async (
             return null;
         }
 
-        // Wait for the specified duration
         await wait(duration);
 
-        // Delete the temporary message
         try {
             await msg.delete().catch(e => handleError(e, "deleting response message"));
             client.logger.debug(`[TEMP_MESSAGE] Deleted message after ${duration}ms`);
@@ -112,7 +100,6 @@ const sendTempMessage = async (
             handleError(error, "in deletion process");
         }
 
-        // Try to delete the original message if it still exists
         try {
             await message.delete().catch(e => handleError(e, "deleting original message"));
         } catch (error) {
@@ -134,14 +121,11 @@ const sendTempMessage = async (
  * @returns Timeout ID that can be used with clearTimeout
  */
 const setSafeTimeout = (callback: () => void, delayMs: number): NodeJS.Timeout => {
-    // Maximum timeout value (just under 2^31 - 1)
     const MAX_TIMEOUT = 2147483647;
 
     if (delayMs <= MAX_TIMEOUT) {
-        // If the delay is within safe range, use setTimeout directly
         return setTimeout(callback, delayMs);
     } else {
-        // For longer delays, chain timeouts
         return setTimeout(() => {
             setSafeTimeout(callback, delayMs - MAX_TIMEOUT);
         }, MAX_TIMEOUT);

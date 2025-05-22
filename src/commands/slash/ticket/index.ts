@@ -9,6 +9,7 @@ import { transcriptTicket } from "./transcript";
 import { addUserToTicket } from "./add";
 import { removeUserFromTicket } from "./remove";
 import { claimTicket } from "./claim";
+import { transferTicketOwner } from "./transfer_owner";
 
 const ticketCommand: SlashCommand = {
     cooldown: 5,
@@ -21,7 +22,6 @@ const ticketCommand: SlashCommand = {
     data: new discord.SlashCommandBuilder()
         .setName("ticket")
         .setDescription("Ticket system commands")
-        // Close subcommand
         .addSubcommand(subcommand =>
             subcommand
                 .setName("close")
@@ -31,13 +31,11 @@ const ticketCommand: SlashCommand = {
                         .setDescription("Reason for closing the ticket")
                         .setRequired(false))
         )
-        // Reopen subcommand
         .addSubcommand(subcommand =>
             subcommand
                 .setName("reopen")
                 .setDescription("Reopen a closed ticket")
         )
-        // Deploy subcommand
         .addSubcommand(subcommand =>
             subcommand
                 .setName("deploy")
@@ -51,7 +49,6 @@ const ticketCommand: SlashCommand = {
                         )
                         .setRequired(true))
         )
-        // Config subcommand group
         .addSubcommandGroup(group =>
             group
                 .setName("config")
@@ -163,13 +160,11 @@ const ticketCommand: SlashCommand = {
                                 .setRequired(false))
                 )
         )
-        // Info subcommand
         .addSubcommand(subcommand =>
             subcommand
                 .setName("info")
                 .setDescription("Get information about the current ticket")
         )
-        // Transcript subcommand
         .addSubcommand(subcommand =>
             subcommand
                 .setName("transcript")
@@ -201,6 +196,15 @@ const ticketCommand: SlashCommand = {
             subcommand
                 .setName("claim")
                 .setDescription("Claim the current ticket as a support agent")
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName("transfer_owner")
+                .setDescription("Transfer ownership of this ticket to another user")
+                .addUserOption(option =>
+                    option.setName("user")
+                        .setDescription("The user to transfer ticket ownership to")
+                        .setRequired(true))
         ),
 
     execute: async (
@@ -208,7 +212,6 @@ const ticketCommand: SlashCommand = {
         client: discord.Client
     ) => {
         try {
-            // Check if database is connected
             if (!(client as any).dataSource) {
                 await interaction.reply({
                     embeds: [
@@ -225,7 +228,6 @@ const ticketCommand: SlashCommand = {
             const subcommand = interaction.options.getSubcommand();
             const subcommandGroup = interaction.options.getSubcommandGroup();
 
-            // Route to appropriate handler based on subcommand and group
             if (subcommandGroup === "config") {
                 await configTicket(interaction, client, subcommand);
             } else {
@@ -254,6 +256,9 @@ const ticketCommand: SlashCommand = {
                     case "claim":
                         await claimTicket(interaction, client);
                         break;
+                    case "transfer_owner":
+                        await transferTicketOwner(interaction, client);
+                        break;
                     default:
                         await interaction.reply({
                             embeds: [
@@ -270,7 +275,6 @@ const ticketCommand: SlashCommand = {
             client.logger.error(`[TICKET_CMD] Error in ticket command: ${error}`);
 
             try {
-                // Handle reply based on interaction state
                 if (interaction.replied || interaction.deferred) {
                     await interaction.followUp({
                         embeds: [

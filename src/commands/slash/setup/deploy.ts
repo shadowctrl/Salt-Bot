@@ -1,6 +1,7 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../../utils/embed_template";
 import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { wait } from "../../../utils/extras";
 
 /**
  * Helper function to deploy the ticket system
@@ -12,7 +13,6 @@ export const deployTicketSystem = async (
     ticketChannel: discord.TextChannel
 ): Promise<void> => {
     try {
-        // Show loading state
         await interaction.editReply({
             embeds: [
                 new discord.EmbedBuilder()
@@ -25,14 +25,14 @@ export const deployTicketSystem = async (
             client.logger.debug("[SETUP] Failed to update loading state - continuing with deployment");
         });
 
-        // Get the button configuration
+        await wait(2000);
+
         const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
 
         if (!buttonConfig) {
             throw new Error("Button configuration not found");
         }
 
-        // Create the embed
         const ticketEmbed = new discord.EmbedBuilder()
             .setTitle(buttonConfig.embedTitle || "Need Help?")
             .setDescription(buttonConfig.embedDescription || "Click the button below to create a ticket")
@@ -40,7 +40,6 @@ export const deployTicketSystem = async (
             .setFooter({ text: "Powered by Salt Bot", iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 
-        // Get button style
         let style = discord.ButtonStyle.Primary;
         switch (buttonConfig.style?.toUpperCase()) {
             case "SECONDARY":
@@ -54,7 +53,6 @@ export const deployTicketSystem = async (
                 break;
         }
 
-        // Create the button row
         const buttonRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
             .addComponents(
                 new discord.ButtonBuilder()
@@ -64,18 +62,15 @@ export const deployTicketSystem = async (
                     .setStyle(style)
             );
 
-        // Send the panel
         const panelMessage = await ticketChannel.send({
             embeds: [ticketEmbed],
             components: [buttonRow]
         });
 
-        // Update the message ID in the database
         await ticketRepo.configureTicketButton(interaction.guildId!, {
             messageId: panelMessage.id
         });
 
-        // If using categories, update select menu config too
         const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
         if (categories.length > 1) {
             await ticketRepo.configureSelectMenu(interaction.guildId!, {
@@ -83,7 +78,6 @@ export const deployTicketSystem = async (
             });
         }
 
-        // Send confirmation message
         try {
             await interaction.editReply({
                 embeds: [
@@ -101,7 +95,6 @@ export const deployTicketSystem = async (
             });
         } catch (editError) {
             client.logger.warn(`[SETUP] Failed to edit reply after deployment: ${editError}`);
-            // Try using followUp as a fallback
             try {
                 await interaction.message.reply({
                     embeds: [
@@ -116,7 +109,6 @@ export const deployTicketSystem = async (
     } catch (error) {
         client.logger.error(`[SETUP] Error deploying ticket system: ${error}`);
 
-        // Try to update the interaction if possible
         try {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("An error occurred while deploying the ticket system.")],
@@ -124,7 +116,6 @@ export const deployTicketSystem = async (
             });
         } catch (editError) {
             client.logger.debug(`[SETUP] Failed to edit reply with error: ${editError}`);
-            // Try followUp as fallback
             try {
                 await interaction.message.reply({
                     embeds: [new EmbedTemplate(client).error("An error occurred while deploying the ticket system.")]

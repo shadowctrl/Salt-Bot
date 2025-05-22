@@ -41,17 +41,15 @@ export class TicketRepository {
      */
     async getOrCreateGuildConfig(guildId: string): Promise<IGuildConfig> {
         try {
-            // Try to find existing config
             let guildConfig = await this.guildConfigRepo.findOne({
                 where: { guildId },
                 relations: ['ticketCategories', 'ticketButton', 'selectMenu']
             });
 
-            // Create new config if none exists
             if (!guildConfig) {
                 guildConfig = new GuildConfig();
                 guildConfig.guildId = guildId;
-                guildConfig.defaultCategoryName = "tickets"; // Default value
+                guildConfig.defaultCategoryName = "tickets";
                 guildConfig.isEnabled = true;
                 guildConfig = await this.guildConfigRepo.save(guildConfig);
 
@@ -159,7 +157,7 @@ export class TicketRepository {
             emoji?: string;
             supportRoleId?: string;
             position?: number;
-            categoryId?: string; // Make it optional for backward compatibility
+            categoryId?: string;
         }
     ): Promise<ITicketCategory> {
         const queryRunner = this.dataSource.createQueryRunner();
@@ -168,22 +166,17 @@ export class TicketRepository {
 
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
-
-            // Get the guild object
             const guild = client.guilds.cache.get(guildId);
             if (!guild) {
                 throw new Error("Guild not found");
             }
-
-            // Create Discord category if categoryId is not provided
             let discordCategoryId = categoryData.categoryId;
             if (!discordCategoryId) {
-                // Create a new Discord category
                 const categoryName = `${categoryData.name} Ticket`;
                 const discordCategory = await guild.channels.create({
                     name: categoryName,
                     type: discord.ChannelType.GuildCategory,
-                    position: 0, // Top of the channel list
+                    position: 0,
                     permissionOverwrites: [
                         {
                             id: guild.roles.everyone,
@@ -201,8 +194,6 @@ export class TicketRepository {
                 });
 
                 discordCategoryId = discordCategory.id;
-
-                // If support role is provided, set permissions for it
                 if (categoryData.supportRoleId) {
                     await discordCategory.permissionOverwrites.create(
                         categoryData.supportRoleId,
@@ -222,11 +213,8 @@ export class TicketRepository {
             category.supportRoleId = categoryData.supportRoleId;
             category.position = categoryData.position || 0;
             category.guildConfig = guildConfig as GuildConfig;
-            category.categoryId = discordCategoryId!; // Using the Discord category ID
-
+            category.categoryId = discordCategoryId!;
             const savedCategory = await this.ticketCategoryRepo.save(category);
-
-            // Create default welcome message for this category
             const ticketMessage = new TicketMessage();
             ticketMessage.category = savedCategory;
             ticketMessage.welcomeMessage = `Welcome to your ticket in the ${savedCategory.name} category!`;
@@ -277,8 +265,6 @@ export class TicketRepository {
             if (!guildConfig) {
                 return [];
             }
-
-            // Sort categories by position for consistent display order
             return guildConfig.ticketCategories.sort((a, b) => a.position - b.position);
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error getting ticket categories: ${error}`);
@@ -310,7 +296,6 @@ export class TicketRepository {
                 return null;
             }
 
-            // Update fields if provided
             if (categoryData.name !== undefined) category.name = categoryData.name;
             if (categoryData.description !== undefined) category.description = categoryData.description;
             if (categoryData.emoji !== undefined) category.emoji = categoryData.emoji;
@@ -376,7 +361,6 @@ export class TicketRepository {
         await queryRunner.startTransaction();
 
         try {
-            // Get guild config
             const guildConfig = await this.guildConfigRepo.findOne({
                 where: { guildId }
             });
@@ -385,11 +369,8 @@ export class TicketRepository {
                 throw new Error("Guild configuration not found");
             }
 
-            // Increment the global ticket counter
             guildConfig.globalTicketCount++;
             await this.guildConfigRepo.save(guildConfig);
-
-            // Find the specified category
             const category = await this.ticketCategoryRepo.findOne({
                 where: { id: categoryId },
                 relations: ['guildConfig', 'ticketMessage']
@@ -399,20 +380,15 @@ export class TicketRepository {
                 throw new Error("Ticket category not found or does not belong to this guild");
             }
 
-            // Increment the category counter too for category-specific counting
             category.ticketCount++;
             await this.ticketCategoryRepo.save(category);
-
-            // Create the ticket using the global counter
             const ticket = new Ticket();
             ticket.ticketNumber = guildConfig.globalTicketCount;
             ticket.channelId = channelId;
             ticket.creatorId = creatorId;
             ticket.status = ITicketStatus.OPEN;
             ticket.category = category;
-
             const savedTicket = await this.ticketRepo.save(ticket);
-
             await queryRunner.commitTransaction();
             return savedTicket;
         } catch (error) {
@@ -443,7 +419,6 @@ export class TicketRepository {
                 return null;
             }
 
-            // Update claim information
             ticket.claimedById = userId;
             ticket.claimedAt = new Date();
 
@@ -471,13 +446,41 @@ export class TicketRepository {
                 return null;
             }
 
-            // Remove claim information
             ticket.claimedById = null;
             ticket.claimedAt = null;
 
             return await this.ticketRepo.save(ticket);
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error unclaiming ticket: ${error}`);
+            return null;
+        }
+    }
+
+    /**
+     * Updates the owner (creator) of a ticket
+     * @param ticketId - Ticket ID
+     * @param newOwnerId - ID of the new ticket owner
+     * @returns Updated ticket or null if the operation failed
+     */
+    async updateTicketOwner(
+        ticketId: string,
+        newOwnerId: string
+    ): Promise<ITicket | null> {
+        try {
+            const ticket = await this.ticketRepo.findOne({
+                where: { id: ticketId },
+                relations: ['category']
+            });
+
+            if (!ticket) {
+                return null;
+            }
+
+            ticket.creatorId = newOwnerId;
+
+            return await this.ticketRepo.save(ticket);
+        } catch (error) {
+            client.logger.error(`[TICKET_REPO] Error updating ticket owner: ${error}`);
             return null;
         }
     }
@@ -523,17 +526,13 @@ export class TicketRepository {
      */
     async getGuildTickets(guildId: string): Promise<ITicket[]> {
         try {
-            // Get all categories for this guild
             const categories = await this.getTicketCategories(guildId);
 
             if (categories.length === 0) {
                 return [];
             }
 
-            // Get category IDs
             const categoryIds = categories.map(cat => cat.id);
-
-            // Get tickets for these categories using TypeORM's In operator
             if (categoryIds.length === 1) {
                 return await this.ticketRepo.find({
                     where: {
@@ -674,7 +673,6 @@ export class TicketRepository {
                 return null;
             }
 
-            // Find existing message config or create new one
             let messageConfig = category.ticketMessage;
 
             if (!messageConfig) {
@@ -685,7 +683,6 @@ export class TicketRepository {
                 messageConfig.includeSupportTeam = true;
             }
 
-            // Update fields if provided
             if (messageData.welcomeMessage !== undefined) messageConfig.welcomeMessage = messageData.welcomeMessage;
             if (messageData.closeMessage !== undefined) messageConfig.closeMessage = messageData.closeMessage;
             if (messageData.includeSupportTeam !== undefined) messageConfig.includeSupportTeam = messageData.includeSupportTeam;
@@ -712,7 +709,6 @@ export class TicketRepository {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
 
-            // Find existing button config or create new one
             let buttonConfig = await this.ticketButtonRepo.findOne({
                 where: { guildConfig: { id: guildConfig.id } }
             });
@@ -722,7 +718,6 @@ export class TicketRepository {
                 buttonConfig.guildConfig = guildConfig as GuildConfig;
             }
 
-            // Update fields if provided
             if (buttonData.label !== undefined) buttonConfig.label = buttonData.label;
             if (buttonData.emoji !== undefined) buttonConfig.emoji = buttonData.emoji;
             if (buttonData.style !== undefined) buttonConfig.style = buttonData.style;
@@ -781,8 +776,6 @@ export class TicketRepository {
     ): Promise<ISelectMenuConfig | null> {
         try {
             const guildConfig = await this.getOrCreateGuildConfig(guildId);
-
-            // Find existing menu config or create new one
             let menuConfig = await this.selectMenuRepo.findOne({
                 where: { guildConfig: { id: guildConfig.id } }
             });
@@ -792,7 +785,6 @@ export class TicketRepository {
                 menuConfig.guildConfig = guildConfig as GuildConfig;
             }
 
-            // Update fields if provided
             if (menuData.placeholder !== undefined) menuConfig.placeholder = menuData.placeholder;
             if (menuData.messageId !== undefined) menuConfig.messageId = menuData.messageId;
             if (menuData.minValues !== undefined) menuConfig.minValues = menuData.minValues;
@@ -853,12 +845,10 @@ export class TicketRepository {
                 categoryCounts: {} as Record<string, number>
             };
 
-            // Initialize category counts
             categories.forEach(category => {
                 stats.categoryCounts[category.name] = 0;
             });
 
-            // Count tickets per category
             tickets.forEach(ticket => {
                 const categoryName = ticket.category.name;
                 if (stats.categoryCounts[categoryName] !== undefined) {

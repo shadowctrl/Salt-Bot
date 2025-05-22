@@ -10,7 +10,6 @@ export const transcriptTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if the command is being used in a ticket channel
         const ticketRepo = new TicketRepository((client as any).dataSource);
         const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
 
@@ -21,10 +20,8 @@ export const transcriptTicket = async (
             return;
         }
 
-        // Get the target user (if specified)
         const targetUser = interaction.options.getUser("user");
 
-        // Create status message
         await interaction.editReply({
             embeds: [
                 new discord.EmbedBuilder()
@@ -34,21 +31,15 @@ export const transcriptTicket = async (
             ]
         });
 
-        // Get the channel
         const channel = interaction.channel as discord.TextChannel;
-
-        // Get creator user
         const creator = await client.users.fetch(ticket.creatorId).catch(() => null);
-
-        // Create the transcript
         const attachment = await createTranscript(channel, {
-            limit: 10000, // Limit of messages to fetch
+            limit: 10000,
             saveImages: true,
             poweredBy: false,
             filename: `ticket-${ticket.ticketNumber}.html`,
         }) as AttachmentBuffer;
 
-        // Create an embed for the transcript
         const embed = new discord.EmbedBuilder()
             .setTitle(`Ticket #${ticket.ticketNumber} Transcript`)
             .setDescription(`
@@ -63,10 +54,8 @@ export const transcriptTicket = async (
             .setFooter({ text: 'Transcript generated on request', iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 
-        // If sending to a specific user
         if (targetUser) {
             try {
-                // Send to the specified user
                 await targetUser.send({
                     embeds: [
                         embed.setDescription(`
@@ -80,7 +69,6 @@ Transcript from **${interaction.guild?.name}**
                     files: [attachment]
                 });
 
-                // Confirm to the user who requested
                 await interaction.editReply({
                     embeds: [
                         new EmbedTemplate(client).success("Transcript sent successfully!")
@@ -89,8 +77,6 @@ Transcript from **${interaction.guild?.name}**
                 });
             } catch (error) {
                 client.logger.error(`[TICKET_TRANSCRIPT] Failed to DM transcript: ${error}`);
-
-                // Fall back to sending in the channel
                 await interaction.editReply({
                     embeds: [
                         new EmbedTemplate(client).warning(`Could not send transcript to ${targetUser}. Their DMs may be closed.`)
@@ -100,7 +86,6 @@ Transcript from **${interaction.guild?.name}**
                 });
             }
         } else {
-            // Send in the current channel
             await interaction.editReply({
                 embeds: [
                     new EmbedTemplate(client).success("Transcript generated successfully!")
@@ -116,7 +101,6 @@ Transcript from **${interaction.guild?.name}**
     }
 };
 
-// Define the interface for the attachment buffer
 interface AttachmentBuffer extends discord.AttachmentBuilder {
     attachment: Buffer;
 }

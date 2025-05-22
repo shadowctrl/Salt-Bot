@@ -31,17 +31,13 @@ const stopCommand: SlashCommand = {
         try {
             await interaction.deferReply();
 
-            // Check if database is connected
             if (!(client as any).dataSource) {
                 return interaction.editReply({
                     embeds: [new EmbedTemplate(client).error("Database connection is not available.")]
                 });
             }
 
-            // Get the ticket repository
             const ticketRepo = new TicketRepository((client as any).dataSource);
-
-            // Get guild config
             const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
 
             if (!guildConfig) {
@@ -54,7 +50,6 @@ const stopCommand: SlashCommand = {
 
             switch (subcommand) {
                 case "disable": {
-                    // Ask for confirmation
                     const confirmEmbed = new discord.EmbedBuilder()
                         .setTitle("⚠️ Disable Ticket System")
                         .setDescription(
@@ -66,7 +61,6 @@ const stopCommand: SlashCommand = {
 
                     await interaction.editReply({ embeds: [confirmEmbed] });
 
-                    // Create message collector
                     const channel = interaction.channel as discord.TextChannel;
                     if (!channel) return;
 
@@ -78,7 +72,6 @@ const stopCommand: SlashCommand = {
                             errors: ['time']
                         });
 
-                        // Clean up user message
                         try {
                             await collected.first()?.delete();
                         } catch (err) {
@@ -88,7 +81,6 @@ const stopCommand: SlashCommand = {
                         const response = collected.first()?.content.trim().toLowerCase();
 
                         if (response === "confirm") {
-                            // Disable the ticket system
                             await ticketRepo.updateGuildConfig(interaction.guildId!, {
                                 isEnabled: false
                             });
@@ -117,7 +109,6 @@ const stopCommand: SlashCommand = {
                 }
 
                 case "remove_panel": {
-                    // Get button config
                     const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
 
                     if (!buttonConfig || !buttonConfig.messageId || !buttonConfig.channelId) {
@@ -127,7 +118,6 @@ const stopCommand: SlashCommand = {
                     }
 
                     try {
-                        // Try to find and delete the panel message
                         const channel = await client.channels.fetch(buttonConfig.channelId) as discord.TextChannel;
 
                         if (channel) {
@@ -135,7 +125,6 @@ const stopCommand: SlashCommand = {
                                 const message = await channel.messages.fetch(buttonConfig.messageId);
                                 await message.delete();
 
-                                // Update the database to remove the message ID
                                 await ticketRepo.configureTicketButton(interaction.guildId!, {
                                     messageId: undefined
                                 });
@@ -146,7 +135,6 @@ const stopCommand: SlashCommand = {
                             } catch (error) {
                                 client.logger.error(`[STOP] Error fetching/deleting message: ${error}`);
 
-                                // Even if message couldn't be deleted, update the DB
                                 await ticketRepo.configureTicketButton(interaction.guildId!, {
                                     messageId: undefined
                                 });
@@ -161,7 +149,6 @@ const stopCommand: SlashCommand = {
                         } else {
                             client.logger.error(`[STOP] Channel not found: ${buttonConfig.channelId}`);
 
-                            // Update the database anyway
                             await ticketRepo.configureTicketButton(interaction.guildId!, {
                                 messageId: undefined
                             });
@@ -183,7 +170,6 @@ const stopCommand: SlashCommand = {
                 }
 
                 case "close_all": {
-                    // Ask for confirmation
                     const confirmEmbed = new discord.EmbedBuilder()
                         .setTitle("⚠️ Close All Tickets")
                         .setDescription(
@@ -195,7 +181,6 @@ const stopCommand: SlashCommand = {
 
                     await interaction.editReply({ embeds: [confirmEmbed] });
 
-                    // Create message collector
                     const channel = interaction.channel as discord.TextChannel;
                     if (!channel) return;
 
@@ -207,7 +192,6 @@ const stopCommand: SlashCommand = {
                             errors: ['time']
                         });
 
-                        // Clean up user message
                         try {
                             await collected.first()?.delete();
                         } catch (err) {
@@ -224,7 +208,6 @@ const stopCommand: SlashCommand = {
 
                             await interaction.editReply({ embeds: [loadingEmbed] });
 
-                            // Get all open tickets
                             const tickets = await ticketRepo.getGuildTickets(interaction.guildId!);
                             const openTickets = tickets.filter(t => t.status === "open");
 
@@ -237,10 +220,8 @@ const stopCommand: SlashCommand = {
                             let closedCount = 0;
                             let failedCount = 0;
 
-                            // Close each ticket
                             for (const ticket of openTickets) {
                                 try {
-                                    // Update ticket status
                                     await ticketRepo.updateTicketStatus(
                                         ticket.id,
                                         ITicketStatus.CLOSED,
@@ -248,7 +229,6 @@ const stopCommand: SlashCommand = {
                                         "Bulk close by administrator"
                                     );
 
-                                    // Try to send closing message in the ticket channel
                                     try {
                                         const ticketChannel = await client.channels.fetch(ticket.channelId) as discord.TextChannel;
 
@@ -262,9 +242,7 @@ const stopCommand: SlashCommand = {
 
                                             await ticketChannel.send({ embeds: [closeEmbed] });
 
-                                            // Try to update channel permissions
                                             if (ticketChannel.manageable) {
-                                                // Lock the channel by denying SendMessages permission
                                                 await ticketChannel.permissionOverwrites.create(
                                                     interaction.guild!.roles.everyone,
                                                     { SendMessages: false }
@@ -273,7 +251,6 @@ const stopCommand: SlashCommand = {
                                         }
                                     } catch (channelError) {
                                         client.logger.debug(`[STOP] Could not send close message to ticket channel: ${channelError}`);
-                                        // Continue anyway - the ticket status has been updated in the database
                                     }
 
                                     closedCount++;
@@ -316,7 +293,6 @@ const stopCommand: SlashCommand = {
         } catch (error) {
             client.logger.error(`[STOP] Error in stop command: ${error}`);
 
-            // Try to respond if possible
             if (interaction.replied || interaction.deferred) {
                 await interaction.followUp({
                     embeds: [new EmbedTemplate(client).error("An error occurred while executing the command.")],

@@ -15,22 +15,17 @@ export const createTicket = async (
     categoryId: string
 ): Promise<void> => {
     try {
-        // Get data source from client
         const dataSource = (client as any).dataSource;
         if (!dataSource) {
             throw new Error("Database connection not available");
         }
 
-        // Get ticket repository
         const ticketRepo = new TicketRepository(dataSource);
-
-        // Get category
         const category = await ticketRepo.getTicketCategory(categoryId);
         if (!category) {
             throw new Error("Category not found");
         }
 
-        // Check if the user already has an open ticket
         const guildTickets = await ticketRepo.getGuildTickets(interaction.guildId!);
         const userOpenTickets = guildTickets.filter(ticket =>
             ticket.creatorId === interaction.user.id &&
@@ -38,7 +33,6 @@ export const createTicket = async (
         );
 
         if (userOpenTickets.length > 0) {
-            // User already has a ticket
             const existingTicket = userOpenTickets[0];
             const ticketChannel = client.channels.cache.get(existingTicket.channelId) as discord.TextChannel;
 
@@ -54,7 +48,6 @@ export const createTicket = async (
                 });
                 return;
             } else {
-                // Channel no longer exists, mark as closed in database
                 await ticketRepo.updateTicketStatus(
                     existingTicket.id,
                     ITicketStatus.CLOSED,
@@ -64,7 +57,6 @@ export const createTicket = async (
             }
         }
 
-        // Update interaction response to show loading
         await interaction.reply({
             embeds: [
                 new discord.EmbedBuilder()
@@ -75,10 +67,7 @@ export const createTicket = async (
             flags: discord.MessageFlags.Ephemeral
         });
 
-        // Generate channel name (temporary)
         const tempChannelName = `ticket-new`;
-
-        // Create ticket channel
         const guild = interaction.guild!;
 
         try {
@@ -111,7 +100,6 @@ export const createTicket = async (
                 ]
             });
 
-            // Create ticket in database with the channel ID
             const ticket = await ticketRepo.createTicket(
                 interaction.guildId!,
                 interaction.user.id,
@@ -119,11 +107,9 @@ export const createTicket = async (
                 categoryId
             );
 
-            // Rename the channel with the actual ticket number
             const channelName = `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`;
             await ticketChannel.setName(channelName);
 
-            // If category has a support role, add it to channel permissions
             if (category.supportRoleId) {
                 try {
                     await ticketChannel.permissionOverwrites.create(
@@ -139,16 +125,11 @@ export const createTicket = async (
                 }
             }
 
-            // Get ticket welcome message
             const ticketMessage = category.ticketMessage;
             const welcomeMessage = ticketMessage?.welcomeMessage ||
                 `Welcome to your ticket in the **${category.name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`;
-
-            // Format creation time
             const creationTime = new Date();
             const creationTimestamp = Math.floor(creationTime.getTime() / 1000);
-
-            // Create welcome embed
             const welcomeEmbed = new discord.EmbedBuilder()
                 .setTitle(`Ticket #${ticket.ticketNumber}`)
                 .setDescription(welcomeMessage)
@@ -163,7 +144,6 @@ export const createTicket = async (
                 .setFooter({ text: `Use /ticket close to close this ticket | ID: ${ticket.id}` })
                 .setTimestamp();
 
-            // Create action row with buttons
             const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
                 .addComponents(
                     new discord.ButtonBuilder()
@@ -178,7 +158,6 @@ export const createTicket = async (
                         .setEmoji("🔒")
                 );
 
-            // Send welcome message to ticket channel
             await ticketChannel.send({
                 content: ticketMessage?.includeSupportTeam && category.supportRoleId ?
                     `<@${interaction.user.id}> | <@&${category.supportRoleId}>` :
@@ -187,7 +166,6 @@ export const createTicket = async (
                 components: [actionRow]
             });
 
-            // Update interaction response to show success
             await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
@@ -197,7 +175,6 @@ export const createTicket = async (
                 ]
             });
 
-            // Log ticket creation
             client.logger.info(`[TICKET_CREATE] User ${interaction.user.tag} created ticket #${ticket.ticketNumber} in category ${category.name}`);
         } catch (error) {
             client.logger.error(`[TICKET_CREATE] Failed to create ticket channel: ${error}`);
@@ -212,8 +189,6 @@ export const createTicket = async (
         }
     } catch (error) {
         client.logger.error(`[TICKET_CREATE] Error creating ticket: ${error}`);
-
-        // Try to reply to the interaction if it hasn't been acknowledged yet
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({
                 embeds: [

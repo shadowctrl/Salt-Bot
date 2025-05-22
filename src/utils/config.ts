@@ -36,10 +36,8 @@ export class ConfigManager {
     private constructor() {
         const environment = process.env.NODE_ENV || "prod";
         const envPath = path.resolve(process.cwd(), `.env.${environment}`);
-
         let result;
 
-        // Load environment variables
         if (require("fs").existsSync(envPath)) {
             result = config({ path: envPath });
         } else {
@@ -52,7 +50,6 @@ export class ConfigManager {
             );
         }
 
-        // Validate environment variables
         try {
             this.config = EnvSchema.parse({
                 TOKEN: process.env.TOKEN,

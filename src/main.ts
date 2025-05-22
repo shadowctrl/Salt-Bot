@@ -4,7 +4,6 @@ import discord from "discord.js";
 import client from "./salt";
 import { ConfigManager } from "./utils/config";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 /**
@@ -72,14 +71,12 @@ const loadEventsRecursive = async (
             const relativePath = path.relative(basePath, itemPath);
 
             if (item.isDirectory()) {
-                // Skip ignored folders
                 if (ignoreFolders.some(folder =>
                     item.name.toLowerCase().endsWith(folder.toLowerCase()))) {
                     client.logger.debug(`[MAIN] Skipping ignored folder: ${item.name}`);
                     continue;
                 }
 
-                // Process subdirectory
                 await loadEventsRecursive(client, basePath, itemPath, ignoreFolders);
             } else if (item.isFile() && (item.name.endsWith(".js") || item.name.endsWith(".ts")) && !item.name.endsWith(".d.ts")) {
                 try {
@@ -162,7 +159,6 @@ const initializeBot = async (client: discord.Client): Promise<void> => {
     }
 };
 
-// Initialize the bot
 initializeBot(client).catch((error) => {
     client.logger.error(`[MAIN] Fatal error during initialization: ${error}`);
     process.exit(1);

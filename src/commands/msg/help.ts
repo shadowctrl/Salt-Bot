@@ -24,12 +24,10 @@ const command: Command = {
             const sent = await message.reply("🏓 Finding all commands for you...");
             await wait(2000);
 
-            // Get commands from collections
             const slashCommands = [...client.slashCommands.values()].filter(
                 command => !command.owner
             );
 
-            // Only include message commands if they're not disabled
             const msgCommands = client.config.bot.command.disable_message ? [] :
                 [...client.commands.values()].filter(command => !command.owner);
 
@@ -38,12 +36,9 @@ const command: Command = {
                 embedBuilder: discord.EmbedBuilder,
                 fieldTitle: string
             ) => {
-                // Add a blank field to separate sections
                 embedBuilder.addFields({ name: "", value: "\u200B", inline: false });
-
                 if (commands.length === 0) return false;
 
-                // Sort commands alphabetically
                 commands.sort((a, b) => {
                     const nameA = "data" in a ? a.data.name : a.name;
                     const nameB = "data" in b ? b.data.name : b.name;

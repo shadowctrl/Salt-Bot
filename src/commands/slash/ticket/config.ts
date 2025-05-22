@@ -10,7 +10,6 @@ export const configTicket = async (
     await interaction.deferReply();
 
     try {
-        // Check if user has proper permissions
         if (!interaction.memberPermissions?.has(discord.PermissionFlagsBits.Administrator)) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("You need Administrator permission to configure the ticket system.")]
@@ -18,10 +17,7 @@ export const configTicket = async (
             return;
         }
 
-        // Get ticket repository
         const ticketRepo = new TicketRepository((client as any).dataSource);
-
-        // Get guild config
         const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
         if (!guildConfig) {
             await interaction.editReply({
@@ -33,7 +29,6 @@ export const configTicket = async (
             return;
         }
 
-        // Route to appropriate configuration subcommand
         switch (subcommand) {
             case "button":
                 await configTicketButton(interaction, client, ticketRepo);
@@ -60,14 +55,12 @@ export const configTicket = async (
     }
 };
 
-// Configure ticket button settings
 const configTicketButton = async (
     interaction: discord.ChatInputCommandInteraction,
     client: discord.Client,
     ticketRepo: TicketRepository
 ): Promise<void> => {
     try {
-        // Get current button config
         const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
         if (!buttonConfig) {
             await interaction.editReply({
@@ -76,7 +69,6 @@ const configTicketButton = async (
             return;
         }
 
-        // Get options
         const label = interaction.options.getString("label");
         const emoji = interaction.options.getString("emoji");
         const style = interaction.options.getString("style");
@@ -84,9 +76,7 @@ const configTicketButton = async (
         const description = interaction.options.getString("description");
         const color = interaction.options.getString("color");
 
-        // Check if any options were provided
         if (!label && !emoji && !style && !title && !description && !color) {
-            // No options provided, show current configuration
             const embed = new discord.EmbedBuilder()
                 .setTitle("🔧 Ticket Button Configuration")
                 .setDescription("Current ticket button settings:")
@@ -113,7 +103,6 @@ const configTicketButton = async (
             return;
         }
 
-        // Build update data object
         const updateData: Record<string, any> = {};
         if (label) updateData.label = label;
         if (emoji) updateData.emoji = emoji;
@@ -121,7 +110,6 @@ const configTicketButton = async (
         if (title) updateData.embedTitle = title;
         if (description) updateData.embedDescription = description;
         if (color) {
-            // Validate color hex code
             const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
             if (color.startsWith('#') && !colorRegex.test(color)) {
                 await interaction.editReply({
@@ -135,13 +123,9 @@ const configTicketButton = async (
             updateData.embedColor = color.startsWith('#') ? color : `#${color}`;
         }
 
-        // Update button configuration
         await ticketRepo.configureTicketButton(interaction.guildId!, updateData);
-
-        // Get the updated configuration
         const updatedConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
 
-        // Send success message
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket button configuration updated successfully!")
@@ -161,19 +145,16 @@ const configTicketButton = async (
     }
 };
 
-// Configure ticket category settings
 const configTicketCategory = async (
     interaction: discord.ChatInputCommandInteraction,
     client: discord.Client,
     ticketRepo: TicketRepository
 ): Promise<void> => {
     try {
-        // Get the action
         const action = interaction.options.getString("action", true);
 
         switch (action) {
             case "list": {
-                // List all categories
                 const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
 
                 if (categories.length === 0) {
@@ -186,13 +167,11 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Create embed with category list
                 const embed = new discord.EmbedBuilder()
                     .setTitle("📋 Ticket Categories")
                     .setDescription(`Found ${categories.length} ticket categories:`)
                     .setColor("Blue");
 
-                // Add each category to the embed
                 categories.forEach((category, index) => {
                     embed.addFields({
                         name: `${index + 1}. ${category.emoji || "🎫"} ${category.name} ${category.isEnabled ? "✅" : "❌"}`,
@@ -206,14 +185,12 @@ const configTicketCategory = async (
             }
 
             case "create": {
-                // Get options
                 const name = interaction.options.getString("name");
                 const description = interaction.options.getString("description");
                 const emoji = interaction.options.getString("emoji");
                 const supportRole = interaction.options.getRole("support_role");
                 const parentCategory = interaction.options.getChannel("parent_category");
 
-                // Validate required fields
                 if (!name) {
                     await interaction.editReply({
                         embeds: [
@@ -224,7 +201,6 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Create data object matching the repository method signature
                 const categoryData: {
                     name: string;
                     description?: string;
@@ -234,7 +210,7 @@ const configTicketCategory = async (
                     categoryId?: string;
                 } = {
                     name: name,
-                    position: 0 // Default position
+                    position: 0 
                 };
 
                 if (description) categoryData.description = description;
@@ -242,10 +218,7 @@ const configTicketCategory = async (
                 if (supportRole) categoryData.supportRoleId = supportRole.id;
                 if (parentCategory) categoryData.categoryId = parentCategory.id;
 
-                // Create new category
                 const newCategory = await ticketRepo.createTicketCategory(interaction.guildId!, categoryData);
-
-                // Send success message
                 await interaction.editReply({
                     embeds: [
                         new EmbedTemplate(client).success("Ticket category created successfully!")
@@ -261,7 +234,6 @@ const configTicketCategory = async (
             }
 
             case "edit": {
-                // Get the category ID
                 const categoryId = interaction.options.getString("category_id");
                 if (!categoryId) {
                     await interaction.editReply({
@@ -273,7 +245,6 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Get the category
                 const category = await ticketRepo.getTicketCategory(categoryId);
                 if (!category) {
                     await interaction.editReply({
@@ -282,15 +253,12 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Get options
                 const name = interaction.options.getString("name");
                 const description = interaction.options.getString("description");
                 const emoji = interaction.options.getString("emoji");
                 const supportRole = interaction.options.getRole("support_role");
 
-                // Check if any options were provided
                 if (!name && !description && !emoji && !supportRole) {
-                    // No options provided, show current configuration
                     await interaction.editReply({
                         embeds: [
                             new discord.EmbedBuilder()
@@ -311,20 +279,15 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Build update data object
                 const updateData: Record<string, any> = {};
                 if (name) updateData.name = name;
                 if (description) updateData.description = description;
                 if (emoji) updateData.emoji = emoji;
                 if (supportRole) updateData.supportRoleId = supportRole.id;
 
-                // Update category
                 await ticketRepo.updateTicketCategory(categoryId, updateData);
-
-                // Get updated category
                 const updatedCategory = await ticketRepo.getTicketCategory(categoryId);
 
-                // Send success message
                 await interaction.editReply({
                     embeds: [
                         new EmbedTemplate(client).success("Ticket category updated successfully!")
@@ -339,7 +302,6 @@ const configTicketCategory = async (
             }
 
             case "delete": {
-                // Get the category ID
                 const categoryId = interaction.options.getString("category_id");
                 if (!categoryId) {
                     await interaction.editReply({
@@ -351,7 +313,6 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Get the category
                 const category = await ticketRepo.getTicketCategory(categoryId);
                 if (!category) {
                     await interaction.editReply({
@@ -360,7 +321,6 @@ const configTicketCategory = async (
                     return;
                 }
 
-                // Ask for confirmation
                 const confirmEmbed = new discord.EmbedBuilder()
                     .setTitle("⚠️ Delete Ticket Category")
                     .setDescription(`Are you sure you want to delete the category **${category.name}**?\n\nThis will not delete existing tickets, but they will no longer be associated with this category.\n\nType \`confirm\` to proceed or \`cancel\` to abort.`)
@@ -368,7 +328,6 @@ const configTicketCategory = async (
 
                 await interaction.editReply({ embeds: [confirmEmbed] });
 
-                // Create message collector
                 const filter = (m: discord.Message) => m.author.id === interaction.user.id;
                 const channel = interaction.channel as discord.TextChannel;
 
@@ -376,7 +335,6 @@ const configTicketCategory = async (
                     const collected = await channel.awaitMessages({ filter, max: 1, time: 30000, errors: ['time'] });
                     const response = collected.first()?.content.toLowerCase();
 
-                    // Try to delete the confirmation message
                     try {
                         await collected.first()?.delete();
                     } catch (err) {
@@ -384,7 +342,6 @@ const configTicketCategory = async (
                     }
 
                     if (response === "confirm") {
-                        // Delete the category
                         const deleted = await ticketRepo.deleteTicketCategory(categoryId);
 
                         if (deleted) {
@@ -427,17 +384,13 @@ const configTicketCategory = async (
     }
 };
 
-// Configure ticket message settings
 const configTicketMessage = async (
     interaction: discord.ChatInputCommandInteraction,
     client: discord.Client,
     ticketRepo: TicketRepository
 ): Promise<void> => {
     try {
-        // Get the category ID
         const categoryId = interaction.options.getString("category_id", true);
-
-        // Get the category
         const category = await ticketRepo.getTicketCategory(categoryId);
         if (!category) {
             await interaction.editReply({
@@ -446,14 +399,11 @@ const configTicketMessage = async (
             return;
         }
 
-        // Get options
         const welcomeMessage = interaction.options.getString("welcome_message");
         const closeMessage = interaction.options.getString("close_message");
         const includeSupportTeam = interaction.options.getBoolean("include_support_team");
 
-        // Check if any options were provided
         if (welcomeMessage === null && closeMessage === null && includeSupportTeam === null) {
-            // No options provided, show current configuration
             const ticketMessage = await ticketRepo.getTicketMessage(categoryId);
 
             await interaction.editReply({
@@ -489,16 +439,12 @@ const configTicketMessage = async (
             return;
         }
 
-        // Build update data object
         const updateData: Record<string, any> = {};
         if (welcomeMessage !== null) updateData.welcomeMessage = welcomeMessage;
         if (closeMessage !== null) updateData.closeMessage = closeMessage;
         if (includeSupportTeam !== null) updateData.includeSupportTeam = includeSupportTeam;
 
-        // Update ticket messages
         await ticketRepo.configureTicketMessages(categoryId, updateData);
-
-        // Send success message
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket messages updated successfully!")
@@ -513,17 +459,13 @@ const configTicketMessage = async (
     }
 };
 
-// Configure ticket transcript settings
 const configTicketTranscript = async (
     interaction: discord.ChatInputCommandInteraction,
     client: discord.Client,
     ticketRepo: TicketRepository
 ): Promise<void> => {
     try {
-        // Get the transcript channel
         const transcriptChannel = interaction.options.getChannel("channel") as discord.TextChannel;
-
-        // Get current button config which stores the transcript channel
         const buttonConfig = await ticketRepo.getTicketButtonConfig(interaction.guildId!);
         if (!buttonConfig) {
             await interaction.editReply({
@@ -532,7 +474,6 @@ const configTicketTranscript = async (
             return;
         }
 
-        // If no channel provided, show current configuration
         if (!transcriptChannel) {
             const currentTranscriptChannel = buttonConfig.logChannelId ?
                 await interaction.guild?.channels.fetch(buttonConfig.logChannelId).catch(() => null) :
@@ -555,7 +496,6 @@ const configTicketTranscript = async (
             return;
         }
 
-        // Validate channel type
         if (!(transcriptChannel instanceof discord.TextChannel)) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("Invalid channel type. Please select a text channel.")]
@@ -563,7 +503,6 @@ const configTicketTranscript = async (
             return;
         }
 
-        // Check permissions
         const botMember = await interaction.guild?.members.fetchMe();
         const botPermissions = transcriptChannel.permissionsFor(botMember!);
 
@@ -581,12 +520,10 @@ const configTicketTranscript = async (
             return;
         }
 
-        // Update configuration
         await ticketRepo.configureTicketButton(interaction.guildId!, {
             logChannelId: transcriptChannel.id
         });
 
-        // Send success message
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket transcript configuration updated successfully!")

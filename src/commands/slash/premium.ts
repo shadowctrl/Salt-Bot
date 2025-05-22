@@ -5,7 +5,7 @@ import { SlashCommand } from "../../types";
 
 const premiumCommand: SlashCommand = {
     cooldown: 10,
-    owner: false, // Available to all users
+    owner: false,
     data: new discord.SlashCommandBuilder()
         .setName("premium")
         .setDescription("Manage premium subscription")
@@ -36,23 +36,20 @@ const premiumCommand: SlashCommand = {
         await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
         try {
-            // Create premium handler
             const premiumHandler = new PremiumHandler((client as any).dataSource);
             const subcommand = interaction.options.getSubcommand();
 
             switch (subcommand) {
                 case "status": {
-                    // Get user's premium status
                     const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(interaction.user.id);
 
                     const embed = new discord.EmbedBuilder()
                         .setTitle("🌟 Premium Status")
                         .setThumbnail(interaction.user.displayAvatarURL())
-                        .setColor(isPremium ? "#FFD700" : "#36393F") // Gold for premium, dark for non-premium
+                        .setColor(isPremium ? "#FFD700" : "#36393F")
                         .setTimestamp();
 
                     if (isPremium && premiumExpire) {
-                        // Premium user
                         const now = new Date();
                         const expireDate = new Date(premiumExpire);
                         const daysLeft = Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -64,7 +61,6 @@ const premiumCommand: SlashCommand = {
                             "Thank you for your support! You have access to all premium features."
                         );
                     } else {
-                        // Non-premium user
                         embed.setDescription(
                             "❌ **You are not a premium user**\n\n" +
                             "Premium benefits include:\n" +
@@ -82,12 +78,9 @@ const premiumCommand: SlashCommand = {
 
                 case "redeem": {
                     const code = interaction.options.getString("code", true);
-
-                    // Validate and redeem coupon
-                    const success = await premiumHandler.redeemCoupon(code, interaction.user.id, 30); // 30 days by default
+                    const success = await premiumHandler.redeemCoupon(code, interaction.user.id, 30);
 
                     if (success) {
-                        // Get updated status to show expiry date
                         const [_, premiumExpire] = await premiumHandler.checkPremiumStatus(interaction.user.id);
                         const expireDate = premiumExpire ? new Date(premiumExpire) : null;
 
@@ -98,12 +91,11 @@ const premiumCommand: SlashCommand = {
                                 `Your premium subscription is now active${expireDate ? ` until **${expireDate.toLocaleDateString()}**` : ''}.\n\n` +
                                 "Thank you for your support! You now have access to all premium features."
                             )
-                            .setColor("#FFD700") // Gold
+                            .setColor("#FFD700")
                             .setTimestamp();
 
                         await interaction.editReply({ embeds: [embed] });
 
-                        // Log the redemption
                         client.logger.info(`[PREMIUM] ${interaction.user.tag} (${interaction.user.id}) redeemed coupon code ${code}`);
                     } else {
                         const embed = new discord.EmbedBuilder()
@@ -124,7 +116,6 @@ const premiumCommand: SlashCommand = {
                 }
 
                 case "remove": {
-                    // Only owners can remove premium
                     if (!client.config.bot.owners.includes(interaction.user.id)) {
                         return interaction.editReply({
                             embeds: [new EmbedTemplate(client).error("❌ This subcommand is restricted to bot owners only.")]
@@ -132,8 +123,6 @@ const premiumCommand: SlashCommand = {
                     }
 
                     const targetUser = interaction.options.getUser("user", true);
-
-                    // Check if user has premium first
                     const [isPremium, _] = await premiumHandler.checkPremiumStatus(targetUser.id);
 
                     if (!isPremium) {
@@ -142,7 +131,6 @@ const premiumCommand: SlashCommand = {
                         });
                     }
 
-                    // Remove premium
                     const success = await premiumHandler.revokePremium(targetUser.id);
 
                     if (success) {
@@ -154,7 +142,6 @@ const premiumCommand: SlashCommand = {
 
                         await interaction.editReply({ embeds: [embed] });
 
-                        // Log the removal
                         client.logger.info(`[PREMIUM] ${interaction.user.tag} (${interaction.user.id}) removed premium from ${targetUser.tag} (${targetUser.id})`);
                     } else {
                         await interaction.editReply({

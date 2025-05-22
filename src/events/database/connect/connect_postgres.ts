@@ -2,14 +2,16 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 import { ConfigManager } from "../../../utils/config";
 import { BotEvent } from "../../../types";
+import { initializeVectorExtension } from "./initialize_extensions";
 
-// Load entities
 import { UserData } from "../entities/user_data";
 import { PremiumCoupon } from "../entities/premium_coupons";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
+import { ChatHistoryEntry } from "../entities/chat_history";
+import { ChatbotConfig } from "../entities/chatbot_config";
+import { RagDocument, RagChunk } from "../entities/rag_data";
 
-// Load environment variables
 const configManager = ConfigManager.getInstance();
 
 export const AppDataSource = new DataSource({
@@ -17,7 +19,12 @@ export const AppDataSource = new DataSource({
     url: configManager.getPostgresUri(),
     synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
-    entities: [UserData, PremiumCoupon, BlockedUser, BlockReason, GuildConfig, TicketCategory, TicketButton, TicketMessage, Ticket, SelectMenuConfig],
+    entities: [
+        UserData, PremiumCoupon, BlockedUser, BlockReason,
+        GuildConfig, TicketCategory, TicketButton, TicketMessage,
+        Ticket, SelectMenuConfig, ChatHistoryEntry, ChatbotConfig,
+        RagDocument, RagChunk
+    ],
     subscribers: [],
     migrations: [],
 });
@@ -25,6 +32,7 @@ export const AppDataSource = new DataSource({
 export const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
     try {
         const dataSource = await AppDataSource.initialize();
+        await initializeVectorExtension(dataSource);
         return dataSource;
     } catch (error) {
         client.logger.error(`[DATABASE] Error initializing PostgreSQL: ${error}`);
@@ -38,10 +46,7 @@ const event: BotEvent = {
     execute: async (client: discord.Client): Promise<void> => {
         try {
             const dataSource = await initializeDatabase(client);
-
-            // Add dataSource to client for global access
             (client as any).dataSource = dataSource;
-
             client.logger.success(`[DATABASE] Connected to PostgreSQL database.`);
         } catch (error) {
             client.logger.error(`[DATABASE] Failed to connect to PostgreSQL: ${error}`);
