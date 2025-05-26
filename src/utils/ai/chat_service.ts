@@ -99,49 +99,52 @@ export class ChatbotService {
         }
 
         systemPrompt += `
-        Guidelines:
-        - Be helpful, informative, and engaging
-        - Keep responses concise but thorough
-        - Use Discord-friendly formatting when appropriate
-        - If you don't know something, say so honestly
-        - Stay in character as ${config.chatbotName}
-        - Answer questions directly without suggesting tickets unless explicitly needed`;
+Guidelines:
+- Be helpful, informative, and engaging
+- Keep responses concise but thorough
+- Use Discord-friendly formatting when appropriate
+- If you don't know something, say so honestly
+- Stay in character as ${config.chatbotName}
+- Answer questions directly without suggesting tickets unless explicitly needed`;
 
         if (includeTools) {
             systemPrompt += `
-            IMPORTANT - Ticket Creation Tool Guidelines:
-            ONLY use the create_ticket tool when:
-            - User EXPLICITLY asks to "create a ticket", "open a ticket", "talk to support", or "contact staff"
-            - User clearly expresses frustration and wants human help after you've provided assistance
-            - User has a complex technical issue that requires server admin intervention
-            - User is reporting bugs, server problems, or policy violations
-            - User specifically requests to escalate their issue
 
-            DO NOT use the create_ticket tool when:
-            - User is asking general questions you can answer
-            - User is just having a normal conversation
-            - User's question can be resolved with information or guidance
-            - User hasn't indicated they need human assistance
-            - This is the user's first question about a topic
+IMPORTANT - Ticket Creation Tool Guidelines:
+ONLY use the create_ticket tool when:
+- User EXPLICITLY asks to "create a ticket", "open a ticket", "talk to support", or "contact staff"
+- User clearly expresses frustration and wants human help after you've provided assistance
+- User has a complex technical issue that requires server admin intervention
+- User is reporting bugs, server problems, or policy violations
+- User specifically requests to escalate their issue
 
-            Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
+DO NOT use the create_ticket tool when:
+- User is asking general questions you can answer
+- User is just having a normal conversation
+- User's question can be resolved with information or guidance
+- User hasn't indicated they need human assistance
+- This is the user's first question about a topic
+
+Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
         }
 
         if (ragContext) {
             systemPrompt += `
-            You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
 
-            ${ragContext}
+You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
 
-            When using this context:
-                - Reference the information naturally in your response
-                - If the context is relevant, use it to provide accurate, detailed answers
-                - If the context doesn't relate to the question, you can still provide general help
-                - Don't mention that you're using "context" or "knowledge base" explicitly`;
+${ragContext}
+
+When using this context:
+- Reference the information naturally in your response
+- If the context is relevant, use it to provide accurate, detailed answers
+- If the context doesn't relate to the question, you can still provide general help
+- Don't mention that you're using "context" or "knowledge base" explicitly`;
         }
 
         return systemPrompt;
     };
+
     /**
      * Get available ticket categories for tool usage
      * @param guildId - Discord guild ID
