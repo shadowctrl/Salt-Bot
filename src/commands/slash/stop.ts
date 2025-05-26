@@ -1,7 +1,6 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../utils/embed_template";
-import { TicketRepository } from "../../events/database/repo/ticket_system";
-import { ITicketStatus } from "../../events/database/entities/ticket_system";
+import { Ticket } from "../../utils/ticket";
 import { SlashCommand } from "../../types";
 
 const stopCommand: SlashCommand = {
@@ -37,7 +36,8 @@ const stopCommand: SlashCommand = {
                 });
             }
 
-            const ticketRepo = new TicketRepository((client as any).dataSource);
+            const ticketManager = new Ticket((client as any).dataSource, client);
+            const ticketRepo = ticketManager.getRepository();
             const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
 
             if (!guildConfig) {
@@ -222,38 +222,19 @@ const stopCommand: SlashCommand = {
 
                             for (const ticket of openTickets) {
                                 try {
-                                    await ticketRepo.updateTicketStatus(
-                                        ticket.id,
-                                        ITicketStatus.CLOSED,
-                                        interaction.user.id,
-                                        "Bulk close by administrator"
-                                    );
+                                    const result = await ticketManager.close({
+                                        channelId: ticket.channelId,
+                                        userId: interaction.user.id,
+                                        reason: "Bulk close by administrator",
+                                        generateTranscript: false
+                                    });
 
-                                    try {
-                                        const ticketChannel = await client.channels.fetch(ticket.channelId) as discord.TextChannel;
-
-                                        if (ticketChannel) {
-                                            const closeEmbed = new discord.EmbedBuilder()
-                                                .setTitle("Ticket Closed")
-                                                .setDescription("This ticket has been closed by an administrator.")
-                                                .setColor("Red")
-                                                .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
-                                                .setTimestamp();
-
-                                            await ticketChannel.send({ embeds: [closeEmbed] });
-
-                                            if (ticketChannel.manageable) {
-                                                await ticketChannel.permissionOverwrites.create(
-                                                    interaction.guild!.roles.everyone,
-                                                    { SendMessages: false }
-                                                );
-                                            }
-                                        }
-                                    } catch (channelError) {
-                                        client.logger.debug(`[STOP] Could not send close message to ticket channel: ${channelError}`);
+                                    if (result.success) {
+                                        closedCount++;
+                                    } else {
+                                        failedCount++;
+                                        client.logger.warn(`[STOP] Failed to close ticket ${ticket.id}: ${result.message}`);
                                     }
-
-                                    closedCount++;
                                 } catch (error) {
                                     client.logger.error(`[STOP] Error closing ticket ${ticket.id}: ${error}`);
                                     failedCount++;

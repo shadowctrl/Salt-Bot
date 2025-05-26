@@ -1,6 +1,6 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { Ticket } from "../../../utils/ticket";
 
 export const removeUserFromTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -9,32 +9,9 @@ export const removeUserFromTicket = async (
     await interaction.deferReply();
 
     try {
-        const ticketRepo = new TicketRepository((client as any).dataSource);
-        const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
-
-        if (!ticket) {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("This command can only be used in a ticket channel.")]
-            });
-            return;
-        }
-
-        const member = interaction.member as discord.GuildMember;
-        const supportRoleId = ticket.category.supportRoleId;
-
-        const hasPermission =
-            member.permissions.has(discord.PermissionFlagsBits.ManageChannels) ||
-            interaction.user.id === ticket.creatorId ||
-            (supportRoleId && member.roles.cache.has(supportRoleId));
-
-        if (!hasPermission) {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("You don't have permission to remove users from this ticket.")]
-            });
-            return;
-        }
-
+        const ticketManager = new Ticket((client as any).dataSource, client);
         const userToRemove = interaction.options.getUser("user");
+
         if (!userToRemove) {
             await interaction.editReply({
                 embeds: [new EmbedTemplate(client).error("Please specify a valid user to remove.")]
@@ -42,45 +19,21 @@ export const removeUserFromTicket = async (
             return;
         }
 
-        if (userToRemove.id === ticket.creatorId) {
+        const result = await ticketManager.removeUser(
+            interaction.channelId,
+            userToRemove.id,
+            interaction.user.id
+        );
+
+        if (result.success) {
             await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("You cannot remove the ticket creator from the ticket.")]
+                embeds: [new EmbedTemplate(client).success(result.message)]
             });
-            return;
-        }
-
-        if (userToRemove.bot && userToRemove.id !== client.user?.id) {
+        } else {
             await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("You cannot remove bots from tickets.")]
+                embeds: [new EmbedTemplate(client).error(result.message)]
             });
-            return;
         }
-
-        const channel = interaction.channel as discord.TextChannel;
-        const permissions = channel.permissionsFor(userToRemove.id);
-        if (!permissions?.has(discord.PermissionFlagsBits.ViewChannel)) {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).warning(`${userToRemove} doesn't have access to this ticket.`)]
-            });
-            return;
-        }
-
-        await channel.permissionOverwrites.delete(userToRemove.id);
-        await interaction.editReply({
-            embeds: [new EmbedTemplate(client).success(`${userToRemove} has been removed from the ticket.`)]
-        });
-
-        await channel.send({
-            embeds: [
-                new discord.EmbedBuilder()
-                    .setTitle("User Removed")
-                    .setDescription(`${userToRemove} has been removed from this ticket by ${interaction.user}.`)
-                    .setColor("Red")
-                    .setTimestamp()
-            ]
-        });
-
-        client.logger.info(`[TICKET_REMOVE] ${interaction.user.tag} removed ${userToRemove.tag} from ticket #${ticket.ticketNumber}`);
     } catch (error) {
         client.logger.error(`[TICKET_REMOVE] Error removing user from ticket: ${error}`);
         await interaction.editReply({

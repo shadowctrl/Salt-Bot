@@ -1,6 +1,6 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { Ticket } from "../../../utils/ticket";
 
 export const deployTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -41,7 +41,9 @@ export const deployTicket = async (
             return;
         }
 
-        const ticketRepo = new TicketRepository((client as any).dataSource);
+        const ticketManager = new Ticket((client as any).dataSource, client);
+        const ticketRepo = ticketManager.getRepository();
+
         const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
         if (!guildConfig) {
             await interaction.editReply({

@@ -2,7 +2,7 @@ import discord from "discord.js";
 import { SlashCommand } from "../../../types";
 import { deployTicketSystem } from "./deploy";
 import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { Ticket } from "../../../utils/ticket";
 
 /**
  * The setup slash command for configuring the ticket system
@@ -53,7 +53,8 @@ const setupCommand: SlashCommand = {
                 });
             }
 
-            const ticketRepo = new TicketRepository((client as any).dataSource);
+            const ticketManager = new Ticket((client as any).dataSource, client);
+            const ticketRepo = ticketManager.getRepository();
             const guildConfig = await ticketRepo.getOrCreateGuildConfig(interaction.guildId!);
 
             const ticketChannel = interaction.options.getChannel("ticket_channel") || interaction.channel;

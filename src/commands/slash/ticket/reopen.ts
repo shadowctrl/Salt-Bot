@@ -1,7 +1,6 @@
 import discord from "discord.js";
 import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
-import { ITicketStatus } from "../../../events/database/entities/ticket_system";
+import { Ticket } from "../../../utils/ticket";
 
 export const reopenTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -10,89 +9,20 @@ export const reopenTicket = async (
     await interaction.deferReply();
 
     try {
-        const ticketRepo = new TicketRepository((client as any).dataSource);
-        const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
+        const ticketManager = new Ticket((client as any).dataSource, client);
 
-        if (!ticket) {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("This is not a valid ticket channel.")]
-            });
-            return;
-        }
-
-        if (ticket.status === "open") {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("This ticket is already open.")]
-            });
-            return;
-        }
-
-        await ticketRepo.updateTicketStatus(
-            ticket.id,
-            ITicketStatus.OPEN
+        const result = await ticketManager.reopen(
+            interaction.channelId,
+            interaction.user.id
         );
 
-        const channel = interaction.channel as discord.TextChannel;
-
-        const reopenEmbed = new discord.EmbedBuilder()
-            .setTitle("Ticket Reopened")
-            .setDescription("This ticket has been reopened.")
-            .addFields(
-                { name: "Reopened By", value: `<@${interaction.user.id}>`, inline: true },
-                { name: "Reopened At", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true }
-            )
-            .setColor("Green")
-            .setFooter({ text: `Ticket #${ticket.ticketNumber}` })
-            .setTimestamp();
-
-        await channel.send({ embeds: [reopenEmbed] });
-
-        try {
-            await channel.permissionOverwrites.edit(
-                interaction.guild!.roles.everyone,
-                { SendMessages: null }
-            );
-
-            await channel.permissionOverwrites.edit(
-                ticket.creatorId,
-                {
-                    ViewChannel: true,
-                    SendMessages: true,
-                    ReadMessageHistory: true
-                }
-            );
-
-            if (ticket.category.supportRoleId) {
-                await channel.permissionOverwrites.edit(
-                    ticket.category.supportRoleId,
-                    {
-                        ViewChannel: true,
-                        SendMessages: true,
-                        ReadMessageHistory: true
-                    }
-                );
-            }
-
-            const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-                .addComponents(
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_close")
-                        .setLabel("Close Ticket")
-                        .setStyle(discord.ButtonStyle.Danger)
-                        .setEmoji("🔒")
-                );
-
+        if (result.success) {
             await interaction.editReply({
-                embeds: [new EmbedTemplate(client).success("Ticket reopened successfully.")],
-                components: [actionRow]
+                embeds: [new EmbedTemplate(client).success(result.message)]
             });
-        } catch (error) {
-            client.logger.error(`[TICKET_REOPEN] Error updating permissions: ${error}`);
+        } else {
             await interaction.editReply({
-                embeds: [
-                    new EmbedTemplate(client).warning("Ticket marked as reopened, but could not update channel permissions.")
-                        .setDescription("Make sure the bot has the necessary permissions to modify channel permissions.")
-                ]
+                embeds: [new EmbedTemplate(client).error(result.message)]
             });
         }
     } catch (error) {
