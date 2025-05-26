@@ -1,4 +1,4 @@
-import RAG from "./rag";
+import { RAG } from "./rag";
 import { DataSource } from "typeorm";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";

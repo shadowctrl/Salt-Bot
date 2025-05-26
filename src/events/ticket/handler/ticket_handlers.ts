@@ -70,19 +70,20 @@ const handleCreateTicketButton = async (
     ticketManager: Ticket
 ): Promise<void> => {
     try {
+        await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
+
         const ticketRepo = ticketManager.getRepository();
         const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
         const enabledCategories = categories.filter(category => category.isEnabled);
 
         if (enabledCategories.length === 0) {
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
                         .setTitle("No Categories Available")
                         .setDescription("There are no ticket categories available.")
                         .setColor("Red")
-                ],
-                flags: discord.MessageFlags.Ephemeral
+                ]
             });
             return;
         }
@@ -95,24 +96,22 @@ const handleCreateTicketButton = async (
             });
 
             if (result.success) {
-                await interaction.reply({
+                await interaction.editReply({
                     embeds: [
                         new discord.EmbedBuilder()
                             .setTitle("✅ Ticket Created Successfully")
                             .setDescription(result.message)
                             .setColor("Green")
-                    ],
-                    flags: discord.MessageFlags.Ephemeral
+                    ]
                 });
             } else {
-                await interaction.reply({
+                await interaction.editReply({
                     embeds: [
                         new discord.EmbedBuilder()
                             .setTitle("❌ Error Creating Ticket")
                             .setDescription(result.message)
                             .setColor("Red")
-                    ],
-                    flags: discord.MessageFlags.Ephemeral
+                    ]
                 });
             }
             return;
@@ -142,24 +141,37 @@ const handleCreateTicketButton = async (
         const actionRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>()
             .addComponents(selectMenu);
 
-        await interaction.reply({
+        await interaction.editReply({
             embeds: [selectEmbed],
-            components: [actionRow],
-            flags: discord.MessageFlags.Ephemeral
+            components: [actionRow]
         });
 
     } catch (error) {
         client.logger.error(`[TICKET_CREATE] Error handling create ticket button: ${error}`);
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("❌ Error Creating Ticket")
-                        .setDescription("An error occurred while creating your ticket. Please try again later.")
-                        .setColor("Red")
-                ],
-                flags: discord.MessageFlags.Ephemeral
-            });
+
+        try {
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("❌ Error Creating Ticket")
+                            .setDescription("An error occurred while creating your ticket. Please try again later.")
+                            .setColor("Red")
+                    ]
+                });
+            } else if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("❌ Error Creating Ticket")
+                            .setDescription("An error occurred while creating your ticket. Please try again later.")
+                            .setColor("Red")
+                    ],
+                    flags: discord.MessageFlags.Ephemeral
+                });
+            }
+        } catch (replyError) {
+            client.logger.error(`[TICKET_CREATE] Failed to send error response: ${replyError}`);
         }
     }
 };
@@ -170,6 +182,8 @@ const handleCategorySelect = async (
     ticketManager: Ticket
 ): Promise<void> => {
     try {
+        await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
+
         const categoryId = interaction.values[0];
 
         const result = await ticketManager.create({
@@ -179,37 +193,41 @@ const handleCategorySelect = async (
         });
 
         if (result.success) {
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
                         .setTitle("✅ Ticket Created Successfully")
                         .setDescription(result.message)
                         .setColor("Green")
-                ],
-                flags: discord.MessageFlags.Ephemeral
+                ]
             });
         } else {
-            await interaction.reply({
+            await interaction.editReply({
                 embeds: [
                     new discord.EmbedBuilder()
                         .setTitle("❌ Error Creating Ticket")
                         .setDescription(result.message)
                         .setColor("Red")
-                ],
-                flags: discord.MessageFlags.Ephemeral
+                ]
             });
         }
     } catch (error) {
         client.logger.error(`[TICKET_CREATE] Error creating ticket from category select: ${error}`);
-        await interaction.reply({
-            embeds: [
-                new discord.EmbedBuilder()
-                    .setTitle("❌ Error Creating Ticket")
-                    .setDescription("An error occurred while creating your ticket. Please try again later.")
-                    .setColor("Red")
-            ],
-            flags: discord.MessageFlags.Ephemeral
-        });
+
+        try {
+            if (interaction.deferred && !interaction.replied) {
+                await interaction.editReply({
+                    embeds: [
+                        new discord.EmbedBuilder()
+                            .setTitle("❌ Error Creating Ticket")
+                            .setDescription("An error occurred while creating your ticket. Please try again later.")
+                            .setColor("Red")
+                    ]
+                });
+            }
+        } catch (replyError) {
+            client.logger.error(`[TICKET_CREATE] Failed to send error response: ${replyError}`);
+        }
     }
 };
 

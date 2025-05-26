@@ -2,13 +2,13 @@ import path from 'path';
 import fs from 'fs/promises';
 import { Embedding } from './llm';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { IProcessingOptions, IMetadata, IDocument } from '../../types';
+import { IProcessingOptions, IMetadata, IDocument } from './types';
 
 /**
  * Retrieval-Augmented Generation document processor
  * Handles text file processing, chunking, and embedding generation
  */
-class RAG {
+export class RAG {
     private readonly embedding: Embedding;
     private readonly defaultOptions: Required<Omit<IProcessingOptions, 'customSeparators'>> & { customSeparators: string[] } = {
         chunkSize: 500,
@@ -251,5 +251,3 @@ class RAG {
         }
     };
 }
-
-export default RAG;

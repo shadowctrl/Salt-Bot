@@ -9,6 +9,17 @@ import { ITicketStatus } from "../../events/database/entities/ticket_system";
 import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult } from "./types";
 
 export * from './types';
+export { TicketUtils } from './utils';
+export { TicketPermissions } from './permissions';
+export type {
+    CreateTicketOptions,
+    CloseTicketOptions,
+    TicketOperationResult,
+    ChannelCreationResult,
+    PermissionCheckResult,
+    TicketAction
+} from './types';
+export type { ITicket, ITicketCategory } from '../../types';
 
 /**
  * Main Ticket class that provides a unified interface for all ticket operations.

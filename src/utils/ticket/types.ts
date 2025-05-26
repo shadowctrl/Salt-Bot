@@ -36,16 +36,3 @@ export interface PermissionCheckResult {
 }
 
 export type TicketAction = 'claim' | 'close' | 'add_user' | 'remove_user' | 'transfer_ownership' | 'archive' | 'delete';
-
-export interface TicketMessages {
-    welcome?: string;
-    close?: string;
-    claim?: string;
-    unclaim?: string;
-    reopen?: string;
-    archive?: string;
-    userAdded?: string;
-    userRemoved?: string;
-    ownershipTransfer?: string;
-    deletion?: string;
-}
