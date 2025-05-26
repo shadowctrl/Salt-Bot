@@ -3,7 +3,7 @@ import { DataSource } from "typeorm";
 import { TicketUtils } from "./utils";
 import { ITicket } from "../../types";
 import { TicketPermissions } from "./permissions";
-import { createAndSendTranscript } from "../transcript";
+import { TicketTranscript } from "./transcript";
 import { TicketRepository } from "../../events/database/repo/ticket_system";
 import { ITicketStatus } from "../../events/database/entities/ticket_system";
 import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult } from "./types";
@@ -21,6 +21,7 @@ export class Ticket {
     private client: discord.Client;
     private permissions: TicketPermissions;
     private utils: TicketUtils;
+    private transcript: TicketTranscript;
 
     /**
      * Creates a new Ticket instance
@@ -33,6 +34,7 @@ export class Ticket {
         this.ticketRepo = new TicketRepository(dataSource);
         this.permissions = new TicketPermissions(this.ticketRepo);
         this.utils = new TicketUtils(this.ticketRepo, client);
+        this.transcript = new TicketTranscript(dataSource);
     }
 
     /**
@@ -152,12 +154,11 @@ export class Ticket {
                 if (options.generateTranscript !== false) {
                     try {
                         const user = await this.client.users.fetch(options.userId);
-                        await createAndSendTranscript(
-                            channel,
+                        await this.transcript.createAndSendTranscript(
+                            options.channelId,
                             user,
                             options.reason || "No reason provided",
-                            ticket.id,
-                            this.dataSource
+                            ticket.id
                         );
                     } catch (transcriptError) {
                         this.client.logger.error(`[TICKET] Error creating transcript: ${transcriptError}`);
@@ -657,5 +658,13 @@ export class Ticket {
      */
     public getRepository = (): TicketRepository => {
         return this.ticketRepo;
+    };
+
+    /**
+     * Get transcript utility instance for advanced transcript operations
+     * @returns TicketTranscript instance
+     */
+    public getTranscript = (): TicketTranscript => {
+        return this.transcript;
     };
 }

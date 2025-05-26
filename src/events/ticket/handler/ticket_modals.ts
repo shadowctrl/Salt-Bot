@@ -13,6 +13,7 @@ const event: BotEvent = {
                 client.logger.error("[TICKET_MODAL] Database connection is not available");
                 return;
             }
+
             if (interaction.customId === "ticket_close_modal") {
                 await handleTicketCloseModal(interaction, client);
             }
@@ -33,7 +34,7 @@ const event: BotEvent = {
 };
 
 /**
- * Handle the ticket close modal submission
+ * Handle the ticket close modal submission using the new Ticket class
  */
 const handleTicketCloseModal = async (
     interaction: discord.ModalSubmitInteraction,
