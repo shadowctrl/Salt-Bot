@@ -8,11 +8,10 @@ import { ConfigManager } from "../../../utils/config";
 import { initializeVectorExtension } from "./initialize_extensions";
 
 import { UserData } from "../entities/user_data";
-import { ChatbotConfig } from "../entities/chatbot_config";
 import { PremiumCoupon } from "../entities/premium_coupons";
-import { ChatHistoryEntry } from "../entities/chat_history";
 import { RagDocument, RagChunk } from "../entities/rag_data";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
+import { ChatbotConfig, ChatHistoryEntry } from "../entities/chat_bot";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
 
 
