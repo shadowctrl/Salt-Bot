@@ -41,17 +41,25 @@ const command: Command = {
                 return;
             }
 
+            // Parse user from mention or ID
             const userArg = args[1];
-            const user = await resolveUser(client, userArg);
+            let user: discord.User | null = null;
 
-            if (!user) {
-                await message.reply({
-                    embeds: [
-                        new EmbedTemplate(client).error("Invalid user.")
-                            .setDescription("Please provide a valid user mention (@user) or user ID.")
-                    ]
-                });
-                return;
+            // Try to get user from mention
+            const mentionMatch = userArg.match(/^<@!?(\d+)>$/);
+            if (mentionMatch) {
+                try {
+                    user = await client.users.fetch(mentionMatch[1]);
+                } catch (error) {
+                    client.logger.warn(`[BLOCK] Could not fetch user from mention: ${error}`);
+                }
+            } else if (/^\d+$/.test(userArg)) {
+                // Try to get user from ID
+                try {
+                    user = await client.users.fetch(userArg);
+                } catch (error) {
+                    client.logger.warn(`[BLOCK] Could not fetch user from ID: ${error}`);
+                }
             }
 
             if (!user) {
