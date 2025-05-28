@@ -1,7 +1,6 @@
 import discord from "discord.js";
 import { ITicket } from "../../types";
 import { PermissionCheckResult, TicketAction } from "./types";
-import { TicketRepository } from "../../events/database/repo/ticket_system";
 import client from "../../salt";
 
 /**
@@ -9,12 +8,6 @@ import client from "../../salt";
  * Handles permission validation for various ticket operations
  */
 export class TicketPermissions {
-    private ticketRepo: TicketRepository;
-
-    constructor(ticketRepo: TicketRepository) {
-        this.ticketRepo = ticketRepo;
-    }
-
     /**
      * Check if a user has permission to perform a specific ticket action
      * @param userId - Discord user ID

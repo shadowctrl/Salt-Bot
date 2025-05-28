@@ -10,10 +10,8 @@ import client from "../../salt";
  */
 export class TicketTranscript {
     private ticketRepo: TicketRepository;
-    private dataSource: DataSource;
 
     constructor(dataSource: DataSource) {
-        this.dataSource = dataSource;
         this.ticketRepo = new TicketRepository(dataSource);
     }
 

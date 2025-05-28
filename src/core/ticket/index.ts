@@ -9,17 +9,9 @@ import { ITicketStatus } from "../../events/database/entities/ticket_system";
 import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult } from "./types";
 
 export * from './types';
-export { TicketUtils } from './utils'
-export { TicketPermissions } from './permissions';
-export type {
-    CreateTicketOptions,
-    CloseTicketOptions,
-    TicketOperationResult,
-    ChannelCreationResult,
-    PermissionCheckResult,
-    TicketAction
-} from './types';
-export type { ITicket, ITicketCategory } from '../../types';
+export * from './utils'
+export * from './permissions';
+export * from './transcript';
 
 /**
  * Main Ticket class that provides a unified interface for all ticket operations.
@@ -28,7 +20,6 @@ export type { ITicket, ITicketCategory } from '../../types';
  */
 export class Ticket {
     private ticketRepo: TicketRepository;
-    private dataSource: DataSource;
     private client: discord.Client;
     private permissions: TicketPermissions;
     private utils: TicketUtils;
@@ -40,10 +31,9 @@ export class Ticket {
      * @param client - Discord client instance
      */
     constructor(dataSource: DataSource, client: discord.Client) {
-        this.dataSource = dataSource;
         this.client = client;
         this.ticketRepo = new TicketRepository(dataSource);
-        this.permissions = new TicketPermissions(this.ticketRepo);
+        this.permissions = new TicketPermissions();
         this.utils = new TicketUtils(this.ticketRepo, client);
         this.transcript = new TicketTranscript(dataSource);
     }
