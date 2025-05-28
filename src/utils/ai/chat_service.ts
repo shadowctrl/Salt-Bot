@@ -208,7 +208,6 @@ When using this context:
                     { role: 'user' as const, content: userMessage }
                 ];
 
-                const categoryIds = categories.map(cat => cat.id);
                 const tools = createDynamicTicketTool(categories);
 
                 const toolResponse = await llm.invoke(toolMessages, config.modelName, {
