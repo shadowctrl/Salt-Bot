@@ -3,11 +3,8 @@ import path from "path";
 import yaml from "yaml";
 import discord from "discord.js";
 import Logger from "./utils/logger";
-import { ConfigManager } from "./utils/config";
-import CommandLogger from "./utils/command_logger";
+import CommandLogger from "./core/command/logger";
 import { Command, SlashCommand } from "./types";
-
-const configManager = ConfigManager.getInstance();
 
 /**
  * Loads configuration from YAML file

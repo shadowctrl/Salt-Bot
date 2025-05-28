@@ -1,6 +1,6 @@
 import discord from "discord.js";
 import { BotEvent } from "../../../types";
-import { ChatbotService } from "../../../utils/ai";
+import { ChatbotService } from "../../../core/ai";
 
 const event: BotEvent = {
     name: discord.Events.MessageCreate,
