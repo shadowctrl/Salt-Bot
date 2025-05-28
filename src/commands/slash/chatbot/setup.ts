@@ -1,6 +1,7 @@
 import discord from "discord.js";
-import { LLM } from "../../../utils/ai";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { LLM } from "../../../core/ai";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { createDynamicTicketTool } from "../../../core/ai/tools";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 
 export const handleSetup = async (
@@ -26,13 +27,22 @@ export const handleSetup = async (
         const baseUrl = interaction.options.getString("base_url") || "https://api.openai.com/v1";
         const name = interaction.options.getString("name") || "AI Assistant";
         const responseType = interaction.options.getString("response_type") || "Friendly and helpful";
+        const tools = createDynamicTicketTool([
+            { id: "1", name: "Technical Support" },
+            { id: "2", name: "Billing Issues" },
+            { id: "3", name: "General Inquiry" }
+        ]);
 
         try {
             const llm = new LLM(apiKey, baseUrl);
             await llm.invoke(
                 [{ role: "user", content: "Say 'API connection successful'" }],
                 modelName,
-                { max_tokens: 50 }
+                {
+                    max_tokens: 50,
+                    tools: tools,
+                    tool_choice: "auto"
+                },
             );
         } catch (error) {
             await interaction.editReply({

@@ -1,8 +1,8 @@
 import ms from "ms";
 import discord from "discord.js";
 import { sendTempMessage } from "../../../utils/extras";
-import { EmbedTemplate, ButtonTemplate } from "../../../utils/embed_template";
-import { checkBlockedStatus, checkPremiumStatus } from "../../../utils/commands";
+import { EmbedTemplate, ButtonTemplate } from "../../../core/embed/template";
+import { checkBlockedStatus, checkPremiumStatus } from "../../../core/command/functions";
 import { BotEvent, Command } from "../../../types";
 
 const cooldown: discord.Collection<string, number> = new discord.Collection();

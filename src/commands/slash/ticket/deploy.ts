@@ -1,6 +1,7 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { getValidColor } from "../../../utils/extras";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { Ticket } from "../../../core/ticket";
 
 export const deployTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -41,7 +42,9 @@ export const deployTicket = async (
             return;
         }
 
-        const ticketRepo = new TicketRepository((client as any).dataSource);
+        const ticketManager = new Ticket((client as any).dataSource, client);
+        const ticketRepo = ticketManager.getRepository();
+
         const guildConfig = await ticketRepo.getGuildConfig(interaction.guildId!);
         if (!guildConfig) {
             await interaction.editReply({
@@ -71,10 +74,12 @@ export const deployTicket = async (
             return;
         }
 
+        const embedColor = getValidColor(buttonConfig.embedColor) || "#5865F2";
+
         const ticketEmbed = new discord.EmbedBuilder()
             .setTitle(buttonConfig.embedTitle || "Need Help?")
             .setDescription(buttonConfig.embedDescription || "Click the button below to create a ticket")
-            .setColor((buttonConfig.embedColor || "#5865F2") as discord.ColorResolvable)
+            .setColor(embedColor as discord.ColorResolvable)
             .setFooter({ text: "Powered by Salt Bot", iconURL: client.user?.displayAvatarURL() })
             .setTimestamp();
 

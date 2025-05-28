@@ -1,6 +1,6 @@
 import discord from "discord.js";
 import { SlashCommand } from "../../../types";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { EmbedTemplate } from "../../../core/embed/template";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 import { RagRepository } from "../../../events/database/repo/rag_data";
 

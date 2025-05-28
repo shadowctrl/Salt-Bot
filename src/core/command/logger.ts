@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import discord from "discord.js";
-import { ICommandLogger } from "../types";
+import { ICommandLogger } from "../../types";
 
 /**
  * Class responsible for logging Discord bot command executions.

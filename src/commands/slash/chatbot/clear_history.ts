@@ -1,6 +1,6 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { ChatbotService } from "../../../utils/ai";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { ChatbotService } from "../../../core/ai";
 
 export const handleClearHistory = async (
     interaction: discord.ChatInputCommandInteraction,

@@ -1,5 +1,5 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { EmbedTemplate } from "../../../core/embed/template";
 import { TicketRepository } from "../../../events/database/repo/ticket_system";
 import { wait } from "../../../utils/extras";
 

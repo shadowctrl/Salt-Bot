@@ -1,7 +1,7 @@
 import discord from "discord.js";
 import Formatter from "../../utils/format";
 import { wait } from "../../utils/extras";
-import { EmbedTemplate } from "../../utils/embed_template";
+import { EmbedTemplate } from "../../core/embed/template";
 import { Command } from "../../types";
 
 const command: Command = {

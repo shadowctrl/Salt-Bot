@@ -1,6 +1,6 @@
 import discord from "discord.js";
-import { LLM } from "../../../utils/ai";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { LLM } from "../../../core/ai";
+import { EmbedTemplate } from "../../../core/embed/template";
 import { ChatbotConfig } from "../../../events/database/entities/chatbot_config";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 

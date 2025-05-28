@@ -1,7 +1,7 @@
 import discord from "discord.js";
-import { Embedding } from "../../../utils/ai";
-import { RAG } from "../../../utils/ai";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { Embedding } from "../../../core/ai";
+import { RAG } from "../../../core/ai";
+import { EmbedTemplate } from "../../../core/embed/template";
 import { RagRepository } from "../../../events/database/repo/rag_data";
 
 export const handleUploadRag = async (

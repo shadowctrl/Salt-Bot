@@ -1,9 +1,9 @@
-import RAG from "./rag";
+import { RAG } from "./rag";
 import { DataSource } from "typeorm";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";
 import { createDynamicTicketTool } from "./tools";
-import { TicketRepository } from "../../events/database/repo/ticket_system";
+import { Ticket } from "../ticket";
 import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
 import { RagRepository } from "../../events/database/repo/rag_data";
 import discord from "discord.js";
@@ -99,49 +99,52 @@ export class ChatbotService {
         }
 
         systemPrompt += `
-        Guidelines:
-        - Be helpful, informative, and engaging
-        - Keep responses concise but thorough
-        - Use Discord-friendly formatting when appropriate
-        - If you don't know something, say so honestly
-        - Stay in character as ${config.chatbotName}
-        - Answer questions directly without suggesting tickets unless explicitly needed`;
+Guidelines:
+- Be helpful, informative, and engaging
+- Keep responses concise but thorough
+- Use Discord-friendly formatting when appropriate
+- If you don't know something, say so honestly
+- Stay in character as ${config.chatbotName}
+- Answer questions directly without suggesting tickets unless explicitly needed`;
 
         if (includeTools) {
             systemPrompt += `
-            IMPORTANT - Ticket Creation Tool Guidelines:
-            ONLY use the create_ticket tool when:
-            - User EXPLICITLY asks to "create a ticket", "open a ticket", "talk to support", or "contact staff"
-            - User clearly expresses frustration and wants human help after you've provided assistance
-            - User has a complex technical issue that requires server admin intervention
-            - User is reporting bugs, server problems, or policy violations
-            - User specifically requests to escalate their issue
 
-            DO NOT use the create_ticket tool when:
-            - User is asking general questions you can answer
-            - User is just having a normal conversation
-            - User's question can be resolved with information or guidance
-            - User hasn't indicated they need human assistance
-            - This is the user's first question about a topic
+IMPORTANT - Ticket Creation Tool Guidelines:
+ONLY use the create_ticket tool when:
+- User EXPLICITLY asks to "create a ticket", "open a ticket", "talk to support", or "contact staff"
+- User clearly expresses frustration and wants human help after you've provided assistance
+- User has a complex technical issue that requires server admin intervention
+- User is reporting bugs, server problems, or policy violations
+- User specifically requests to escalate their issue
 
-            Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
+DO NOT use the create_ticket tool when:
+- User is asking general questions you can answer
+- User is just having a normal conversation
+- User's question can be resolved with information or guidance
+- User hasn't indicated they need human assistance
+- This is the user's first question about a topic
+
+Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
         }
 
         if (ragContext) {
             systemPrompt += `
-            You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
 
-            ${ragContext}
+You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
 
-            When using this context:
-                - Reference the information naturally in your response
-                - If the context is relevant, use it to provide accurate, detailed answers
-                - If the context doesn't relate to the question, you can still provide general help
-                - Don't mention that you're using "context" or "knowledge base" explicitly`;
+${ragContext}
+
+When using this context:
+- Reference the information naturally in your response
+- If the context is relevant, use it to provide accurate, detailed answers
+- If the context doesn't relate to the question, you can still provide general help
+- Don't mention that you're using "context" or "knowledge base" explicitly`;
         }
 
         return systemPrompt;
     };
+
     /**
      * Get available ticket categories for tool usage
      * @param guildId - Discord guild ID
@@ -149,7 +152,8 @@ export class ChatbotService {
      */
     private getTicketCategories = async (guildId: string): Promise<Array<{ id: string; name: string }>> => {
         try {
-            const ticketRepo = new TicketRepository(this.dataSource);
+            const ticketManager = new Ticket(this.dataSource, client);
+            const ticketRepo = ticketManager.getRepository();
             const categories = await ticketRepo.getTicketCategories(guildId);
             return categories
                 .filter(cat => cat.isEnabled)
@@ -204,7 +208,6 @@ export class ChatbotService {
                     { role: 'user' as const, content: userMessage }
                 ];
 
-                const categoryIds = categories.map(cat => cat.id);
                 const tools = createDynamicTicketTool(categories);
 
                 const toolResponse = await llm.invoke(toolMessages, config.modelName, {
@@ -308,7 +311,7 @@ export class ChatbotService {
     };
 
     /**
-     * Handle ticket creation confirmation
+     * Handle ticket creation confirmation using the new Ticket class
      * @param confirmationId - The confirmation ID
      * @param confirmed - Whether the user confirmed
      * @returns Success message or error
@@ -343,130 +346,36 @@ export class ChatbotService {
                 return { success: true, message: "Ticket creation has been cancelled." };
             }
 
-            const ticketRepo = new TicketRepository(this.dataSource);
-            const category = await ticketRepo.getTicketCategory(pendingCreation.categoryId);
+            const ticketManager = new Ticket(this.dataSource, client);
 
-            if (!category) {
-                await chatHistory.addUserMessage(pendingCreation.userMessage);
-                await chatHistory.addAssistantMessage("I apologize, but the ticket category is no longer available. Please try again or contact an administrator.");
-
-                return { success: false, message: "The selected ticket category no longer exists." };
-            }
-
-            const guild = client.guilds.cache.get(pendingCreation.guildId);
-            if (!guild) {
-                await chatHistory.addUserMessage(pendingCreation.userMessage);
-                await chatHistory.addAssistantMessage("I apologize, but there was an issue accessing the server. Please try again or contact an administrator.");
-
-                return { success: false, message: "Server not found." };
-            }
-
-            const tempChannelName = `ticket-new`;
-            const newTicketChannel = await guild.channels.create({
-                name: tempChannelName,
-                type: discord.ChannelType.GuildText,
-                parent: category.categoryId,
-                permissionOverwrites: [
-                    {
-                        id: guild.roles.everyone,
-                        deny: [discord.PermissionFlagsBits.ViewChannel]
-                    },
-                    {
-                        id: client.user!.id,
-                        allow: [
-                            discord.PermissionFlagsBits.ViewChannel,
-                            discord.PermissionFlagsBits.SendMessages,
-                            discord.PermissionFlagsBits.ManageChannels,
-                            discord.PermissionFlagsBits.ReadMessageHistory
-                        ]
-                    },
-                    {
-                        id: pendingCreation.userId,
-                        allow: [
-                            discord.PermissionFlagsBits.ViewChannel,
-                            discord.PermissionFlagsBits.SendMessages,
-                            discord.PermissionFlagsBits.ReadMessageHistory
-                        ]
-                    }
-                ]
+            const result = await ticketManager.create({
+                guildId: pendingCreation.guildId,
+                userId: pendingCreation.userId,
+                categoryId: pendingCreation.categoryId,
+                initialMessage: pendingCreation.userMessage
             });
 
-            const ticket = await ticketRepo.createTicket(
-                pendingCreation.guildId,
-                pendingCreation.userId,
-                newTicketChannel.id,
-                pendingCreation.categoryId
-            );
+            if (!result.success) {
+                await chatHistory.addUserMessage(pendingCreation.userMessage);
+                await chatHistory.addAssistantMessage("I apologize, but there was an issue creating your ticket. Please try again or contact an administrator.");
 
-            const channelName = `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`;
-            await newTicketChannel.setName(channelName);
-
-            if (category.supportRoleId) {
-                try {
-                    await newTicketChannel.permissionOverwrites.create(
-                        category.supportRoleId,
-                        {
-                            ViewChannel: true,
-                            SendMessages: true,
-                            ReadMessageHistory: true
-                        }
-                    );
-                } catch (permissionError) {
-                    client.logger.warn(`[CHATBOT_SERVICE] Could not set permissions for support role: ${permissionError}`);
-                }
+                return { success: false, message: result.message };
             }
 
-            const ticketMessage = category.ticketMessage;
-            const welcomeMessage = ticketMessage?.welcomeMessage ||
-                `Welcome to your ticket in the **${category.name}** category!\n\nOriginal question: *${pendingCreation.userMessage}*\n\nPlease provide any additional details, and a staff member will assist you shortly.`;
-
-            const creationTimestamp = Math.floor(Date.now() / 1000);
-
-            const welcomeEmbed = new discord.EmbedBuilder()
-                .setTitle(`Ticket #${ticket.ticketNumber}`)
-                .setDescription(welcomeMessage)
-                .addFields(
-                    { name: "Ticket ID", value: `#${ticket.ticketNumber}`, inline: true },
-                    { name: "Category", value: `${category.emoji || "🎫"} ${category.name}`, inline: true },
-                    { name: "Status", value: `🟢 Open`, inline: true },
-                    { name: "Created By", value: `<@${pendingCreation.userId}>`, inline: true },
-                    { name: "Created At", value: `<t:${creationTimestamp}:F>`, inline: true }
-                )
-                .setColor("Green")
-                .setFooter({ text: `Use /ticket close to close this ticket | ID: ${ticket.id}` })
-                .setTimestamp();
-
-            const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>()
-                .addComponents(
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_claim")
-                        .setLabel("Claim Ticket")
-                        .setStyle(discord.ButtonStyle.Primary)
-                        .setEmoji("👋"),
-                    new discord.ButtonBuilder()
-                        .setCustomId("ticket_close")
-                        .setLabel("Close Ticket")
-                        .setStyle(discord.ButtonStyle.Danger)
-                        .setEmoji("🔒")
-                );
-
-            await newTicketChannel.send({
-                content: ticketMessage?.includeSupportTeam && category.supportRoleId ?
-                    `<@${pendingCreation.userId}> | <@&${category.supportRoleId}>` :
-                    `<@${pendingCreation.userId}>`,
-                embeds: [welcomeEmbed],
-                components: [actionRow]
-            });
+            const ticketChannel = result.channel;
+            if (!ticketChannel) {
+                return { success: false, message: "Ticket was created but channel reference was not found." };
+            }
 
             await chatHistory.addUserMessage(pendingCreation.userMessage);
-            await chatHistory.addAssistantMessage(`I've created ticket #${ticket.ticketNumber} for you in the ${category.name} category. You can find it here: ${newTicketChannel}. A staff member will assist you shortly!`);
+            await chatHistory.addAssistantMessage(`I've created ticket #${result.ticket?.ticketNumber} for you. You can find it here: ${ticketChannel}. A staff member will assist you shortly!`);
 
-            client.logger.info(`[CHATBOT_SERVICE] Created ticket #${ticket.ticketNumber} via AI assistant for user ${pendingCreation.userId}`);
+            client.logger.info(`[CHATBOT_SERVICE] Created ticket #${result.ticket?.ticketNumber} via AI assistant for user ${pendingCreation.userId}`);
 
             return {
                 success: true,
-                message: `Ticket created successfully! Please check ${newTicketChannel} for further assistance.`,
-                ticketChannel: newTicketChannel.toString()
+                message: `Ticket created successfully! Please check ${ticketChannel} for further assistance.`,
+                ticketChannel: ticketChannel.toString()
             };
 
         } catch (error) {

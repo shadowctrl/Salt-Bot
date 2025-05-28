@@ -1,6 +1,6 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { TicketRepository } from "../../../events/database/repo/ticket_system";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { Ticket } from "../../../core/ticket";
 
 export const infoTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -9,8 +9,8 @@ export const infoTicket = async (
     await interaction.deferReply();
 
     try {
-        const ticketRepo = new TicketRepository((client as any).dataSource);
-        const ticket = await ticketRepo.getTicketByChannelId(interaction.channelId);
+        const ticketManager = new Ticket((client as any).dataSource, client);
+        const ticket = await ticketManager.getInfo(interaction.channelId);
 
         if (!ticket) {
             await interaction.editReply({
