@@ -1,6 +1,6 @@
 import discord from "discord.js";
-import PremiumHandler from "../../utils/premium_handler";
-import { EmbedTemplate } from "../../utils/embed_template";
+import PremiumHandler from "../../core/command/premium";
+import { EmbedTemplate } from "../../core/embed/template";
 import { Command } from "../../types";
 
 const command: Command = {

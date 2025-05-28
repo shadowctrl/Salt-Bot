@@ -9,7 +9,7 @@ import { ITicketStatus } from "../../events/database/entities/ticket_system";
 import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult } from "./types";
 
 export * from './types';
-export { TicketUtils } from './utils';
+export { TicketUtils } from './utils'
 export { TicketPermissions } from './permissions';
 export type {
     CreateTicketOptions,

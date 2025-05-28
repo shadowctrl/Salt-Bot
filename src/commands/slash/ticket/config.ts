@@ -1,6 +1,7 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { Ticket } from "../../../utils/ticket";
+import { validateAndFormatColor } from "../../../utils/extras";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { Ticket } from "../../../core/ticket";
 
 export const configTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -111,18 +112,19 @@ const configTicketButton = async (
         if (style) updateData.style = style;
         if (title) updateData.embedTitle = title;
         if (description) updateData.embedDescription = description;
+
         if (color) {
-            const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-            if (color.startsWith('#') && !colorRegex.test(color)) {
+            const validatedColor = validateAndFormatColor(color);
+            if (!validatedColor) {
                 await interaction.editReply({
                     embeds: [
                         new EmbedTemplate(client).error("Invalid color format.")
-                            .setDescription("Please provide a valid hex color code (e.g., #FF5733).")
+                            .setDescription("Please provide either:\n• A valid hex color code (e.g., #FF5733, #F73)\n• A Discord color name (e.g., Red, Blue, Green, Purple, Orange, Yellow)")
                     ]
                 });
                 return;
             }
-            updateData.embedColor = color.startsWith('#') ? color : `#${color}`;
+            updateData.embedColor = validatedColor;
         }
 
         await ticketRepo.configureTicketButton(interaction.guildId!, updateData);
@@ -135,7 +137,10 @@ const configTicketButton = async (
                     .addFields(
                         { name: "Label", value: updatedConfig?.label || "Create Ticket", inline: true },
                         { name: "Emoji", value: updatedConfig?.emoji || "🎫", inline: true },
-                        { name: "Style", value: updatedConfig?.style || "PRIMARY", inline: true }
+                        { name: "Style", value: updatedConfig?.style || "PRIMARY", inline: true },
+                        { name: "Title", value: updatedConfig?.embedTitle || "None set", inline: true },
+                        { name: "Description", value: updatedConfig?.embedDescription || "None set", inline: true },
+                        { name: "Color", value: updatedConfig?.embedColor || "Default", inline: true }
                     )
             ]
         });
@@ -153,26 +158,240 @@ const configTicketCategory = async (
     ticketRepo: any
 ): Promise<void> => {
     try {
-        const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
-        if (!categories || categories.length === 0) {
-            await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("No ticket categories found.")]
-            });
-            return;
+        const action = interaction.options.getString("action", true);
+
+        switch (action) {
+            case "create": {
+                const name = interaction.options.getString("name");
+                const description = interaction.options.getString("description");
+                const emoji = interaction.options.getString("emoji");
+                const supportRole = interaction.options.getRole("support_role");
+                const parentCategory = interaction.options.getChannel("parent_category");
+
+                if (!name) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Please provide a name for the ticket category.")]
+                    });
+                    return;
+                }
+
+                const existingCategories = await ticketRepo.getTicketCategories(interaction.guildId!);
+                const duplicateName = existingCategories.find((cat: any) =>
+                    cat.name.toLowerCase() === name.toLowerCase()
+                );
+
+                if (duplicateName) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error(`A category with the name "${name}" already exists.`)]
+                    });
+                    return;
+                }
+
+                try {
+                    const categoryData = {
+                        name: name,
+                        description: description || `Support tickets for ${name}`,
+                        emoji: emoji || "🎫",
+                        supportRoleId: supportRole?.id,
+                        position: existingCategories.length,
+                        categoryId: parentCategory?.id
+                    };
+
+                    const newCategory = await ticketRepo.createTicketCategory(
+                        interaction.guildId!,
+                        categoryData
+                    );
+
+                    await interaction.editReply({
+                        embeds: [
+                            new EmbedTemplate(client).success("Ticket category created successfully!")
+                                .setDescription(`Created new category: **${newCategory.name}**`)
+                                .addFields(
+                                    { name: "Name", value: newCategory.name, inline: true },
+                                    { name: "Description", value: newCategory.description || "No description", inline: true },
+                                    { name: "Emoji", value: newCategory.emoji || "🎫", inline: true },
+                                    { name: "Support Role", value: supportRole ? `<@&${supportRole.id}>` : "None", inline: true },
+                                    { name: "Category ID", value: newCategory.id, inline: true }
+                                )
+                        ]
+                    });
+
+                    client.logger.info(`[TICKET_CONFIG] Created category "${name}" in guild ${interaction.guildId}`);
+                } catch (error) {
+                    client.logger.error(`[TICKET_CONFIG] Error creating category: ${error}`);
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Failed to create ticket category. Please try again.")]
+                    });
+                }
+                break;
+            }
+
+            case "edit": {
+                const categoryId = interaction.options.getString("category_id");
+                const name = interaction.options.getString("name");
+                const description = interaction.options.getString("description");
+                const emoji = interaction.options.getString("emoji");
+                const supportRole = interaction.options.getRole("support_role");
+
+                if (!categoryId) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Please provide the category ID to edit.")]
+                    });
+                    return;
+                }
+
+                const category = await ticketRepo.getTicketCategory(categoryId);
+                if (!category) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Category not found with the provided ID.")]
+                    });
+                    return;
+                }
+
+                const updateData: any = {};
+                if (name) updateData.name = name;
+                if (description) updateData.description = description;
+                if (emoji) updateData.emoji = emoji;
+                if (supportRole) updateData.supportRoleId = supportRole.id;
+
+                if (Object.keys(updateData).length === 0) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Please provide at least one field to update.")]
+                    });
+                    return;
+                }
+
+                try {
+                    const updatedCategory = await ticketRepo.updateTicketCategory(categoryId, updateData);
+
+                    if (!updatedCategory) {
+                        await interaction.editReply({
+                            embeds: [new EmbedTemplate(client).error("Failed to update the category.")]
+                        });
+                        return;
+                    }
+
+                    await interaction.editReply({
+                        embeds: [
+                            new EmbedTemplate(client).success("Category updated successfully!")
+                                .addFields(
+                                    { name: "Name", value: updatedCategory.name, inline: true },
+                                    { name: "Description", value: updatedCategory.description || "No description", inline: true },
+                                    { name: "Emoji", value: updatedCategory.emoji || "🎫", inline: true },
+                                    { name: "Support Role", value: updatedCategory.supportRoleId ? `<@&${updatedCategory.supportRoleId}>` : "None", inline: true }
+                                )
+                        ]
+                    });
+
+                    client.logger.info(`[TICKET_CONFIG] Updated category ${categoryId} in guild ${interaction.guildId}`);
+                } catch (error) {
+                    client.logger.error(`[TICKET_CONFIG] Error updating category: ${error}`);
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Failed to update ticket category.")]
+                    });
+                }
+                break;
+            }
+
+            case "delete": {
+                const categoryId = interaction.options.getString("category_id");
+
+                if (!categoryId) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Please provide the category ID to delete.")]
+                    });
+                    return;
+                }
+
+                const category = await ticketRepo.getTicketCategory(categoryId);
+                if (!category) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Category not found with the provided ID.")]
+                    });
+                    return;
+                }
+
+                const categoryTickets = await ticketRepo.getCategoryTickets(categoryId);
+                const activeTickets = categoryTickets.filter((ticket: any) => ticket.status === "open");
+
+                if (activeTickets.length > 0) {
+                    await interaction.editReply({
+                        embeds: [
+                            new EmbedTemplate(client).warning("Cannot delete category with active tickets.")
+                                .setDescription(`This category has ${activeTickets.length} active ticket(s). Please close or move them before deleting the category.`)
+                        ]
+                    });
+                    return;
+                }
+
+                try {
+                    const deleted = await ticketRepo.deleteTicketCategory(categoryId);
+
+                    if (!deleted) {
+                        await interaction.editReply({
+                            embeds: [new EmbedTemplate(client).error("Failed to delete the category.")]
+                        });
+                        return;
+                    }
+
+                    await interaction.editReply({
+                        embeds: [
+                            new EmbedTemplate(client).success("Category deleted successfully!")
+                                .setDescription(`Deleted category: **${category.name}**`)
+                        ]
+                    });
+
+                    client.logger.info(`[TICKET_CONFIG] Deleted category ${categoryId} (${category.name}) in guild ${interaction.guildId}`);
+                } catch (error) {
+                    client.logger.error(`[TICKET_CONFIG] Error deleting category: ${error}`);
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("Failed to delete ticket category.")]
+                    });
+                }
+                break;
+            }
+
+            case "list": {
+                const categories = await ticketRepo.getTicketCategories(interaction.guildId!);
+
+                if (!categories || categories.length === 0) {
+                    await interaction.editReply({
+                        embeds: [new EmbedTemplate(client).error("No ticket categories found.")]
+                    });
+                    return;
+                }
+
+                const categoryList = categories.map((cat: any) => {
+                    const statusIcon = cat.isEnabled ? "🟢" : "🔴";
+                    const supportRole = cat.supportRoleId ? `<@&${cat.supportRoleId}>` : "None";
+                    return `${statusIcon} ${cat.emoji || "🎫"} **${cat.name}**\n` +
+                        `   └ *${cat.description || "No description"}*\n` +
+                        `   └ Support Role: ${supportRole}\n` +
+                        `   └ ID: \`${cat.id}\`\n` +
+                        `   └ Tickets: ${cat.ticketCount || 0}`;
+                }).join("\n\n");
+
+                const embed = new discord.EmbedBuilder()
+                    .setTitle("🔧 Ticket Category Configuration")
+                    .setDescription("Current ticket categories:")
+                    .addFields({
+                        name: `Categories (${categories.length})`,
+                        value: categoryList.length > 1024 ? categoryList.substring(0, 1021) + "..." : categoryList
+                    })
+                    .setColor("Blue")
+                    .setFooter({ text: "Use /ticket config category action:edit/delete with category_id to modify" });
+
+                await interaction.editReply({ embeds: [embed] });
+                break;
+            }
+
+            default: {
+                await interaction.editReply({
+                    embeds: [new EmbedTemplate(client).error("Invalid action. Please use create, edit, delete, or list.")]
+                });
+                break;
+            }
         }
-
-        const categoryList = (categories as TicketCategory[]).map((cat: TicketCategory) =>
-            `${cat.emoji || "🎫"} **${cat.name}** - ${cat.description || "No description"}`
-        ).join("\n");
-
-        const embed = new discord.EmbedBuilder()
-            .setTitle("🔧 Ticket Category Configuration")
-            .setDescription("Current ticket categories:")
-            .addFields({ name: "Categories", value: categoryList || "No categories configured." })
-            .setColor("Blue")
-            .setFooter({ text: "Use the options to update these settings" });
-
-        await interaction.editReply({ embeds: [embed] });
     } catch (error) {
         client.logger.error(`[TICKET_CONFIG] Error configuring ticket categories: ${error}`);
         await interaction.editReply({
@@ -187,71 +406,51 @@ const configTicketMessage = async (
     ticketRepo: any
 ): Promise<void> => {
     try {
-        const messageConfig = await ticketRepo.getTicketMessageConfig(interaction.guildId!);
-        if (!messageConfig) {
+        const categoryId = interaction.options.getString("category_id", true);
+        const welcomeMessage = interaction.options.getString("welcome_message");
+        const closeMessage = interaction.options.getString("close_message");
+        const includeSupportTeam = interaction.options.getBoolean("include_support_team");
+
+        const category = await ticketRepo.getTicketCategory(categoryId);
+        if (!category) {
             await interaction.editReply({
-                embeds: [new EmbedTemplate(client).error("Ticket message configuration not found.")]
+                embeds: [new EmbedTemplate(client).error("Category not found with the provided ID.")]
             });
             return;
         }
 
-        const content = interaction.options.getString("content");
-        const embedTitle = interaction.options.getString("embed_title");
-        const embedDescription = interaction.options.getString("embed_description");
-        const embedColor = interaction.options.getString("embed_color");
+        const messageConfig = await ticketRepo.getTicketMessage(categoryId);
 
-        if (!content && !embedTitle && !embedDescription && !embedColor) {
+        if (!welcomeMessage && !closeMessage && includeSupportTeam === null) {
             const embed = new discord.EmbedBuilder()
                 .setTitle("🔧 Ticket Message Configuration")
-                .setDescription("Current ticket message settings:")
+                .setDescription(`Current message settings for category: **${category.name}**`)
                 .addFields(
-                    { name: "Content", value: messageConfig.content || "No content set", inline: true },
-                    { name: "Embed Title", value: messageConfig.embedTitle || "None set", inline: true },
-                    { name: "Embed Color", value: messageConfig.embedColor || "Default", inline: true }
+                    { name: "Welcome Message", value: messageConfig?.welcomeMessage || "Default welcome message", inline: false },
+                    { name: "Close Message", value: messageConfig?.closeMessage || "Default close message", inline: false },
+                    { name: "Include Support Team", value: messageConfig?.includeSupportTeam ? "Yes" : "No", inline: true }
                 )
                 .setColor("Blue")
                 .setFooter({ text: "Use the options to update these settings" });
-
-            if (messageConfig.embedDescription) {
-                embed.addFields({
-                    name: "Embed Description",
-                    value: messageConfig.embedDescription.length > 1024 ?
-                        messageConfig.embedDescription.substring(0, 1021) + "..." :
-                        messageConfig.embedDescription
-                });
-            }
 
             await interaction.editReply({ embeds: [embed] });
             return;
         }
 
         const updateData: Record<string, any> = {};
-        if (content) updateData.content = content;
-        if (embedTitle) updateData.embedTitle = embedTitle;
-        if (embedDescription) updateData.embedDescription = embedDescription;
-        if (embedColor) {
-            const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-            if (embedColor.startsWith('#') && !colorRegex.test(embedColor)) {
-                await interaction.editReply({
-                    embeds: [
-                        new EmbedTemplate(client).error("Invalid color format.")
-                            .setDescription("Please provide a valid hex color code (e.g., #FF5733).")
-                    ]
-                });
-                return;
-            }
-            updateData.embedColor = embedColor.startsWith('#') ? embedColor : `#${embedColor}`;
-        }
-        await ticketRepo.configureTicketMessage(interaction.guildId!, updateData);
-        const updatedConfig = await ticketRepo.getTicketMessageConfig(interaction.guildId!);
+        if (welcomeMessage !== null) updateData.welcomeMessage = welcomeMessage;
+        if (closeMessage !== null) updateData.closeMessage = closeMessage;
+        if (includeSupportTeam !== null) updateData.includeSupportTeam = includeSupportTeam;
+
+        await ticketRepo.configureTicketMessages(categoryId, updateData);
+
         await interaction.editReply({
             embeds: [
                 new EmbedTemplate(client).success("Ticket message configuration updated successfully!")
-                    .setDescription("The changes will apply to any new ticket messages.")
+                    .setDescription(`The message settings for **${category.name}** have been updated.`)
                     .addFields(
-                        { name: "Content", value: updatedConfig?.content || "No content set", inline: true },
-                        { name: "Embed Title", value: updatedConfig?.embedTitle || "None set", inline: true },
-                        { name: "Embed Color", value: updatedConfig?.embedColor || "Default", inline: true }
+                        { name: "Category", value: category.name, inline: true },
+                        { name: "Include Support Team", value: updateData.includeSupportTeam !== undefined ? (updateData.includeSupportTeam ? "Yes" : "No") : "Unchanged", inline: true }
                     )
             ]
         });
@@ -321,10 +520,3 @@ const configTicketTranscript = async (
         });
     }
 };
-
-interface TicketCategory {
-    id: string;
-    name: string;
-    emoji?: string;
-    description?: string;
-}

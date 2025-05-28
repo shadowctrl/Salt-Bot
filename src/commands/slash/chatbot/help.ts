@@ -1,5 +1,5 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { EmbedTemplate } from "../../../core/embed/template";
 import Formatter from "../../../utils/format";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 

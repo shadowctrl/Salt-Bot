@@ -1,7 +1,7 @@
 import client from "../../../salt";
 import { Repository, DataSource, In } from "typeorm";
 import { RagDocument, RagChunk } from "../entities/rag_data";
-import { IDocument } from "../../../utils/ai";
+import { IDocument } from "../../../core/ai";
 
 export class RagRepository {
     private documentRepo: Repository<RagDocument>;

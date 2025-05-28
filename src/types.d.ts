@@ -1,5 +1,5 @@
 import discord from "discord.js";
-import { CommandLogger } from "./utils/command_logger";
+import { CommandLogger } from "./core/command/logger";
 
 //-----------COMMANDS-----------//
 

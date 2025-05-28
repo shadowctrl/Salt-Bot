@@ -1,8 +1,8 @@
 import discord from "discord.js";
 import { SlashCommand } from "../../../types";
 import { deployTicketSystem } from "./deploy";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { Ticket } from "../../../utils/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { Ticket } from "../../../core/ticket";
 
 /**
  * The setup slash command for configuring the ticket system

@@ -1,6 +1,6 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../utils/embed_template";
-import { Ticket } from "../../../utils/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { Ticket } from "../../../core/ticket";
 import { createTranscript, ExportReturnType } from "discord-html-transcripts";
 
 export const transcriptTicket = async (

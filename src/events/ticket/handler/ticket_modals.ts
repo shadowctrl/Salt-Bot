@@ -1,7 +1,7 @@
 import discord from "discord.js";
 import { BotEvent } from "../../../types";
-import { Ticket } from "../../../utils/ticket";
-import { EmbedTemplate } from "../../../utils/embed_template";
+import { Ticket } from "../../../core/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
 
 const event: BotEvent = {
     name: discord.Events.InteractionCreate,
