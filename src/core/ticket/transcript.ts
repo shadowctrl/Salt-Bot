@@ -1,8 +1,10 @@
 import discord from "discord.js";
-import { createTranscript } from "discord-html-transcripts";
 import { DataSource } from "typeorm";
-import { TicketRepository } from "../../events/database/repo/ticket_system";
+import { createTranscript } from "discord-html-transcripts";
+
 import client from "../../salt";
+import { TicketRepository } from "../../events/database/repo/ticket_system";
+
 
 /**
  * Utility class for handling ticket transcripts

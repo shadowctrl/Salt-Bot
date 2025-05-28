@@ -1,13 +1,12 @@
 import discord from "discord.js";
-import { SlashCommand } from "../../../types";
-import { deployTicketSystem } from "./deploy";
-import { EmbedTemplate } from "../../../core/embed/template";
-import { Ticket } from "../../../core/ticket";
 
-/**
- * The setup slash command for configuring the ticket system
- * Simplified to minimize customization during setup process
- */
+import { SlashCommand } from "../../../types";
+import { Ticket } from "../../../core/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
+
+import { deployTicketSystem } from "./deploy";
+
+
 const setupCommand: SlashCommand = {
     cooldown: 10,
     owner: false,

@@ -1,5 +1,7 @@
 import { DataSource } from "typeorm";
+
 import client from "../../../salt";
+
 
 export const initializeVectorExtension = async (dataSource: DataSource): Promise<void> => {
     try {

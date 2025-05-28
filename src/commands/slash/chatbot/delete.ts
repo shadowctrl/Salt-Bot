@@ -1,6 +1,8 @@
 import discord from "discord.js";
+
 import { EmbedTemplate } from "../../../core/embed/template";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+
 
 export const handleDelete = async (
     interaction: discord.ChatInputCommandInteraction,

@@ -2,6 +2,7 @@ import path from "path";
 import { z } from "zod";
 import { config } from "dotenv";
 
+
 /**
  * Schema for validating environment variables
  * Defines the required structure and types for the bot's configuration

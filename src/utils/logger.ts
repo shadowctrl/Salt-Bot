@@ -1,8 +1,10 @@
 import fs from "fs";
 import path from "path";
 import chalk from "chalk";
+
 import { ILogger } from "../types";
 import { ConfigManager } from "./config";
+
 
 const configManager = ConfigManager.getInstance();
 

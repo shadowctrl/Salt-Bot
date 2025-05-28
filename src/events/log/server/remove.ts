@@ -1,5 +1,7 @@
 import discord from "discord.js";
+
 import { BotEvent } from "../../../types";
+
 
 const event: BotEvent = {
     name: discord.Events.GuildDelete,

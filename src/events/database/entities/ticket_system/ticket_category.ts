@@ -1,8 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
+
+import { ITicketCategory } from "../../../../types";
+
 import { Ticket } from "./ticket";
 import { GuildConfig } from "./guild_config";
 import { TicketMessage } from "./ticket_message";
-import { ITicketCategory } from "../../../../types";
+
 
 @Entity("ticket_categories")
 export class TicketCategory implements ITicketCategory {

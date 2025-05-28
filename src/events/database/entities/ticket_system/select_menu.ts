@@ -1,6 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
-import { GuildConfig } from "./guild_config";
+
 import { ISelectMenuConfig } from "../../../../types";
+
+import { GuildConfig } from "./guild_config";
+
 
 @Entity("select_menu_configs")
 export class SelectMenuConfig implements ISelectMenuConfig {

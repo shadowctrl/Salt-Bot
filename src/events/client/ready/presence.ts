@@ -1,6 +1,8 @@
 import discord from "discord.js";
-import { BotEvent, BotPresence } from "../../../types";
+
 import { version } from "../../../../package.json";
+import { BotEvent, BotPresence } from "../../../types";
+
 
 const ACTIVITY_TYPE_MAP: Record<string, discord.ActivityType> = {
     PLAYING: discord.ActivityType.Playing,

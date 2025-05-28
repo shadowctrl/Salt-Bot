@@ -1,9 +1,11 @@
 import os from "os";
 import discord from "discord.js";
+
+import { Command } from "../../types";
 import { wait } from "../../utils/extras";
 import Formatter from "../../utils/format";
 import { EmbedTemplate } from "../../core/embed/template";
-import { Command } from "../../types";
+
 
 const command: Command = {
     name: "ping",

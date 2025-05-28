@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
+
 @Entity("chatbot_configs")
 export class ChatbotConfig {
     @PrimaryGeneratedColumn("uuid")

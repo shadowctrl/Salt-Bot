@@ -1,13 +1,16 @@
-import { RAG } from "./rag";
+import discord from "discord.js";
 import { DataSource } from "typeorm";
+
+import client from "../../salt";
+import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
+import { RagRepository } from "../../events/database/repo/rag_data";
+
+import { RAG } from "./rag";
+import { Ticket } from "../ticket";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";
 import { createDynamicTicketTool } from "./tools";
-import { Ticket } from "../ticket";
-import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
-import { RagRepository } from "../../events/database/repo/rag_data";
-import discord from "discord.js";
-import client from "../../salt";
+
 
 /**
  * Service class for handling chatbot interactions with RAG integration and tool support

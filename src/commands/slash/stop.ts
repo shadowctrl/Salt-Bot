@@ -1,7 +1,9 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../core/embed/template";
+
 import { Ticket } from "../../core/ticket";
 import { SlashCommand } from "../../types";
+import { EmbedTemplate } from "../../core/embed/template";
+
 
 const stopCommand: SlashCommand = {
     cooldown: 10,

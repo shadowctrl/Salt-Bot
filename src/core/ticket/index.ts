@@ -1,14 +1,14 @@
 import discord from "discord.js";
 import { DataSource } from "typeorm";
-import { TicketUtils } from "./utils";
-import { ITicket } from "../../types";
-import { TicketPermissions } from "./permissions";
-import { TicketTranscript } from "./transcript";
+
 import { TicketRepository } from "../../events/database/repo/ticket_system";
 import { ITicketStatus } from "../../events/database/entities/ticket_system";
-import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult } from "./types";
+import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult, ITicket } from "../../types";
 
-export * from './types';
+import { TicketUtils } from "./utils";
+import { TicketTranscript } from "./transcript";
+import { TicketPermissions } from "./permissions";
+
 export * from './utils'
 export * from './permissions';
 export * from './transcript';

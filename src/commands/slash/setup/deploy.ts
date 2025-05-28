@@ -1,11 +1,10 @@
 import discord from "discord.js";
+
+import { wait } from "../../../utils/extras";
 import { EmbedTemplate } from "../../../core/embed/template";
 import { TicketRepository } from "../../../events/database/repo/ticket_system";
-import { wait } from "../../../utils/extras";
 
-/**
- * Helper function to deploy the ticket system
- */
+
 export const deployTicketSystem = async (
     interaction: discord.MessageComponentInteraction,
     client: discord.Client,

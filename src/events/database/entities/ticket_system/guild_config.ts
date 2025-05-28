@@ -1,8 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, OneToOne } from "typeorm";
+
+import { IGuildConfig } from "../../../../types";
+
 import { TicketCategory } from "./ticket_category";
 import { TicketButton } from "./ticket_button";
 import { SelectMenuConfig } from "./select_menu";
-import { IGuildConfig } from "../../../../types";
+
 
 @Entity("guild_configs")
 export class GuildConfig implements IGuildConfig {

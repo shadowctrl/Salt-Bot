@@ -1,7 +1,9 @@
 import discord from "discord.js";
-import { validateAndFormatColor } from "../../../utils/extras";
-import { EmbedTemplate } from "../../../core/embed/template";
+
 import { Ticket } from "../../../core/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { validateAndFormatColor } from "../../../utils/extras";
+
 
 export const configTicket = async (
     interaction: discord.ChatInputCommandInteraction,

@@ -1,7 +1,9 @@
 import discord from "discord.js";
+
 import { Command } from "../../types";
 import { EmbedTemplate } from "../../core/embed/template";
 import { BlockedUserRepository } from "../../events/database/repo/blocked_users";
+
 
 const command: Command = {
     name: "block",

@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, Index } from "typeorm";
 
+
 @Entity("rag_documents")
 export class RagDocument {
     @PrimaryGeneratedColumn("uuid")

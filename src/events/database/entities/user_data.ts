@@ -1,5 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+
 import { IUserData } from "../../../types";
+
 
 @Entity("user_data")
 export class UserData implements IUserData {

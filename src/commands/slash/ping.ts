@@ -1,8 +1,10 @@
 import os from "os";
 import discord from "discord.js";
+
+import { SlashCommand } from "../../types";
 import Formatter from "../../utils/format";
 import { EmbedTemplate } from "../../core/embed/template";
-import { SlashCommand } from "../../types";
+
 
 const pingCommand: SlashCommand = {
     cooldown: 120,

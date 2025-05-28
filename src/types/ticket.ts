@@ -1,6 +1,5 @@
 import discord from "discord.js";
-import { ITicket } from "../../types";
-
+import { ITicket } from "./db";
 
 export interface CreateTicketOptions {
     guildId: string;
@@ -36,3 +35,7 @@ export interface PermissionCheckResult {
 }
 
 export type TicketAction = 'claim' | 'close' | 'add_user' | 'remove_user' | 'transfer_ownership' | 'archive' | 'delete';
+
+export interface AttachmentBuffer extends discord.AttachmentBuilder {
+    attachment: Buffer;
+}

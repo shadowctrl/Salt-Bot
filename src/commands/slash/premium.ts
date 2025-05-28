@@ -1,7 +1,9 @@
 import discord from "discord.js";
+
+import { SlashCommand } from "../../types";
 import PremiumHandler from "../../core/command/premium";
 import { EmbedTemplate } from "../../core/embed/template";
-import { SlashCommand } from "../../types";
+
 
 const premiumCommand: SlashCommand = {
     cooldown: 10,

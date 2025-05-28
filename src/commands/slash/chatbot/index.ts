@@ -1,17 +1,19 @@
 import discord from "discord.js";
+
 import { SlashCommand } from "../../../types";
 import { EmbedTemplate } from "../../../core/embed/template";
-import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 import { RagRepository } from "../../../events/database/repo/rag_data";
+import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
 
-import { handleSetup } from "./setup";
-import { handleSettings } from "./settings";
-import { handleDelete } from "./delete";
 import { handleInfo } from "./info";
+import { handleHelp } from "./help";
+import { handleSetup } from "./setup";
+import { handleDelete } from "./delete";
+import { handleSettings } from "./settings";
 import { handleUploadRag } from "./upload_rag";
 import { handleDeleteRag } from "./delete_rag";
 import { handleClearHistory } from "./clear_history";
-import { handleHelp } from "./help";
+
 
 const chatbotCommand: SlashCommand = {
     cooldown: 10,

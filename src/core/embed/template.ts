@@ -1,5 +1,6 @@
 import discord from "discord.js";
 
+
 /**
  * EmbedTemplate class is used to create embed messages for Discord bot responses.
  * It provides methods to create success, error, warning, and info embeds with a consistent style.

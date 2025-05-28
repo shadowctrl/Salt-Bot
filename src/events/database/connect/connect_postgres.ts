@@ -1,17 +1,20 @@
 import discord from "discord.js";
 import { DataSource } from "typeorm";
-import { ConfigManager } from "../../../utils/config";
+
 import { BotEvent } from "../../../types";
-import { initializeVectorExtension } from "./initialize_extensions";
 import { RagRepository } from "../repo/rag_data";
+import { ConfigManager } from "../../../utils/config";
+
+import { initializeVectorExtension } from "./initialize_extensions";
 
 import { UserData } from "../entities/user_data";
+import { ChatbotConfig } from "../entities/chatbot_config";
 import { PremiumCoupon } from "../entities/premium_coupons";
+import { ChatHistoryEntry } from "../entities/chat_history";
+import { RagDocument, RagChunk } from "../entities/rag_data";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
 import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
-import { ChatHistoryEntry } from "../entities/chat_history";
-import { ChatbotConfig } from "../entities/chatbot_config";
-import { RagDocument, RagChunk } from "../entities/rag_data";
+
 
 const configManager = ConfigManager.getInstance();
 

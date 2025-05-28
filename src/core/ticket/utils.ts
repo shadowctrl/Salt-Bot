@@ -1,8 +1,9 @@
 import discord from "discord.js";
+
 import { TicketRepository } from "../../events/database/repo/ticket_system";
 import { ITicketStatus } from "../../events/database/entities/ticket_system";
-import { ChannelCreationResult } from "./types";
-import { ITicket, ITicketCategory } from "../../types";
+import { ITicket, ITicketCategory, ChannelCreationResult } from "../../types";
+
 
 /**
  * Utility class for ticket-related operations

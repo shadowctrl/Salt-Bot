@@ -1,9 +1,11 @@
 import ms from "ms";
 import discord from "discord.js";
+
+import { BotEvent, Command } from "../../../types";
 import { sendTempMessage } from "../../../utils/extras";
 import { EmbedTemplate, ButtonTemplate } from "../../../core/embed/template";
 import { checkBlockedStatus, checkPremiumStatus } from "../../../core/command/functions";
-import { BotEvent, Command } from "../../../types";
+
 
 const cooldown: discord.Collection<string, number> = new discord.Collection();
 
@@ -131,7 +133,7 @@ const executeCommand = async (
             cooldown.set(cooldownKey, Date.now() + cooldownAmount);
             setTimeout(() => cooldown.delete(cooldownKey), cooldownAmount);
         }
-        
+
     } catch (error: Error | any) {
         if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
             client.logger.debug(`[MESSAGE_CREATE] Message no longer exists during execution: ${error}`);

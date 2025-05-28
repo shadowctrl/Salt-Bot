@@ -1,8 +1,10 @@
 import discord from "discord.js";
+
 import { LLM } from "../../../core/ai";
 import { EmbedTemplate } from "../../../core/embed/template";
 import { createDynamicTicketTool } from "../../../core/ai/tools";
 import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+
 
 export const handleSetup = async (
     interaction: discord.ChatInputCommandInteraction,

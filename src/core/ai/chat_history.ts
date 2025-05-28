@@ -1,6 +1,8 @@
 import { OpenAI } from "openai";
 import { DataSource } from "typeorm";
+
 import { ChatHistoryRepository } from "../../events/database/repo/chat_history";
+
 
 /**
  * ChatHistory class for maintaining conversation history in PostgreSQL.
