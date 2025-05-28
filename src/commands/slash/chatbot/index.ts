@@ -2,8 +2,7 @@ import discord from "discord.js";
 
 import { SlashCommand } from "../../../types";
 import { EmbedTemplate } from "../../../core/embed/template";
-import { RagRepository } from "../../../events/database/repo/rag_data";
-import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+import { RagRepository, ChatbotConfigRepository } from "../../../events/database/repo/chat_bot";
 
 import { handleInfo } from "./info";
 import { handleHelp } from "./help";

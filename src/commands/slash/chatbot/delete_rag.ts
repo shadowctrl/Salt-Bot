@@ -1,7 +1,7 @@
 import discord from "discord.js";
 
 import { EmbedTemplate } from "../../../core/embed/template";
-import { RagRepository } from "../../../events/database/repo/rag_data";
+import { RagRepository } from "../../../events/database/repo/chat_bot";
 
 
 export const handleDeleteRag = async (

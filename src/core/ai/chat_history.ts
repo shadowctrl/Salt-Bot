@@ -1,7 +1,7 @@
 import { OpenAI } from "openai";
 import { DataSource } from "typeorm";
 
-import { ChatHistoryRepository } from "../../events/database/repo/chat_history";
+import { ChatHistoryRepository } from "../../events/database/repo/chat_bot";
 
 
 /**

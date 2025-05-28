@@ -2,8 +2,8 @@ import discord from "discord.js";
 
 import { LLM } from "../../../core/ai";
 import { EmbedTemplate } from "../../../core/embed/template";
-import { ChatbotConfig } from "../../../events/database/entities/chatbot_config";
-import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+import { ChatbotConfig } from "../../../events/database/entities/chat_bot";
+import { ChatbotConfigRepository } from "../../../events/database/repo/chat_bot";
 
 
 export const handleSettings = async (

@@ -45,18 +45,7 @@ export class RagChunk {
     @Column({ type: "integer", nullable: false })
     chunkIndex!: number;
 
-    @Column({
-        type: "text",
-        nullable: true,
-        transformer: {
-            to: (value: number[] | null) => {
-                return value ? JSON.stringify(value) : null;
-            },
-            from: (value: string | null) => {
-                return value ? JSON.parse(value) : null;
-            }
-        }
-    })
+    @Column({ type: "vector" as any, nullable: true })
     embedding!: number[];
 
     @ManyToOne(() => RagDocument, document => document.chunks, {

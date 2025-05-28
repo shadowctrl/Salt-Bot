@@ -1,8 +1,8 @@
 import { OpenAI } from "openai";
 import { Repository, DataSource, Not } from "typeorm";
 
-import client from "../../../salt";
-import { ChatHistoryEntry } from "../entities/chat_history";
+import client from "../../../../salt";
+import { ChatHistoryEntry } from "../../entities/chat_bot";
 
 
 /**

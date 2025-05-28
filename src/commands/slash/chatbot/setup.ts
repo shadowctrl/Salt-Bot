@@ -3,7 +3,7 @@ import discord from "discord.js";
 import { LLM } from "../../../core/ai";
 import { EmbedTemplate } from "../../../core/embed/template";
 import { createDynamicTicketTool } from "../../../core/ai/tools";
-import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+import { ChatbotConfigRepository } from "../../../events/database/repo/chat_bot";
 
 
 export const handleSetup = async (

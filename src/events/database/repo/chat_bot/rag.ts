@@ -1,8 +1,8 @@
-import client from "../../../salt";
+import client from "../../../../salt";
 import { Repository, DataSource, In } from "typeorm";
 
-import { IDocument } from "../../../types";
-import { RagDocument, RagChunk } from "../entities/rag_data";
+import { IDocument } from "../../../../types";
+import { RagDocument, RagChunk } from "../../entities/chat_bot";
 
 
 export class RagRepository {

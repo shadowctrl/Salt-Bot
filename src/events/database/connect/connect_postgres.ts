@@ -2,7 +2,7 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 
 import { BotEvent } from "../../../types";
-import { RagRepository } from "../repo/rag_data";
+import { RagRepository } from "../repo/chat_bot";
 import { ConfigManager } from "../../../utils/config";
 
 import { initializeVectorExtension } from "./initialize_extensions";
@@ -19,7 +19,7 @@ const configManager = ConfigManager.getInstance();
 export const AppDataSource = new DataSource({
     type: "postgres",
     url: configManager.getPostgresUri(),
-    synchronize: false, // Set to false in production
+    synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
     entities: [
         UserData, PremiumCoupon, BlockedUser, BlockReason,

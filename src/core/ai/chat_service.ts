@@ -2,8 +2,8 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 
 import client from "../../salt";
-import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
-import { RagRepository } from "../../events/database/repo/rag_data";
+import { RagRepository } from "../../events/database/repo/chat_bot";
+import { ChatbotConfig } from "../../events/database/entities/chat_bot";
 
 import { RAG } from "./rag";
 import { Ticket } from "../ticket";
