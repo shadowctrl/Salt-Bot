@@ -1,8 +1,10 @@
 import discord from "discord.js";
-import client from "../../../salt";
 import { Repository, DataSource, In } from "typeorm";
-import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
+
+import client from "../../../salt";
 import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig } from "../../../types";
+import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
+
 
 /**
  * Repository class for managing ticket system in PostgreSQL

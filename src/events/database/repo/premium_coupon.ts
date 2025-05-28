@@ -1,6 +1,8 @@
-import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
+
+import client from "../../../salt";
 import { PremiumCoupon } from "../entities/premium_coupons";
+
 
 /**
  * Repository class for managing premium coupons in PostgreSQL

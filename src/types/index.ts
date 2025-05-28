@@ -7,6 +7,7 @@ export * from "./ticket";
 export * from "./db";
 export * from "./ai";
 
+
 declare global {
     namespace NodeJS {
         interface ProcessEnv {
@@ -24,13 +25,13 @@ declare module "discord.js" {
         commands: discord.Collection<string, Command>;
         cooldowns: discord.Collection<string, number>;
         logger: ILogger;
-        cmdLogger: typeof CommandLogger;
+        cmdLogger: CommandLogger;
         config: IConfig;
     }
 }
 
 export interface SlashCommand {
-    data: discord.SlashCommandBuilder;
+    data: discord.SlashCommandBuilder | discord.SlashCommandSubcommandsOnlyBuilder | discord.SlashCommandOptionsOnlyBuilder;
     modal?: (
         interaction: discord.ModalSubmitInteraction<discord.CacheType>
     ) => void;
@@ -133,5 +134,5 @@ export interface IConfig {
 export interface BotEvent {
     name: string;
     once?: boolean | false;
-    execute: (...args: unknown[]) => void;
+    execute: (...args: any[]) => void | Promise<void>;
 }

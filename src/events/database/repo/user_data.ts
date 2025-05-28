@@ -1,6 +1,8 @@
-import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
+
+import client from "../../../salt";
 import { UserData } from "../entities/user_data";
+
 
 /**
  * Repository class for managing user data in PostgreSQL
@@ -9,10 +11,8 @@ import { UserData } from "../entities/user_data";
  */
 export class UserDataRepository {
     private userDataRepo: Repository<UserData>;
-    private dataSource: DataSource;
 
     constructor(dataSource: DataSource) {
-        this.dataSource = dataSource;
         this.userDataRepo = dataSource.getRepository(UserData);
     }
 

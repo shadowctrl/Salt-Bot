@@ -1,21 +1,21 @@
-import client from "../../../salt";
-import { Repository, DataSource, Not } from "typeorm";
-import { ChatHistoryEntry } from "../entities/chat_history";
 import { OpenAI } from "openai";
+import { Repository, DataSource, Not } from "typeorm";
+
+import client from "../../../salt";
+import { ChatHistoryEntry } from "../entities/chat_history";
+
 
 /**
  * Repository class for managing chat history in PostgreSQL
  */
 export class ChatHistoryRepository {
     private historyRepo: Repository<ChatHistoryEntry>;
-    private dataSource: DataSource;
 
     /**
      * Creates a new ChatHistoryRepository instance
      * @param dataSource - TypeORM DataSource connection
      */
     constructor(dataSource: DataSource) {
-        this.dataSource = dataSource;
         this.historyRepo = dataSource.getRepository(ChatHistoryEntry);
     }
 
