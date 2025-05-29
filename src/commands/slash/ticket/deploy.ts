@@ -1,7 +1,7 @@
 import discord from "discord.js";
 
 import { Ticket } from "../../../core/ticket";
-import { getValidColor } from "../../../utils/extras";
+import { ColorValidator } from "../../../utils/extras";
 import { EmbedTemplate } from "../../../core/embed/template";
 
 
@@ -76,8 +76,7 @@ export const deployTicket = async (
             return;
         }
 
-        const embedColor = getValidColor(buttonConfig.embedColor) || "#5865F2";
-
+        const embedColor = ColorValidator.validateAndFormatColor(buttonConfig.embedColor || "#5865F2") || "#5865F2";
         const ticketEmbed = new discord.EmbedBuilder()
             .setTitle(buttonConfig.embedTitle || "Need Help?")
             .setDescription(buttonConfig.embedDescription || "Click the button below to create a ticket")

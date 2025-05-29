@@ -135,18 +135,11 @@ const setSafeTimeout = (callback: () => void, delayMs: number): NodeJS.Timeout =
 };
 
 /**
- * Validates and formats color input for embeds
- * @param color - Color input from user
- * @returns Formatted color string or null if invalid
+ * Validates and formats a color input for Discord embeds.
+ * Supports hex colors, named colors, and Discord's predefined color names.
  */
-const validateAndFormatColor = (color: string): string | null => {
-    const trimmedColor = color.trim();
-    const hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    if (hexRegex.test(trimmedColor)) {
-        return trimmedColor.startsWith('#') ? trimmedColor : `#${trimmedColor}`;
-    }
-
-    const discordColors: Record<string, string> = {
+class ColorValidator {
+    private static readonly discordColors: Record<string, string> = {
         'default': '#000000',
         'white': '#FFFFFF',
         'aqua': '#1ABC9C',
@@ -179,62 +172,43 @@ const validateAndFormatColor = (color: string): string | null => {
         'not_quite_black': '#23272A'
     };
 
-    const lowerColor = trimmedColor.toLowerCase();
-    if (discordColors[lowerColor]) {
-        return discordColors[lowerColor];
+    private static readonly hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+
+    /**
+     * Checks if the color string is a valid hex or known Discord color name
+     * @param color - Color input
+     * @returns True if valid
+     */
+    public static isValidColor(color: string): boolean {
+        const trimmed = color.trim();
+        const lower = trimmed.toLowerCase().replace(/[^a-z0-9_#]/g, '');
+        return this.hexRegex.test(trimmed) || lower in this.discordColors;
     }
 
-    return null;
-};
+    /**
+     * Formats a color to a valid hex string if valid, otherwise returns null
+     * @param color - Color input
+     * @returns Hex color string or null
+     */
+    public static formatColor(color: string): string | null {
+        const trimmed = color.trim();
 
-/**
- * Validates and returns a safe color for Discord embeds
- * @param color - Color string to validate
- * @returns Valid color string or null if invalid
- */
-const getValidColor = (color: string | undefined | null): string | null => {
-    if (!color) return null;
+        if (this.hexRegex.test(trimmed)) {
+            return trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+        }
 
-    const hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    if (hexRegex.test(color)) {
-        return color.startsWith('#') ? color : `#${color}`;
+        const lower = trimmed.toLowerCase().replace(/[^a-z_]/g, '');
+        return this.discordColors[lower] || null;
     }
 
-    const discordColors: Record<string, string> = {
-        'default': '#000000',
-        'white': '#FFFFFF',
-        'aqua': '#1ABC9C',
-        'green': '#57F287',
-        'blue': '#3498DB',
-        'yellow': '#FEE75C',
-        'purple': '#9B59B6',
-        'luminous_vivid_pink': '#E91E63',
-        'fuchsia': '#EB459E',
-        'gold': '#F1C40F',
-        'orange': '#E67E22',
-        'red': '#ED4245',
-        'grey': '#95A5A6',
-        'navy': '#34495E',
-        'dark_aqua': '#11806A',
-        'dark_green': '#1F8B4C',
-        'dark_blue': '#206694',
-        'dark_purple': '#71368A',
-        'dark_vivid_pink': '#AD1457',
-        'dark_gold': '#C27C0E',
-        'dark_orange': '#A84300',
-        'dark_red': '#992D22',
-        'dark_grey': '#979C9F',
-        'darker_grey': '#7F8C8D',
-        'light_grey': '#BCC0C0',
-        'dark_navy': '#2C3E50',
-        'blurple': '#5865F2',
-        'greyple': '#99AAB5',
-        'dark_but_not_black': '#2C2F33',
-        'not_quite_black': '#23272A'
-    };
+    /**
+     * (Optional convenience) Validates and formats a color
+     * @param color - Color input
+     * @returns Formatted hex string or null
+     */
+    public static validateAndFormatColor(color: string): string | null {
+        return this.isValidColor(color) ? this.formatColor(color) : null;
+    }
+}
 
-    const lowerColor = color.toLowerCase().replace(/[^a-z_]/g, '');
-    return discordColors[lowerColor] || null;
-};
-
-export { wait, sendTempMessage, setSafeTimeout, validateAndFormatColor, getValidColor };
+export { wait, sendTempMessage, setSafeTimeout, ColorValidator };

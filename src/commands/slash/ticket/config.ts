@@ -2,7 +2,7 @@ import discord from "discord.js";
 
 import { Ticket } from "../../../core/ticket";
 import { EmbedTemplate } from "../../../core/embed/template";
-import { validateAndFormatColor } from "../../../utils/extras";
+import { ColorValidator } from "../../../utils/extras";
 
 
 export const configTicket = async (
@@ -116,7 +116,7 @@ const configTicketButton = async (
         if (description) updateData.embedDescription = description;
 
         if (color) {
-            const validatedColor = validateAndFormatColor(color);
+            const validatedColor = ColorValidator.isValidColor(color);
             if (!validatedColor) {
                 await interaction.editReply({
                     embeds: [
