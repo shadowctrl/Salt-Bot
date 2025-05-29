@@ -136,7 +136,7 @@ export class ConfigManager {
  */
 export const loadConfig = (client: discord.Client) => {
     try {
-        const configPath = path.join(__dirname, "../config/config.yml");
+        const configPath = path.join(__dirname, "../../config/config.yml");
         const file = fs.readFileSync(configPath, "utf8");
         return yaml.parse(file);
     } catch (error) {

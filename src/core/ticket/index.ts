@@ -1,6 +1,7 @@
 import discord from "discord.js";
 import { DataSource } from "typeorm";
 
+import Formatter from "../../utils/format";
 import { TicketRepository } from "../../events/database/repo/ticket_system";
 import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult, ITicket, ITicketStatus } from "../../types";
 
@@ -23,6 +24,15 @@ export class Ticket {
     private permissions: TicketPermissions;
     private utils: TicketUtils;
     private transcript: TicketTranscript;
+    private ticketCooldowns = new Map<string, Map<string, number>>();
+    private readonly COOLDOWN_DURATIONS = {
+        CREATE: 30000,
+        CLOSE: 10000,
+        REOPEN: 15000,
+        CLAIM: 5000,
+        ARCHIVE: 10000,
+        DELETE: 15000
+    };
 
     /**
      * Creates a new Ticket instance
@@ -35,6 +45,75 @@ export class Ticket {
         this.permissions = new TicketPermissions();
         this.utils = new TicketUtils(this.ticketRepo, client);
         this.transcript = new TicketTranscript(dataSource);
+
+        setInterval(() => this.cleanupExpiredCooldowns(), 300000);
+    }
+
+    /**
+     * Check if a ticket is on cooldown for a specific action
+     * @param ticketId - Ticket ID to check
+     * @param action - Action type
+     * @returns Cooldown check result
+     */
+    private checkTicketCooldown(ticketId: string, action: keyof typeof this.COOLDOWN_DURATIONS): { onCooldown: boolean; remainingTime?: number } {
+        const ticketCooldownMap = this.ticketCooldowns.get(ticketId);
+        if (!ticketCooldownMap) {
+            return { onCooldown: false };
+        }
+
+        const createTime = ticketCooldownMap.get('CREATE');
+        if (createTime && action !== 'CREATE') {
+            const timeSinceCreate = Date.now() - createTime;
+            if (timeSinceCreate < this.COOLDOWN_DURATIONS.CREATE) {
+                const remainingTime = this.COOLDOWN_DURATIONS.CREATE - timeSinceCreate;
+                return { onCooldown: true, remainingTime };
+            }
+        }
+
+        const lastAction = ticketCooldownMap.get(action);
+        const cooldownDuration = this.COOLDOWN_DURATIONS[action];
+        const now = Date.now();
+
+        if (lastAction && (now - lastAction) < cooldownDuration) {
+            const remainingTime = cooldownDuration - (now - lastAction);
+            return { onCooldown: true, remainingTime };
+        }
+
+        return { onCooldown: false };
+    }
+
+    /**
+     * Set cooldown for a ticket action
+     * @param ticketId - Ticket ID
+     * @param action - Action type
+     */
+    private setTicketCooldown(ticketId: string, action: keyof typeof this.COOLDOWN_DURATIONS): void {
+        if (!this.ticketCooldowns.has(ticketId)) {
+            this.ticketCooldowns.set(ticketId, new Map());
+        }
+
+        const ticketCooldownMap = this.ticketCooldowns.get(ticketId)!;
+        ticketCooldownMap.set(action, Date.now());
+    }
+
+    /**
+     * Clean up expired cooldowns to prevent memory leaks
+     */
+    private cleanupExpiredCooldowns(): void {
+        const now = Date.now();
+        const maxCooldownDuration = Math.max(...Object.values(this.COOLDOWN_DURATIONS));
+
+        for (const [ticketId, actionMap] of this.ticketCooldowns.entries()) {
+            for (const [action, timestamp] of actionMap.entries()) {
+                if ((now - timestamp) > maxCooldownDuration) {
+                    actionMap.delete(action);
+                }
+            }
+
+            if (actionMap.size === 0) {
+                this.ticketCooldowns.delete(ticketId);
+            }
+        }
     }
 
     /**
@@ -98,12 +177,13 @@ export class Ticket {
             await channelResult.channel.setName(channelName);
             await this.utils.setupChannelPermissions(channelResult.channel, category, options.userId);
             await this.utils.sendWelcomeMessage(channelResult.channel, ticket, category, options.userId);
+            this.setTicketCooldown(ticket.id, 'CREATE');
 
             this.client.logger.info(`[TICKET] User ${options.userId} created ticket #${ticket.ticketNumber} in category ${category.name}`);
 
             return {
                 success: true,
-                message: `Ticket #${ticket.ticketNumber} created successfully!`,
+                message: `Ticket #${ticket.ticketNumber} created successfully! Please wait ${Formatter.msToTime(this.COOLDOWN_DURATIONS.CREATE)} before performing actions on this ticket.`,
                 ticket,
                 channel: channelResult.channel
             };
@@ -139,6 +219,14 @@ export class Ticket {
                 };
             }
 
+            const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLOSE');
+            if (cooldownCheck.onCooldown) {
+                return {
+                    success: false,
+                    message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.`
+                };
+            }
+
             await this.ticketRepo.updateTicketStatus(
                 ticket.id,
                 ITicketStatus.CLOSED,
@@ -165,6 +253,9 @@ export class Ticket {
                     }
                 }
             }
+
+            await channel.setName(`closed-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+            this.setTicketCooldown(ticket.id, 'CLOSE');
 
             this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} closed by ${options.userId}`);
 
@@ -206,6 +297,14 @@ export class Ticket {
                 };
             }
 
+            const cooldownCheck = this.checkTicketCooldown(ticket.id, 'REOPEN');
+            if (cooldownCheck.onCooldown) {
+                return {
+                    success: false,
+                    message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.`
+                };
+            }
+
             await this.ticketRepo.updateTicketStatus(ticket.id, ITicketStatus.OPEN);
 
             const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
@@ -213,6 +312,9 @@ export class Ticket {
                 await this.utils.sendReopenMessage(channel, ticket, userId);
                 await this.utils.updateChannelPermissionsForReopen(channel, ticket);
             }
+
+            await channel.setName(`reopen-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+            this.setTicketCooldown(ticket.id, 'REOPEN');
 
             this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} reopened by ${userId}`);
 
@@ -247,6 +349,14 @@ export class Ticket {
                 };
             }
 
+            const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLAIM');
+            if (cooldownCheck.onCooldown) {
+                return {
+                    success: false,
+                    message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another claim action on this ticket.`
+                };
+            }
+
             if (ticket.claimedById) {
                 if (ticket.claimedById === userId) {
                     await this.ticketRepo.unclaimTicket(ticket.id);
@@ -255,6 +365,8 @@ export class Ticket {
                     if (channel) {
                         await this.utils.sendUnclaimMessage(channel, ticket, userId);
                     }
+
+                    this.setTicketCooldown(ticket.id, 'CLAIM');
 
                     return {
                         success: true,
@@ -277,6 +389,8 @@ export class Ticket {
                 await this.utils.sendClaimMessage(channel, ticket, userId);
             }
 
+            this.setTicketCooldown(ticket.id, 'CLAIM');
+
             this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} claimed by ${userId}`);
 
             return {
@@ -290,6 +404,142 @@ export class Ticket {
             return {
                 success: false,
                 message: "An error occurred while claiming the ticket."
+            };
+        }
+    };
+
+    /**
+     * Archive a ticket
+     * @param channelId - Discord channel ID
+     * @param userId - User ID who is archiving the ticket
+     * @param reason - Reason for archiving
+     * @returns Promise resolving to operation result
+     */
+    public archive = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
+        try {
+            const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
+            if (!ticket) {
+                return {
+                    success: false,
+                    message: "This is not a valid ticket channel."
+                };
+            }
+
+            if (ticket.status === "archived") {
+                return {
+                    success: false,
+                    message: "This ticket is already archived."
+                };
+            }
+
+            const cooldownCheck = this.checkTicketCooldown(ticket.id, 'ARCHIVE');
+            if (cooldownCheck.onCooldown) {
+                return {
+                    success: false,
+                    message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another archive action on this ticket.`
+                };
+            }
+
+            await this.ticketRepo.updateTicketStatus(
+                ticket.id,
+                ITicketStatus.ARCHIVED,
+                userId,
+                reason || "Ticket archived"
+            );
+
+            const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
+            if (channel) {
+                await this.utils.sendArchiveMessage(channel, ticket, userId);
+            }
+
+            await channel.setName(`archived-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+
+            this.setTicketCooldown(ticket.id, 'ARCHIVE');
+
+            this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} archived by ${userId}`);
+
+            return {
+                success: true,
+                message: "Ticket archived successfully.",
+                ticket
+            };
+
+        } catch (error) {
+            this.client.logger.error(`[TICKET] Error archiving ticket: ${error}`);
+            return {
+                success: false,
+                message: "An error occurred while archiving the ticket."
+            };
+        }
+    };
+
+    /**
+     * Delete a ticket (marks as closed and removes channel)
+     * @param channelId - Discord channel ID
+     * @param userId - User ID who is deleting the ticket
+     * @param reason - Reason for deletion
+     * @returns Promise resolving to operation result
+     */
+    public delete = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
+        try {
+            const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
+            if (!ticket) {
+                return {
+                    success: false,
+                    message: "This is not a valid ticket channel."
+                };
+            }
+
+            const cooldownCheck = this.checkTicketCooldown(ticket.id, 'DELETE');
+            if (cooldownCheck.onCooldown) {
+                return {
+                    success: false,
+                    message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another delete action on this ticket.`
+                };
+            }
+
+            await this.ticketRepo.updateTicketStatus(
+                ticket.id,
+                ITicketStatus.CLOSED,
+                userId,
+                reason || "Ticket deleted by staff"
+            );
+
+            const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
+            if (channel) {
+                try {
+                    const creator = await this.client.users.fetch(ticket.creatorId);
+                    await this.utils.sendDeletionNotification(creator, ticket);
+                } catch (dmError) {
+                    this.client.logger.warn(`[TICKET] Could not send DM to ticket creator: ${dmError}`);
+                }
+
+                setTimeout(async () => {
+                    try {
+                        await channel.delete();
+                        this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} channel deleted by ${userId}`);
+                        this.ticketCooldowns.delete(ticket.id);
+                    } catch (deleteError) {
+                        this.client.logger.error(`[TICKET] Error deleting channel: ${deleteError}`);
+                    }
+                }, 3000);
+            }
+
+            this.setTicketCooldown(ticket.id, 'DELETE');
+
+            this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} deleted by ${userId}`);
+
+            return {
+                success: true,
+                message: "Ticket deleted successfully.",
+                ticket
+            };
+
+        } catch (error) {
+            this.client.logger.error(`[TICKET] Error deleting ticket: ${error}`);
+            return {
+                success: false,
+                message: "An error occurred while deleting the ticket."
             };
         }
     };
@@ -537,119 +787,6 @@ export class Ticket {
         guildId: string
     ): Promise<{ hasPermission: boolean; reason?: string }> => {
         return await this.permissions.checkTicketPermission(userId, ticket, action, guildId);
-    };
-
-    /**
-     * Archive a ticket
-     * @param channelId - Discord channel ID
-     * @param userId - User ID who is archiving the ticket
-     * @param reason - Reason for archiving
-     * @returns Promise resolving to operation result
-     */
-    public archive = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
-        try {
-            const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-            if (!ticket) {
-                return {
-                    success: false,
-                    message: "This is not a valid ticket channel."
-                };
-            }
-
-            if (ticket.status === "archived") {
-                return {
-                    success: false,
-                    message: "This ticket is already archived."
-                };
-            }
-
-            await this.ticketRepo.updateTicketStatus(
-                ticket.id,
-                ITicketStatus.ARCHIVED,
-                userId,
-                reason || "Ticket archived"
-            );
-
-            const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-            if (channel) {
-                await this.utils.sendArchiveMessage(channel, ticket, userId);
-            }
-
-            this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} archived by ${userId}`);
-
-            return {
-                success: true,
-                message: "Ticket archived successfully.",
-                ticket
-            };
-
-        } catch (error) {
-            this.client.logger.error(`[TICKET] Error archiving ticket: ${error}`);
-            return {
-                success: false,
-                message: "An error occurred while archiving the ticket."
-            };
-        }
-    };
-
-    /**
-     * Delete a ticket (marks as closed and removes channel)
-     * @param channelId - Discord channel ID
-     * @param userId - User ID who is deleting the ticket
-     * @param reason - Reason for deletion
-     * @returns Promise resolving to operation result
-     */
-    public delete = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
-        try {
-            const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-            if (!ticket) {
-                return {
-                    success: false,
-                    message: "This is not a valid ticket channel."
-                };
-            }
-
-            await this.ticketRepo.updateTicketStatus(
-                ticket.id,
-                ITicketStatus.CLOSED,
-                userId,
-                reason || "Ticket deleted by staff"
-            );
-
-            const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-            if (channel) {
-                try {
-                    const creator = await this.client.users.fetch(ticket.creatorId);
-                    await this.utils.sendDeletionNotification(creator, ticket);
-                } catch (dmError) {
-                    this.client.logger.warn(`[TICKET] Could not send DM to ticket creator: ${dmError}`);
-                }
-
-                setTimeout(async () => {
-                    try {
-                        await channel.delete();
-                        this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} channel deleted by ${userId}`);
-                    } catch (deleteError) {
-                        this.client.logger.error(`[TICKET] Error deleting channel: ${deleteError}`);
-                    }
-                }, 3000);
-            }
-
-            this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} deleted by ${userId}`);
-
-            return {
-                success: true,
-                message: "Ticket deleted successfully.",
-                ticket
-            };
-
-        } catch (error) {
-            this.client.logger.error(`[TICKET] Error deleting ticket: ${error}`);
-            return {
-                success: false,
-                message: "An error occurred while deleting the ticket."
-            };
-        }
     };
 
     /**
