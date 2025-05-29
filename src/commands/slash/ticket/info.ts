@@ -1,6 +1,8 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../core/embed/template";
+
 import { Ticket } from "../../../core/ticket";
+import { EmbedTemplate } from "../../../core/embed/template";
+
 
 export const infoTicket = async (
     interaction: discord.ChatInputCommandInteraction,

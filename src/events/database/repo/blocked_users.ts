@@ -1,6 +1,8 @@
-import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
+
+import client from "../../../salt";
 import { BlockedUser, BlockReason } from "../entities/blocked_users";
+
 
 /**
  * Repository class for managing blocked users in PostgreSQL

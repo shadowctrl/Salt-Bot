@@ -1,13 +1,16 @@
-import { RAG } from "./rag";
+import discord from "discord.js";
 import { DataSource } from "typeorm";
+
+import client from "../../salt";
+import { RagRepository } from "../../events/database/repo/chat_bot";
+import { ChatbotConfig } from "../../events/database/entities/chat_bot";
+
+import { RAG } from "./rag";
+import { Ticket } from "../ticket";
 import { LLM, Embedding } from "./llm";
 import ChatHistory from "./chat_history";
 import { createDynamicTicketTool } from "./tools";
-import { Ticket } from "../ticket";
-import { ChatbotConfig } from "../../events/database/entities/chatbot_config";
-import { RagRepository } from "../../events/database/repo/rag_data";
-import discord from "discord.js";
-import client from "../../salt";
+
 
 /**
  * Service class for handling chatbot interactions with RAG integration and tool support
@@ -314,19 +317,24 @@ When using this context:
      * Handle ticket creation confirmation using the new Ticket class
      * @param confirmationId - The confirmation ID
      * @param confirmed - Whether the user confirmed
+     * @param clickingUserId - The ID of the user who clicked the button
      * @returns Success message or error
      */
     public handleTicketConfirmation = async (
         confirmationId: string,
-        confirmed: boolean
+        confirmed: boolean,
+        clickingUserId: string
     ): Promise<{ success: boolean; message: string; ticketChannel?: string }> => {
         try {
             client.logger.debug(`[CHATBOT_SERVICE] Looking for confirmation ID: ${confirmationId}`);
-            client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`);
-
-            const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
+            client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`); const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
             if (!pendingCreation) {
                 return { success: false, message: "Ticket creation request has expired or is invalid." };
+            }
+
+            // Security check
+            if (pendingCreation.userId !== clickingUserId) {
+                return { success: false, message: "You can only confirm your own ticket creation requests." };
             }
 
             ChatbotService.pendingTicketCreations.delete(confirmationId);

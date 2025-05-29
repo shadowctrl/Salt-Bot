@@ -1,13 +1,13 @@
-import client from "../../../salt";
 import { Repository, DataSource } from "typeorm";
-import { ChatbotConfig } from "../entities/chatbot_config";
+
+import client from "../../../../salt";
+import { ChatbotConfig } from "../../entities/chat_bot";
+
 
 export class ChatbotConfigRepository {
     private configRepo: Repository<ChatbotConfig>;
-    private dataSource: DataSource;
 
     constructor(dataSource: DataSource) {
-        this.dataSource = dataSource;
         this.configRepo = dataSource.getRepository(ChatbotConfig);
     }
 

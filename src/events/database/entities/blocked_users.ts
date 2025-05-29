@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, ManyToOne } from "typeorm";
+
 import { IBlockUser, IBlockReason } from "../../../types";
 
 @Entity("blocked_users")

@@ -1,7 +1,9 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../core/embed/template";
+import { createTranscript } from "discord-html-transcripts";
+
 import { Ticket } from "../../../core/ticket";
-import { createTranscript, ExportReturnType } from "discord-html-transcripts";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { AttachmentBuffer } from "../../../types/ticket";
 
 export const transcriptTicket = async (
     interaction: discord.ChatInputCommandInteraction,
@@ -100,7 +102,3 @@ Transcript from **${interaction.guild?.name}**
         });
     }
 };
-
-interface AttachmentBuffer extends discord.AttachmentBuilder {
-    attachment: Buffer;
-}

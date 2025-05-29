@@ -1,6 +1,10 @@
+import fs from "fs";
+import yaml from "yaml";
 import path from "path";
 import { z } from "zod";
 import { config } from "dotenv";
+import discord from "discord.js";
+
 
 /**
  * Schema for validating environment variables
@@ -125,3 +129,18 @@ export class ConfigManager {
         return this.config.FEEDBACK_WEBHOOK;
     }
 }
+
+/**
+ * Loads configuration from YAML file
+ * @returns Configuration object
+ */
+export const loadConfig = (client: discord.Client) => {
+    try {
+        const configPath = path.join(__dirname, "../../config/config.yml");
+        const file = fs.readFileSync(configPath, "utf8");
+        return yaml.parse(file);
+    } catch (error) {
+        client.logger.error(`[SALT] Failed to load configuration: ${error}`);
+        process.exit(1);
+    }
+};

@@ -1,36 +1,29 @@
 import discord from "discord.js";
 import { DataSource } from "typeorm";
-import { ConfigManager } from "../../../utils/config";
-import { BotEvent } from "../../../types";
-import { initializeVectorExtension } from "./initialize_extensions";
-import { RagRepository } from "../repo/rag_data";
 
-import { UserData } from "../entities/user_data";
-import { PremiumCoupon } from "../entities/premium_coupons";
-import { BlockedUser, BlockReason } from "../entities/blocked_users";
-import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
-import { ChatHistoryEntry } from "../entities/chat_history";
-import { ChatbotConfig } from "../entities/chatbot_config";
-import { RagDocument, RagChunk } from "../entities/rag_data";
+import { BotEvent } from "../../../types";
+import { RagRepository } from "../repo/chat_bot";
+import { ConfigManager } from "../../../utils/config";
+
+import { initializeVectorExtension } from "./initialize_extensions";
+import * as entities from "../entities";
 
 const configManager = ConfigManager.getInstance();
 
-export const AppDataSource = new DataSource({
+const AppDataSource = new DataSource({
     type: "postgres",
     url: configManager.getPostgresUri(),
-    synchronize: false, // Set to false in production
+    synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
-    entities: [
-        UserData, PremiumCoupon, BlockedUser, BlockReason,
-        GuildConfig, TicketCategory, TicketButton, TicketMessage,
-        Ticket, SelectMenuConfig, ChatHistoryEntry, ChatbotConfig,
-        RagDocument, RagChunk
-    ],
+    entities: Object.values(entities),
     subscribers: [],
     migrations: [],
 });
 
-export const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
+(AppDataSource.driver as any).supportedDataTypes.push('vector');
+(AppDataSource.driver as any).withLengthColumnTypes.push('vector');
+
+const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
     try {
         const dataSource = await AppDataSource.initialize();
         await initializeVectorExtension(dataSource);
@@ -62,5 +55,7 @@ const event: BotEvent = {
         }
     }
 };
+
+export { AppDataSource, initializeDatabase };
 
 export default event;

@@ -1,7 +1,8 @@
 import discord from "discord.js";
+
+import { Command } from "../../types";
 import PremiumHandler from "../../core/command/premium";
 import { EmbedTemplate } from "../../core/embed/template";
-import { Command } from "../../types";
 
 const command: Command = {
     name: "generate",

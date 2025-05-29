@@ -1,6 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from "typeorm";
-import { GuildConfig } from "./guild_config";
+
 import { ITicketButton } from "../../../../types";
+
+import { GuildConfig } from "./guild_config";
 
 @Entity("ticket_buttons")
 export class TicketButton implements ITicketButton {

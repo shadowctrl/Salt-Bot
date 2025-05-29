@@ -1,17 +1,10 @@
-/**
- * A utility class for formatting text and time values
- */
 class Formatter {
+
     /**
-     * Converts milliseconds to a formatted time string (HH:MM:SS)
-     *
-     * @param ms - The number of milliseconds to convert
-     * @returns Formatted time string in HH:MM:SS format
-     * @example
-     * ```typescript
-     * Formatter.msToTime(3661000); // Returns "01:01:01"
-     * ```
-     */
+     * Formats milliseconds into a string in the format HH:MM:SS.
+     * @param ms - The time in milliseconds.
+     * @return A string representing the time in HH:MM:SS format.
+    */
     public static msToTime(ms: number): string {
         const seconds = Math.floor(ms / 1000);
         const hours = Math.floor(seconds / 3600);
@@ -26,13 +19,9 @@ class Formatter {
     }
 
     /**
-     * Formats seconds into a readable duration string
-     * @param seconds - Number of seconds to format
-     * @returns Formatted duration string (e.g., "2d 5h 30m")
-     * @example
-     * ```typescript
-     * Formatter.formatUptime(90061); // Returns "1d 1h 1m"
-     * ```
+     * Formats a number of seconds into a human-readable uptime string.
+     * @param seconds - The number of seconds to format.
+     * @return A string representing the uptime in days, hours, and minutes.
      */
     public static formatUptime(seconds: number): string {
         const days = Math.floor(seconds / 86400);
@@ -48,16 +37,11 @@ class Formatter {
     }
 
     /**
-     * Truncates text to a specified length and adds an ellipsis
-     *
-     * @param text - The text to truncate
-     * @param maxLength - Maximum length of the text (default: 20)
-     * @param ellipsis - String to append when text is truncated (default: '...')
-     * @returns Truncated text with ellipsis if necessary
-     * @example
-     * ```typescript
-     * Formatter.truncateText("This is a very long text", 10); // Returns "This is a..."
-     * ```
+     * Truncates a string to a specified maximum length and appends an ellipsis if necessary.
+     * @param text - The text to truncate.
+     * @param maxLength - The maximum length of the text (default is 50).
+     * @param ellipsis - The string to append if truncation occurs (default is "...").
+     * @return The truncated text.
      */
     public static truncateText(
         text: string,
@@ -71,16 +55,9 @@ class Formatter {
     }
 
     /**
-     * Creates a markdown hyperlink with escaped brackets
-     *
-     * @param text - The text to display for the link
-     * @param url - The URL for the link
-     * @returns Formatted markdown hyperlink
-     * @example
-     * ```typescript
-     * Formatter.hyperlink("Click here", "https://example.com");
-     * // Returns "[Click here](https://example.com)"
-     * ```
+     * Formats a number with commas as thousands separators.
+     * @param num - The number to format.
+     * @return A string representing the formatted number.
      */
     public static hyperlink(text: string, url: string): string {
         const escapedText = text.replace(/\[/g, "［").replace(/\]/g, "］");
@@ -88,15 +65,9 @@ class Formatter {
     }
 
     /**
-     * Formats bytes into a human-readable string with appropriate units
-     *
-     * @param bytes - The number of bytes to format
-     * @returns Formatted string with appropriate unit (B, KB, MB, GB, TB)
-     * @example
-     * ```typescript
-     * Formatter.formatBytes(1024); // Returns "1 KB"
-     * Formatter.formatBytes(1234567); // Returns "1.18 MB"
-     * ```
+     * Formats a number of bytes into a human-readable string with appropriate units.
+     * @param bytes - The number of bytes to format.
+     * @return A string representing the formatted size (e.g., "1.23 MB").
      */
     public static formatBytes(bytes: number): string {
         if (bytes === 0) return "0 B";

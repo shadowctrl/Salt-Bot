@@ -1,7 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from "typeorm";
-import { ITicketStatus } from "./index";
+
+import { ITicket, ITicketStatus } from "../../../../types";
+
 import { TicketCategory } from "./ticket_category";
-import { ITicket } from "../../../../types";
+
 
 @Entity("tickets")
 export class Ticket implements ITicket {

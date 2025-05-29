@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, Index } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, Index, BeforeUpdate, BeforeInsert } from "typeorm";
+
 
 @Entity("rag_documents")
 export class RagDocument {
@@ -44,22 +45,19 @@ export class RagChunk {
     @Column({ type: "integer", nullable: false })
     chunkIndex!: number;
 
-    @Column({
-        type: "text",
-        nullable: true,
-        transformer: {
-            to: (value: number[] | null) => {
-                return value ? JSON.stringify(value) : null;
-            },
-            from: (value: string | null) => {
-                return value ? JSON.parse(value) : null;
-            }
-        }
-    })
-    embedding!: number[];
+    @Column({ type: 'vector' as any, nullable: true })
+    embedding?: number[] | null;
 
     @ManyToOne(() => RagDocument, document => document.chunks, {
         onDelete: "CASCADE"
     })
     document!: RagDocument;
+
+    @BeforeUpdate()
+    @BeforeInsert()
+    stringifyVector() {
+        if (this.embedding && Array.isArray(this.embedding)) {
+            this.embedding = JSON.stringify(this.embedding) as any;
+        }
+    }
 }

@@ -1,7 +1,9 @@
 import discord from "discord.js";
+
 import Formatter from "../../utils/format";
-import { EmbedTemplate } from "../../core/embed/template";
 import { SlashCommand } from "../../types";
+import { EmbedTemplate } from "../../core/embed/template";
+
 
 const helpCommand: SlashCommand = {
     cooldown: 120,

@@ -1,8 +1,10 @@
 import ms from "ms";
 import discord from "discord.js";
+
+import { BotEvent, SlashCommand } from "../../../types";
 import { EmbedTemplate, ButtonTemplate } from "../../../core/embed/template";
 import { checkBlockedStatus, checkPremiumStatus } from "../../../core/command/functions";
-import { BotEvent, SlashCommand } from "../../../types";
+
 
 const cooldown: discord.Collection<string, number> = new discord.Collection();
 

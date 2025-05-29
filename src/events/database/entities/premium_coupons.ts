@@ -1,5 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
+
 import { IPremiumCoupon } from "../../../types";
+
 
 @Entity("premium_coupons")
 export class PremiumCoupon implements IPremiumCoupon {

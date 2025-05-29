@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from "typeorm";
 
+
 @Entity("chat_history")
 export class ChatHistoryEntry {
     @PrimaryGeneratedColumn("uuid")

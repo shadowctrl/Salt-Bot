@@ -1,7 +1,9 @@
 import discord from "discord.js";
-import { EmbedTemplate } from "../../../core/embed/template";
+
 import Formatter from "../../../utils/format";
-import { ChatbotConfigRepository } from "../../../events/database/repo/chatbot_config";
+import { EmbedTemplate } from "../../../core/embed/template";
+import { ChatbotConfigRepository } from "../../../events/database/repo/chat_bot";
+
 
 export const handleHelp = async (
     interaction: discord.ChatInputCommandInteraction,

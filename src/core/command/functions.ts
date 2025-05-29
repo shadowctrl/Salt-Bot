@@ -1,6 +1,8 @@
 import client from "../../salt";
-import PremiumHandler from "./premium";
 import { BlockedUserRepository } from "../../events/database/repo/blocked_users";
+
+import PremiumHandler from "./premium";
+
 
 /**
  * Check if a user is blocked and get the most recent block reason

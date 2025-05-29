@@ -1,8 +1,10 @@
 import discord from "discord.js";
-import { Embedding } from "../../../core/ai";
+
 import { RAG } from "../../../core/ai";
+import { Embedding } from "../../../core/ai";
 import { EmbedTemplate } from "../../../core/embed/template";
-import { RagRepository } from "../../../events/database/repo/rag_data";
+import { RagRepository } from "../../../events/database/repo/chat_bot";
+
 
 export const handleUploadRag = async (
     interaction: discord.ChatInputCommandInteraction,

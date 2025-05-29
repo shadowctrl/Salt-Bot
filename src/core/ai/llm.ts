@@ -1,6 +1,7 @@
 import { OpenAI } from "openai";
 import { pipeline, FeatureExtractionPipeline, Tensor } from '@xenova/transformers';
 
+
 /**
  * LLM class for interacting with OpenAI's API.
  */

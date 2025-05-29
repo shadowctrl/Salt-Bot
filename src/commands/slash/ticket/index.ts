@@ -1,15 +1,18 @@
 import discord from "discord.js";
+
 import { SlashCommand } from "../../../types";
+
+import { infoTicket } from "./info";
+import { claimTicket } from "./claim";
+import { closeTicket } from "./close";
 import { deployTicket } from "./deploy";
 import { reopenTicket } from "./reopen";
-import { closeTicket } from "./close";
 import { configTicket } from "./config";
-import { infoTicket } from "./info";
-import { transcriptTicket } from "./transcript";
 import { addUserToTicket } from "./add";
+import { transcriptTicket } from "./transcript";
 import { removeUserFromTicket } from "./remove";
-import { claimTicket } from "./claim";
 import { transferTicketOwner } from "./transfer_owner";
+
 
 const ticketCommand: SlashCommand = {
     cooldown: 5,

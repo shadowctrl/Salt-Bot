@@ -1,8 +1,10 @@
 import path from 'path';
 import fs from 'fs/promises';
-import { Embedding } from './llm';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { IProcessingOptions, IMetadata, IDocument } from './types';
+
+import { IProcessingOptions, IMetadata, IDocument } from '../../types';
+
+import { Embedding } from './llm';
 
 /**
  * Retrieval-Augmented Generation document processor

@@ -1,7 +1,8 @@
 import discord from "discord.js";
-import { ITicket } from "../../types";
-import { PermissionCheckResult, TicketAction } from "./types";
+
 import client from "../../salt";
+import { ITicket, PermissionCheckResult, TicketAction } from "../../types";
+
 
 /**
  * Utility class for checking ticket-related permissions
