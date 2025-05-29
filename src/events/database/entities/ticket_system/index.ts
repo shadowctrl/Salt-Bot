@@ -1,9 +1,3 @@
-export enum ITicketStatus {
-    OPEN = "open",
-    CLOSED = "closed",
-    ARCHIVED = "archived"
-}
-
 export * from './ticket';
 export * from './select_menu';
 export * from './guild_config';

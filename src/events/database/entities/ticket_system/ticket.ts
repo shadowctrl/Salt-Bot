@@ -1,8 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from "typeorm";
 
-import { ITicket } from "../../../../types";
+import { ITicket, ITicketStatus } from "../../../../types";
 
-import { ITicketStatus } from "./index";
 import { TicketCategory } from "./ticket_category";
 
 

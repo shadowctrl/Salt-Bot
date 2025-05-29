@@ -1,4 +1,4 @@
-import { ITicketStatus } from '../events/database/entities/ticket_system';
+import { ITicketStatus } from './ticket';
 
 export interface IBlockUser {
     id?: string;

@@ -2,8 +2,7 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 
 import { TicketRepository } from "../../events/database/repo/ticket_system";
-import { ITicketStatus } from "../../events/database/entities/ticket_system";
-import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult, ITicket } from "../../types";
+import { CreateTicketOptions, CloseTicketOptions, TicketOperationResult, ITicket, ITicketStatus } from "../../types";
 
 import { TicketUtils } from "./utils";
 import { TicketTranscript } from "./transcript";

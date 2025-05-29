@@ -1,8 +1,7 @@
 import discord from "discord.js";
 
 import { TicketRepository } from "../../events/database/repo/ticket_system";
-import { ITicketStatus } from "../../events/database/entities/ticket_system";
-import { ITicket, ITicketCategory, ChannelCreationResult } from "../../types";
+import { ITicket, ITicketCategory, ChannelCreationResult, ITicketStatus } from "../../types";
 
 
 /**

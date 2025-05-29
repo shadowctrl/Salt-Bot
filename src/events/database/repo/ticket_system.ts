@@ -2,8 +2,8 @@ import discord from "discord.js";
 import { Repository, DataSource, In } from "typeorm";
 
 import client from "../../../salt";
-import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig } from "../../../types";
-import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig, ITicketStatus } from "../entities/ticket_system";
+import { GuildConfig, TicketCategory, Ticket, TicketMessage, TicketButton, SelectMenuConfig } from "../entities/ticket_system";
+import { IGuildConfig, ITicketCategory, ITicket, ITicketMessage, ITicketButton, ISelectMenuConfig, ITicketStatus } from "../../../types";
 
 
 /**

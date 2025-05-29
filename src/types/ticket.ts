@@ -1,6 +1,12 @@
 import discord from "discord.js";
 import { ITicket } from "./db";
 
+export enum ITicketStatus {
+    OPEN = "open",
+    CLOSED = "closed",
+    ARCHIVED = "archived"
+}
+
 export interface CreateTicketOptions {
     guildId: string;
     userId: string;

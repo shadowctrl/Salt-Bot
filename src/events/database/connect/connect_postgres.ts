@@ -6,13 +6,7 @@ import { RagRepository } from "../repo/chat_bot";
 import { ConfigManager } from "../../../utils/config";
 
 import { initializeVectorExtension } from "./initialize_extensions";
-
-import { UserData } from "../entities/user_data";
-import { PremiumCoupon } from "../entities/premium_coupons";
-import { BlockedUser, BlockReason } from "../entities/blocked_users";
-import { ChatbotConfig, ChatHistoryEntry, RagDocument, RagChunk } from "../entities/chat_bot";
-import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMessage, Ticket } from "../entities/ticket_system";
-
+import * as entities from "../entities";
 
 const configManager = ConfigManager.getInstance();
 
@@ -21,12 +15,7 @@ const AppDataSource = new DataSource({
     url: configManager.getPostgresUri(),
     synchronize: true, // Set to false in production
     logging: configManager.isDebugMode(),
-    entities: [
-        UserData, PremiumCoupon, BlockedUser, BlockReason,
-        GuildConfig, TicketCategory, TicketButton, TicketMessage,
-        Ticket, SelectMenuConfig, ChatHistoryEntry, ChatbotConfig,
-        RagDocument, RagChunk
-    ],
+    entities: Object.values(entities),
     subscribers: [],
     migrations: [],
 });
