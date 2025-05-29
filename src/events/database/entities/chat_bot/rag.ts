@@ -45,8 +45,7 @@ export class RagChunk {
     @Column({ type: "integer", nullable: false })
     chunkIndex!: number;
 
-    @Column({ type: "vector" as any, nullable: true })
-    embedding!: number[];
+    embedding?: number[] | null;
 
     @ManyToOne(() => RagDocument, document => document.chunks, {
         onDelete: "CASCADE"

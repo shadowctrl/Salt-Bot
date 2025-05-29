@@ -18,20 +18,22 @@ const event: BotEvent = {
                     flags: discord.MessageFlags.Ephemeral
                 });
                 return;
-            }
-
-            await interaction.deferUpdate();
-
-            const chatbotService = new ChatbotService((client as any).dataSource);
+            } const chatbotService = new ChatbotService((client as any).dataSource);
             const customIdParts = interaction.customId.split('_');
             const action = customIdParts[2]; // "yes" or "no"
             const confirmationId = customIdParts.slice(3).join('_');
-
             const confirmed = action === "yes";
+            const result = await chatbotService.handleTicketConfirmation(confirmationId, confirmed, interaction.user.id);
 
-            const result = await chatbotService.handleTicketConfirmation(confirmationId, confirmed);
+            if (!result.success && result.message === "You can only confirm your own ticket creation requests.") {
+                await interaction.reply({
+                    embeds: [new EmbedTemplate(client).error(result.message)],
+                    flags: discord.MessageFlags.Ephemeral
+                });
+                return;
+            }
 
-            if (confirmed) {
+            await interaction.deferUpdate(); if (confirmed) {
                 if (result.success) {
                     const successEmbed = new discord.EmbedBuilder()
                         .setTitle("✅ Ticket Created Successfully")
