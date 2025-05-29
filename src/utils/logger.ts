@@ -140,7 +140,7 @@ class Logger implements ILogger {
      */
     private logWithLevel(
         level: string,
-        color: chalk.ChalkFunction,
+        color: (text: string) => string,
         message: LogMessage,
         forceLog: boolean = true
     ): void {
