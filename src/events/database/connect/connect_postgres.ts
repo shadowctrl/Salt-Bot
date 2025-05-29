@@ -16,7 +16,7 @@ import { GuildConfig, SelectMenuConfig, TicketCategory, TicketButton, TicketMess
 
 const configManager = ConfigManager.getInstance();
 
-export const AppDataSource = new DataSource({
+const AppDataSource = new DataSource({
     type: "postgres",
     url: configManager.getPostgresUri(),
     synchronize: true, // Set to false in production
@@ -31,7 +31,10 @@ export const AppDataSource = new DataSource({
     migrations: [],
 });
 
-export const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
+(AppDataSource.driver as any).supportedDataTypes.push('vector');
+(AppDataSource.driver as any).withLengthColumnTypes.push('vector');
+
+const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
     try {
         const dataSource = await AppDataSource.initialize();
         await initializeVectorExtension(dataSource);
@@ -63,5 +66,7 @@ const event: BotEvent = {
         }
     }
 };
+
+export { AppDataSource, initializeDatabase };
 
 export default event;

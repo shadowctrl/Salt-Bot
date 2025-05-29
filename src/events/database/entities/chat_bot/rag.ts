@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, Index } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, Index, BeforeUpdate, BeforeInsert } from "typeorm";
 
 
 @Entity("rag_documents")
@@ -45,10 +45,19 @@ export class RagChunk {
     @Column({ type: "integer", nullable: false })
     chunkIndex!: number;
 
+    @Column({ type: 'vector' as any, nullable: true })
     embedding?: number[] | null;
 
     @ManyToOne(() => RagDocument, document => document.chunks, {
         onDelete: "CASCADE"
     })
     document!: RagDocument;
+
+    @BeforeUpdate()
+    @BeforeInsert()
+    stringifyVector() {
+        if (this.embedding && Array.isArray(this.embedding)) {
+            this.embedding = JSON.stringify(this.embedding) as any;
+        }
+    }
 }
