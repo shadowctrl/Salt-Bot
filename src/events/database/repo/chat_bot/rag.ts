@@ -4,7 +4,6 @@ import { Repository, DataSource, In } from "typeorm";
 import { IDocument } from "../../../../types";
 import { RagDocument, RagChunk } from "../../entities/chat_bot";
 
-
 export class RagRepository {
     private documentRepo: Repository<RagDocument>;
     private chunkRepo: Repository<RagChunk>;
@@ -32,19 +31,111 @@ export class RagRepository {
     };
 
     /**
+     * Ensure the embedding column has the correct vector type
+     */
+    private ensureVectorColumn = async (embeddingDimensions?: number): Promise<boolean> => {
+        try {
+            const hasVectorExtension = await this.checkVectorExtensionAvailable();
+            if (!hasVectorExtension) {
+                client.logger.warn('[RAG_REPO] Vector extension not available');
+                return false;
+            }
+
+            const dimensions = embeddingDimensions || 384;
+
+            const columnInfo = await this.dataSource.query(`
+                SELECT column_name, data_type, udt_name
+                FROM information_schema.columns 
+                WHERE table_name = 'rag_chunks' AND column_name = 'embedding'
+            `);
+
+            if (columnInfo.length === 0) {
+                await this.dataSource.query(`
+                    ALTER TABLE rag_chunks 
+                    ADD COLUMN embedding vector(${dimensions})
+                `);
+                client.logger.info(`[RAG_REPO] Created embedding column with vector(${dimensions}) type`);
+                return true;
+            }
+
+            const column = columnInfo[0];
+
+            if (column.udt_name === 'vector') {
+                client.logger.debug('[RAG_REPO] Embedding column already has vector type');
+                return true;
+            }
+
+            client.logger.info(`[RAG_REPO] Converting embedding column from ${column.udt_name} to vector(${dimensions})`);
+
+            let hasConvertibleData = false;
+            try {
+                const dataCheck = await this.dataSource.query(`
+                    SELECT COUNT(*) as count
+                    FROM rag_chunks 
+                    WHERE embedding IS NOT NULL 
+                    AND embedding != ''
+                    AND embedding ~ '^\\[.*\\]$'
+                `);
+                hasConvertibleData = dataCheck[0].count > 0;
+            } catch (checkError) {
+                client.logger.warn(`[RAG_REPO] Could not check for convertible data: ${checkError}`);
+            }
+
+            if (hasConvertibleData) {
+                try {
+                    await this.dataSource.query(`
+                        ALTER TABLE rag_chunks 
+                        ADD COLUMN embedding_temp vector(${dimensions})
+                    `);
+
+                    await this.dataSource.query(`
+                        UPDATE rag_chunks 
+                        SET embedding_temp = embedding::vector 
+                        WHERE embedding IS NOT NULL 
+                        AND embedding != ''
+                        AND embedding ~ '^\\[.*\\]$'
+                    `);
+
+                    await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN embedding`);
+                    await this.dataSource.query(`ALTER TABLE rag_chunks RENAME COLUMN embedding_temp TO embedding`);
+
+                    client.logger.info(`[RAG_REPO] Successfully converted embedding column to vector type with data preservation`);
+                    return true;
+
+                } catch (conversionError) {
+                    client.logger.error(`[RAG_REPO] Data conversion failed: ${conversionError}`);
+                    try {
+                        await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN IF EXISTS embedding_temp`);
+                    } catch (cleanupError) {
+                        client.logger.debug(`[RAG_REPO] Cleanup error: ${cleanupError}`);
+                    }
+                }
+            }
+
+            await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN embedding`);
+            await this.dataSource.query(`
+                ALTER TABLE rag_chunks 
+                ADD COLUMN embedding vector(${dimensions})
+            `);
+
+            client.logger.info(`[RAG_REPO] Recreated embedding column as vector(${dimensions})`);
+            return true;
+
+        } catch (error) {
+            client.logger.error(`[RAG_REPO] Error ensuring vector column: ${error}`);
+            return false;
+        }
+    };
+
+    /**
      * Initialize vector columns for existing RAG data
-     * This should be called during database startup to ensure vector columns are ready
      */
     initializeVectorColumns = async (): Promise<boolean> => {
         try {
-            // Check if there are any existing RAG documents
             const documentCount = await this.documentRepo.count();
 
             if (documentCount > 0) {
                 client.logger.info(`[RAG_REPO] Initializing vector columns for ${documentCount} existing RAG documents`);
-
-                // Initialize with default dimensions (384)
-                // This will preserve existing vector data if it exists
                 const result = await this.ensureVectorColumn(384);
 
                 if (result) {
@@ -60,142 +151,6 @@ export class RagRepository {
             }
         } catch (error) {
             client.logger.error(`[RAG_REPO] Error initializing vector columns: ${error}`);
-            return false;
-        }
-    };
-
-    /**
-     * Ensure the vector column exists and has the correct type
-     */
-    private ensureVectorColumn = async (embeddingDimensions?: number): Promise<boolean> => {
-        try {
-            const hasVectorExtension = await this.checkVectorExtensionAvailable();
-            if (!hasVectorExtension) {
-                client.logger.warn('[RAG_REPO] Vector extension not available');
-                return false;
-            }
-
-            const dimensions = embeddingDimensions || 384;
-
-            const columnInfo = await this.dataSource.query(`
-            SELECT column_name, data_type, udt_name
-            FROM information_schema.columns 
-            WHERE table_name = 'rag_chunks' AND column_name = 'embedding_vector'
-        `);
-
-            if (columnInfo.length === 0) {
-                await this.dataSource.query(`
-                ALTER TABLE rag_chunks 
-                ADD COLUMN embedding_vector vector(${dimensions})
-            `);
-                client.logger.info(`[RAG_REPO] Created embedding_vector column with ${dimensions} dimensions`);
-                return true;
-            }
-
-            const column = columnInfo[0];
-
-            if (column.udt_name === 'vector') {
-                const vectorDataCount = await this.dataSource.query(`
-                SELECT COUNT(*) as count
-                FROM rag_chunks 
-                WHERE embedding_vector IS NOT NULL
-            `);
-
-                const hasVectorData = vectorDataCount[0].count > 0;
-
-                if (hasVectorData) {
-                    client.logger.debug(`[RAG_REPO] Vector column exists with ${vectorDataCount[0].count} vectors, preserving data`);
-                    return true;
-                }
-
-                try {
-                    const dimensionQuery = await this.dataSource.query(`
-                    SELECT atttypmod 
-                    FROM pg_attribute 
-                    WHERE attrelid = 'rag_chunks'::regclass 
-                    AND attname = 'embedding_vector'
-                `);
-
-                    if (dimensionQuery[0] && dimensionQuery[0].atttypmod > 0) {
-                        const currentDimensions = dimensionQuery[0].atttypmod;
-                        if (currentDimensions !== dimensions) {
-                            client.logger.info(`[RAG_REPO] Updating vector dimensions from ${currentDimensions} to ${dimensions}`);
-
-                            await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN embedding_vector`);
-                            await this.dataSource.query(`
-                            ALTER TABLE rag_chunks 
-                            ADD COLUMN embedding_vector vector(${dimensions})
-                        `);
-                        }
-                    }
-                } catch (dimensionError) {
-                    client.logger.debug(`[RAG_REPO] Could not check vector dimensions: ${dimensionError}`);
-                }
-
-                return true;
-            }
-
-            client.logger.info(`[RAG_REPO] Found ${column.udt_name} column, converting to vector(${dimensions})`);
-
-            let hasConvertibleData = false;
-            try {
-                const dataCheck = await this.dataSource.query(`
-                SELECT COUNT(*) as count
-                FROM rag_chunks 
-                WHERE embedding_vector IS NOT NULL 
-                AND embedding_vector != ''
-                AND embedding_vector ~ '^\\[.*\\]
-            `);
-                hasConvertibleData = dataCheck[0].count > 0;
-            } catch (checkError) {
-                client.logger.warn(`[RAG_REPO] Could not check for convertible data: ${checkError}`);
-            }
-
-            if (hasConvertibleData) {
-                client.logger.info(`[RAG_REPO] Attempting to preserve vector data during conversion`);
-
-                try {
-                    await this.dataSource.query(`
-                    ALTER TABLE rag_chunks 
-                    ADD COLUMN embedding_vector_temp vector(${dimensions})
-                `);
-
-                    await this.dataSource.query(`
-                    UPDATE rag_chunks 
-                    SET embedding_vector_temp = embedding_vector::vector 
-                    WHERE embedding_vector IS NOT NULL 
-                    AND embedding_vector != ''
-                    AND embedding_vector ~ '^\\[.*\\]
-                `);
-
-                    await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN embedding_vector`);
-                    await this.dataSource.query(`ALTER TABLE rag_chunks RENAME COLUMN embedding_vector_temp TO embedding_vector`);
-
-                    client.logger.info(`[RAG_REPO] Successfully converted to vector type with data preservation`);
-                    return true;
-
-                } catch (conversionError) {
-                    client.logger.error(`[RAG_REPO] Data conversion failed: ${conversionError}`);
-
-                    try {
-                        await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN IF EXISTS embedding_vector_temp`);
-                    } catch (cleanupError) {
-                        client.logger.debug(`[RAG_REPO] Cleanup error: ${cleanupError}`);
-                    }
-                }
-            }
-
-            await this.dataSource.query(`ALTER TABLE rag_chunks DROP COLUMN embedding_vector`);
-            await this.dataSource.query(`
-            ALTER TABLE rag_chunks 
-            ADD COLUMN embedding_vector vector(${dimensions})
-        `);
-
-            client.logger.info(`[RAG_REPO] Recreated as vector(${dimensions}) column`);
-            return true;
-
-        } catch (error) {
-            client.logger.error(`[RAG_REPO] Error ensuring vector column: ${error}`);
             return false;
         }
     };
@@ -254,35 +209,29 @@ export class RagRepository {
                 chunk.chunkIndex = doc.metadata.chunkIndex;
                 chunk.document = savedDocument;
 
-                if (doc.embedding) {
-                    chunk.embedding = doc.embedding;
-                }
-
-                const savedChunk = await queryRunner.manager.save(chunk);
-
                 if (vectorColumnReady && doc.embedding) {
-                    try {
-                        const vectorString = `[${doc.embedding.join(',')}]`;
-                        await queryRunner.query(
-                            `UPDATE rag_chunks SET embedding_vector = $1::vector WHERE id = $2`,
-                            [vectorString, savedChunk.id]
-                        );
-
-                        client.logger.debug(`[RAG_REPO] Stored vector for chunk ${i + 1}/${processedDocuments.length}`);
-                    } catch (vectorError) {
-                        client.logger.warn(`[RAG_REPO] Failed to store vector for chunk ${savedChunk.id}: ${vectorError}`);
-                    }
+                    const vectorString = `[${doc.embedding.join(',')}]`;
+                    await queryRunner.query(
+                        `INSERT INTO rag_chunks (id, content, "chunkIndex", "documentId", embedding) 
+                         VALUES ($1, $2, $3, $4, $5::vector)`,
+                        [chunk.id || require('crypto').randomUUID(), chunk.content, chunk.chunkIndex, savedDocument.id, vectorString]
+                    );
+                } else {
+                    chunk.embedding = doc.embedding;
+                    await queryRunner.manager.save(chunk);
                 }
+
+                client.logger.debug(`[RAG_REPO] Stored chunk ${i + 1}/${processedDocuments.length}`);
             }
 
             await queryRunner.commitTransaction();
 
             const storedVectors = await this.dataSource.query(`
-            SELECT COUNT(*) as count
-            FROM rag_chunks c
-            INNER JOIN rag_documents d ON d.id = c."documentId"
-            WHERE d.id = $1 AND c.embedding_vector IS NOT NULL
-        `, [savedDocument.id]);
+                SELECT COUNT(*) as count
+                FROM rag_chunks c
+                INNER JOIN rag_documents d ON d.id = c."documentId"
+                WHERE d.id = $1 AND c.embedding IS NOT NULL
+            `, [savedDocument.id]);
 
             const vectorCount = storedVectors[0]?.count || 0;
 
@@ -302,7 +251,6 @@ export class RagRepository {
             await queryRunner.release();
         }
     };
-
 
     /**
      * Delete all RAG data for a guild
@@ -350,27 +298,27 @@ export class RagRepository {
             if (vectorColumnReady) {
                 try {
                     const vectorCount = await this.dataSource.query(`
-                    SELECT COUNT(*) as count
-                    FROM rag_chunks c
-                    INNER JOIN rag_documents d ON d.id = c."documentId"
-                    WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
-                `, [documentIds]);
+                        SELECT COUNT(*) as count
+                        FROM rag_chunks c
+                        INNER JOIN rag_documents d ON d.id = c."documentId"
+                        WHERE d.id = ANY($1) AND c.embedding IS NOT NULL
+                    `, [documentIds]);
 
                     client.logger.debug(`[RAG_REPO] Found ${vectorCount[0].count} chunks with vector data`);
 
                     if (vectorCount[0].count > 0) {
                         const vectorString = `[${queryEmbedding.join(',')}]`;
                         const results = await this.dataSource.query(`
-                        SELECT c.*, d.id as doc_id, d."guildId", d."fileName", d.description, 
-                               d."fileType", d."chunkCount", d."createdAt" as doc_created_at, 
-                               d."updatedAt" as doc_updated_at,
-                               (c.embedding_vector <-> $2::vector) as distance
-                        FROM rag_chunks c
-                        INNER JOIN rag_documents d ON d.id = c."documentId"
-                        WHERE d.id = ANY($1) AND c.embedding_vector IS NOT NULL
-                        ORDER BY c.embedding_vector <-> $2::vector
-                        LIMIT $3
-                    `, [documentIds, vectorString, limit]);
+                            SELECT c.*, d.id as doc_id, d."guildId", d."fileName", d.description, 
+                                   d."fileType", d."chunkCount", d."createdAt" as doc_created_at, 
+                                   d."updatedAt" as doc_updated_at,
+                                   (c.embedding <-> $2::vector) as distance
+                            FROM rag_chunks c
+                            INNER JOIN rag_documents d ON d.id = c."documentId"
+                            WHERE d.id = ANY($1) AND c.embedding IS NOT NULL
+                            ORDER BY c.embedding <-> $2::vector
+                            LIMIT $3
+                        `, [documentIds, vectorString, limit]);
 
                         if (results.length > 0) {
                             const chunks: RagChunk[] = [];
@@ -379,7 +327,7 @@ export class RagRepository {
                                 chunk.id = row.id;
                                 chunk.content = row.content;
                                 chunk.chunkIndex = row.chunkIndex;
-                                chunk.embedding = row.embedding ? JSON.parse(row.embedding) : null;
+                                chunk.embedding = row.embedding;
 
                                 const document = new RagDocument();
                                 document.id = row.doc_id;
@@ -395,39 +343,13 @@ export class RagRepository {
                                 chunks.push(chunk);
                             }
 
-                            client.logger.debug(`[RAG_REPO] Vector search returned ${chunks.length} results with distances`);
+                            client.logger.debug(`[RAG_REPO] Vector search returned ${chunks.length} results`);
                             return chunks;
-                        } else {
-                            client.logger.warn('[RAG_REPO] Vector search returned no results, checking data...');
-
-                            const debugResults = await this.dataSource.query(`
-                            SELECT c.id, c.content, c.embedding_vector IS NOT NULL as has_vector
-                            FROM rag_chunks c
-                            INNER JOIN rag_documents d ON d.id = c."documentId"
-                            WHERE d.id = ANY($1)
-                            LIMIT 5
-                        `, [documentIds]);
-
-                            client.logger.debug(`[RAG_REPO] Debug - Found ${debugResults.length} chunks, vector status: ${JSON.stringify(debugResults.map((r: { id: number, has_vector: boolean }) => ({ id: r.id, hasVector: r.has_vector })))}`);
                         }
-                    } else {
-                        client.logger.warn('[RAG_REPO] No vector data available, using fallback search');
-
-                        const debugChunks = await this.dataSource.query(`
-                        SELECT COUNT(*) as total_chunks,
-                               COUNT(c.embedding_vector) as chunks_with_vectors
-                        FROM rag_chunks c
-                        INNER JOIN rag_documents d ON d.id = c."documentId"
-                        WHERE d.id = ANY($1)
-                    `, [documentIds]);
-
-                        client.logger.debug(`[RAG_REPO] Debug info: Total chunks: ${debugChunks[0].total_chunks}, Chunks with vectors: ${debugChunks[0].chunks_with_vectors}`);
                     }
                 } catch (vectorError) {
                     client.logger.warn(`[RAG_REPO] Vector search failed, falling back to simple search: ${vectorError}`);
                 }
-            } else {
-                client.logger.info('[RAG_REPO] Vector column not ready, using fallback search');
             }
 
             client.logger.debug('[RAG_REPO] Using fallback text-based search method');
