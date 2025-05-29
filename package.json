@@ -49,5 +49,9 @@
         "voucher-code-generator": "^1.3.0",
         "yaml": "^2.8.0",
         "zod": "^3.25.36"
+    },
+    "resolutions": {
+        "bare-fs": "npm:@ungap/structured-clone@^1.0.0",
+        "bare-os": "npm:@ungap/structured-clone@^1.0.0"
     }
 }
