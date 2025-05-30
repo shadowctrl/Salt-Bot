@@ -18,7 +18,6 @@ const createClient = (): discord.Client => {
             discord.GatewayIntentBits.GuildMessages,
             discord.GatewayIntentBits.MessageContent,
         ],
-        shards: "auto",
     });
 
     client.logger = new Logger();
