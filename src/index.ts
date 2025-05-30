@@ -11,10 +11,18 @@ const configManager = ConfigManager.getInstance();
 const logger = new Logger();
 const manager = new discord.ShardingManager(botPath, {
     token: configManager.getToken(),
+    totalShards: 1, //temporary, change to auto later
 });
 
 manager.on("shardCreate", (shard) => {
     logger.info(`[INDEX] Launched shard ${shard.id}`);
+    shard.on('death', () => {
+        logger.error(`[INDEX] Shard ${shard.id} died`);
+    });
+
+    shard.on('error', (error) => {
+        logger.error(`[INDEX] Shard ${shard.id} error: ${error}`);
+    });
 });
 
 manager
