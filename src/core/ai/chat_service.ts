@@ -6,8 +6,9 @@ import { RagRepository } from "../../events/database/repo/chat_bot";
 import { ChatbotConfig } from "../../events/database/entities/chat_bot";
 
 import { RAG } from "./rag";
+import { LLM } from "./llm";
 import { Ticket } from "../ticket";
-import { LLM, Embedding } from "./llm";
+import { Embedding } from "./embedding";
 import ChatHistory from "./chat_history";
 import { createDynamicTicketTool } from "./tools";
 
@@ -50,7 +51,7 @@ export class ChatbotService {
     };
 
     /**
-     * Search for relevant context from RAG data
+     * Search for relevant context from RAG data with dynamic embedding dimensions
      * @param query - User's query
      * @param guildId - Discord guild ID
      * @returns Relevant context or null if no RAG data available
@@ -64,7 +65,12 @@ export class ChatbotService {
 
             const embedding = new Embedding();
             const rag = new RAG(embedding);
+
+            // Get query embedding (dimensions will be automatically detected)
             const queryEmbedding = await rag.getQueryEmbedding(query);
+
+            // Log the dimensions for debugging
+            client.logger.debug(`[CHATBOT_SERVICE] Query embedding has ${queryEmbedding.length} dimensions`);
 
             const similarChunks = await this.ragRepo.searchSimilarChunks(
                 guildId,
@@ -80,6 +86,7 @@ export class ChatbotService {
                 .map((chunk, index) => `[Context ${index + 1}]\n${chunk.content}`)
                 .join('\n\n');
 
+            client.logger.debug(`[CHATBOT_SERVICE] Found ${similarChunks.length} relevant chunks for query`);
             return context;
         } catch (error) {
             client.logger.error(`[CHATBOT_SERVICE] Error searching RAG context: ${error}`);

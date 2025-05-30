@@ -4,11 +4,11 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
 import { IProcessingOptions, IMetadata, IDocument } from '../../types';
 
-import { Embedding } from './llm';
+import { Embedding } from './embedding';
 
 /**
  * Retrieval-Augmented Generation document processor
- * Handles text file processing, chunking, and embedding generation
+ * Handles text file processing, chunking, and embedding generation with dynamic dimensions
  */
 export class RAG {
     private readonly embedding: Embedding;
@@ -129,6 +129,16 @@ export class RAG {
         const totalChunks = chunks.length;
         const seenHashes = new Set<string>();
 
+        let expectedDimensions: number | null = null;
+        if (!options.skipEmbedding) {
+            try {
+                expectedDimensions = await this.embedding.getExpectedDimensions();
+                console.log(`[RAG] Using embedding model with ${expectedDimensions} dimensions`);
+            } catch (error) {
+                console.warn(`[RAG] Could not detect embedding dimensions: ${error}`);
+            }
+        }
+
         for (let i = 0; i < chunks.length; i += batchSize) {
             const batch = chunks.slice(i, i + batchSize);
             const batchPromises = batch.map(async (chunk, batchIndex) => {
@@ -158,7 +168,16 @@ export class RAG {
                 if (!options.skipEmbedding) {
                     try {
                         const embeddingVector = await this.embedding.create(chunk);
+
+                        if (expectedDimensions && embeddingVector.length !== expectedDimensions) {
+                            console.warn(`[RAG] Embedding dimension mismatch for chunk ${chunkIndex}: expected ${expectedDimensions}, got ${embeddingVector.length}`);
+                        }
+
                         document.embedding = embeddingVector;
+
+                        if (chunkIndex === 0) {
+                            console.log(`[RAG] Generated embeddings with ${embeddingVector.length} dimensions`);
+                        }
                     } catch (error: Error | any) {
                         console.error(`Failed to create embedding for chunk ${chunkIndex}: ${error.message}`);
                     }
@@ -251,5 +270,19 @@ export class RAG {
         } catch (error: Error | any) {
             throw new Error(`Failed to create query embedding: ${error.message}`);
         }
+    };
+
+    /**
+     * Get the expected embedding dimensions for this RAG instance
+     */
+    public getEmbeddingDimensions = async (): Promise<number> => {
+        return await this.embedding.getExpectedDimensions();
+    };
+
+    /**
+     * Reset embedding dimensions cache (useful when switching models)
+     */
+    public resetEmbeddingCache = (): void => {
+        this.embedding.resetDimensionsCache();
     };
 }
