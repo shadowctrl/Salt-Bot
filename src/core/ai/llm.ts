@@ -1,5 +1,7 @@
 import { OpenAI } from "openai";
 
+import client from "../../salt";
+
 
 /**
  * LLM class for interacting with OpenAI's API.
@@ -52,7 +54,7 @@ export class LLM {
                 if (retries <= this.maxRetries &&
                     (error.status === 429 || error.status >= 500)) {
                     const delay = this.retryDelayMs * Math.pow(2, retries - 1);
-                    console.warn(`API request failed, retrying in ${delay}ms: ${error.message}`);
+                    client.logger.warn(`API request failed, retrying in ${delay}ms: ${error.message}`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 } else {
                     throw error;

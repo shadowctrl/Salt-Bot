@@ -15,6 +15,7 @@ const configManager = ConfigManager.getInstance();
  * @returns Array of loaded commands
  */
 const loadCommandsRecursive = async (
+    client: discord.Client,
     directory: string,
     fileFilter: (file: string) => boolean
 ): Promise<(Command | SlashCommand)[]> => {
@@ -25,7 +26,7 @@ const loadCommandsRecursive = async (
         const itemPath = path.join(directory, item.name);
 
         if (item.isDirectory()) {
-            const subCommands = await loadCommandsRecursive(itemPath, fileFilter);
+            const subCommands = await loadCommandsRecursive(client, itemPath, fileFilter);
             commands.push(...subCommands);
         } else if (fileFilter(item.name)) {
             try {
@@ -34,8 +35,8 @@ const loadCommandsRecursive = async (
                 if (command) {
                     commands.push(command);
                 }
-            } catch (error) {
-                console.error(`Failed to load command from ${itemPath}:`, error);
+            } catch (error: Error | any) {
+                client.logger.error(`Failed to load command from ${itemPath}: ${error}`);
             }
         }
     }
@@ -61,6 +62,7 @@ const event: BotEvent = {
         if (!client.config.bot.command.disable_message) {
             const messageCommandsDir = path.join(__dirname, "../commands/msg");
             const messageCommands = (await loadCommandsRecursive(
+                client,
                 messageCommandsDir,
                 (file) => file.endsWith(".js") || file.endsWith(".ts")
             )) as Command[];
@@ -72,6 +74,7 @@ const event: BotEvent = {
 
         const slashCommandsDir = path.join(__dirname, "../commands/slash");
         const loadedSlashCommands = (await loadCommandsRecursive(
+            client,
             slashCommandsDir,
             (file) => (file.endsWith(".js") || file.endsWith(".ts")) && !file.includes(".d.ts")
         )) as SlashCommand[];

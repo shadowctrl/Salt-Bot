@@ -44,7 +44,7 @@ export class Embedding {
             this.detectedDimensions = testEmbedding.length;
             return this.detectedDimensions;
         } catch (error) {
-            console.warn(`[EMBEDDING] Could not detect dimensions for model ${this.model}, defaulting to 384`);
+            client.logger.warn(`[EMBEDDING] Could not detect dimensions for model ${this.model}, defaulting to 384`);
             this.detectedDimensions = 384;
             return 384;
         }
@@ -89,7 +89,7 @@ export class Embedding {
 
                 if (this.detectedDimensions === null && !options?.skipDimensionCache) {
                     this.detectedDimensions = embeddingArray.length;
-                    console.log(`[EMBEDDING] Detected ${this.detectedDimensions} dimensions for model ${this.model}`);
+                    client.logger.log(`[EMBEDDING] Detected ${this.detectedDimensions} dimensions for model ${this.model}`);
                 }
 
                 return embeddingArray;
@@ -101,7 +101,7 @@ export class Embedding {
                 }
 
                 await new Promise(resolve => setTimeout(resolve, this.retryDelayMs));
-                console.log(`Retrying embedding generation, attempt ${retries + 1} of ${this.maxRetries}`);
+                client.logger.log(`Retrying embedding generation, attempt ${retries + 1} of ${this.maxRetries}`);
             }
         }
     };

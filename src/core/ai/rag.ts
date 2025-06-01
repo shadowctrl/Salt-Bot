@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 
+import client from '../../salt';
 import { IProcessingOptions, IMetadata, IDocument } from '../../types';
 
 import { Embedding } from './embedding';
@@ -133,9 +134,9 @@ export class RAG {
         if (!options.skipEmbedding) {
             try {
                 expectedDimensions = await this.embedding.getExpectedDimensions();
-                console.log(`[RAG] Using embedding model with ${expectedDimensions} dimensions`);
+                client.logger.log(`[RAG] Using embedding model with ${expectedDimensions} dimensions`);
             } catch (error) {
-                console.warn(`[RAG] Could not detect embedding dimensions: ${error}`);
+                client.logger.warn(`[RAG] Could not detect embedding dimensions: ${error}`);
             }
         }
 
@@ -170,16 +171,16 @@ export class RAG {
                         const embeddingVector = await this.embedding.create(chunk);
 
                         if (expectedDimensions && embeddingVector.length !== expectedDimensions) {
-                            console.warn(`[RAG] Embedding dimension mismatch for chunk ${chunkIndex}: expected ${expectedDimensions}, got ${embeddingVector.length}`);
+                            client.logger.warn(`[RAG] Embedding dimension mismatch for chunk ${chunkIndex}: expected ${expectedDimensions}, got ${embeddingVector.length}`);
                         }
 
                         document.embedding = embeddingVector;
 
                         if (chunkIndex === 0) {
-                            console.log(`[RAG] Generated embeddings with ${embeddingVector.length} dimensions`);
+                            client.logger.log(`[RAG] Generated embeddings with ${embeddingVector.length} dimensions`);
                         }
                     } catch (error: Error | any) {
-                        console.error(`Failed to create embedding for chunk ${chunkIndex}: ${error.message}`);
+                        client.logger.error(`Failed to create embedding for chunk ${chunkIndex}: ${error.message}`);
                     }
                 }
 
@@ -230,12 +231,12 @@ export class RAG {
                 allDocuments.push(...documents);
                 results.success++;
             } catch (error: Error | any) {
-                console.error(`Failed to process ${filePath}: ${error.message}`);
+                client.logger.error(`Failed to process ${filePath}: ${error.message}`);
                 results.failed++;
             }
         }
 
-        console.log(`Processing complete: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped.`);
+        client.logger.log(`Processing complete: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped.`);
         return allDocuments;
     };
 
