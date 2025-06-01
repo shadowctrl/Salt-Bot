@@ -1,5 +1,7 @@
 import { pipeline, FeatureExtractionPipeline } from '@xenova/transformers';
 
+import client from '../../salt';
+
 /**
  * Embedding class for generating embeddings using a transformer model.
  * This class uses the `@xenova/transformers` library to create embeddings for text.
@@ -11,7 +13,7 @@ export class Embedding {
     private pipeline: FeatureExtractionPipeline | null = null;
     private detectedDimensions: number | null = null;
 
-    constructor(model: string = "Xenova/all-MiniLM-L6-v2", maxRetries: number = 3, retryDelayMs: number = 1000) {
+    constructor(model: string = client.config.ai.chatbot.embedding.model, maxRetries: number = 3, retryDelayMs: number = 1000) { //Xenova/all-distilroberta-v1 and Xenova/all-MiniLM-L6-v2
         this.model = model;
         this.maxRetries = maxRetries;
         this.retryDelayMs = retryDelayMs;

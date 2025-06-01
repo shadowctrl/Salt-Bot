@@ -39,6 +39,11 @@ embed:
         success: Green
         warning: Yellow
 
+ai:
+    chatbot:
+        embedding:
+            model: Xenova/all-distilroberta-v1
+
 ticket:
     default:
         button:

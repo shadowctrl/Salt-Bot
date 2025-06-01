@@ -76,7 +76,7 @@ export interface IConfig {
         owners: Array<string>;
         support: {
             link: string;
-        }
+        };
         presence: {
             enabled: boolean;
             status: string;
@@ -96,15 +96,22 @@ export interface IConfig {
             command: string;
             server: string;
         };
-    }
+    };
     embed: {
         color: {
             default: discord.ColorResolvable | null;
             error: discord.ColorResolvable | null;
             success: discord.ColorResolvable | null;
             warning: discord.ColorResolvable | null;
-        }
-    }
+        };
+    };
+    ai: {
+        chatbot: {
+            embedding: {
+                model: string;
+            };
+        };
+    };
     ticket: {
         default: {
             button: {
@@ -128,9 +135,9 @@ export interface IConfig {
                 embed_title: string;
                 embed_description: string;
             };
-        }
-    }
-}
+        };
+    };
+};
 
 export interface BotEvent {
     name: string;
