@@ -1,7 +1,6 @@
 import discord from "discord.js";
 
-import { RAG } from "../../../core/ai";
-import { Embedding } from "../../../core/ai";
+import { RAG, Embedding } from "../../../core/ai";
 import { EmbedTemplate } from "../../../core/embed/template";
 import { RagRepository } from "../../../events/database/repo/chat_bot";
 
