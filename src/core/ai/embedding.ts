@@ -89,7 +89,6 @@ export class Embedding {
 
                 if (this.detectedDimensions === null && !options?.skipDimensionCache) {
                     this.detectedDimensions = embeddingArray.length;
-                    client.logger.log(`[EMBEDDING] Detected ${this.detectedDimensions} dimensions for model ${this.model}`);
                 }
 
                 return embeddingArray;
