@@ -26,12 +26,19 @@ const AppDataSource = new DataSource({
 const initializeDatabase = async (client: discord.Client): Promise<DataSource> => {
     try {
         const dataSource = await AppDataSource.initialize();
-        await initializeVectorExtension(dataSource);
+
+        try {
+            await initializeVectorExtension(dataSource);
+        } catch (initError) {
+            client.logger.error(`[DATABASE] Error initializing Vector Extension: ${initError}`);
+            throw initError;
+        }
+
         try {
             const ragRepo = new RagRepository(dataSource);
             await ragRepo.initializeVectorColumns();
         } catch (ragError) {
-            client.logger.warn(`[DATABASE] Could not initialize RAG vector columns: ${ragError}`);
+            client.logger.error(`[DATABASE] Could not initialize RAG vector columns: ${ragError}`);
         }
 
         return dataSource;
