@@ -25,10 +25,7 @@ jobs:
           echo "TOKEN=${{ secrets.TOKEN }}" >> .env
           echo "FEEDBACK_WEBHOOK=${{ secrets.FEEDBACK_WEBHOOK }}" >> .env
           echo "# Database configuration" >> .env
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-          echo "POSTGRES_URI=postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5434/${{ secrets.POSTGRES_DB }}" >> .env
+          echo "POSTGRES_URI=${{ secrets.POSTGRES_URI }}" >> .env
 
       # Copy config file if needed
       - name: Ensure config directory exists
@@ -56,10 +53,7 @@ jobs:
         run: |
           sed -i "s|TOKEN: .*|TOKEN: \"${{ secrets.TOKEN }}\"|g" k3s/secret.yaml
           sed -i "s|FEEDBACK_WEBHOOK: .*|FEEDBACK_WEBHOOK: \"${{ secrets.FEEDBACK_WEBHOOK }}\"|g" k3s/secret.yaml
-          sed -i "s|POSTGRES_USER: .*|POSTGRES_USER: \"${{ secrets.POSTGRES_USER }}\"|g" k3s/secret.yaml
-          sed -i "s|POSTGRES_PASSWORD: .*|POSTGRES_PASSWORD: \"${{ secrets.POSTGRES_PASSWORD }}\"|g" k3s/secret.yaml
-          sed -i "s|POSTGRES_DB: .*|POSTGRES_DB: \"${{ secrets.POSTGRES_DB }}\"|g" k3s/secret.yaml
-          sed -i "s|POSTGRES_URI: .*|POSTGRES_URI: \"postgres://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@postgres:5434/${{ secrets.POSTGRES_DB }}\"|g" k3s/secret.yaml
+          sed -i "s|POSTGRES_URI: .*|POSTGRES_URI: \"${{ secrets.POSTGRES_URI }}\"|g" k3s/secret.yaml
 
       # Update config.yml in ConfigMap if needed
       - name: Update config in ConfigMap
