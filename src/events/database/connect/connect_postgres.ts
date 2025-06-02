@@ -69,7 +69,6 @@ const event: BotEvent = {
     once: true,
     execute: async (client: discord.Client): Promise<void> => {
         try {
-            client.logger.info(`[DATABASE] Connecting to PostgreSQL database at ${configManager.getPostgresUri()}`); // Log the connection URI for debugging
             const dataSource = await initializeDatabase(client);
             (client as any).dataSource = dataSource;
             client.logger.success(`[DATABASE] Connected to PostgreSQL database.`);

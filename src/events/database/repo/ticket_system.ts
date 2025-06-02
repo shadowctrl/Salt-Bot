@@ -496,7 +496,7 @@ export class TicketRepository {
         try {
             return await this.ticketRepo.findOne({
                 where: { id: ticketId },
-                relations: ['category', 'category.ticketMessage']
+                relations: ['category', 'category.ticketMessage', 'category.guildConfig']
             });
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error getting ticket: ${error}`);
@@ -513,7 +513,7 @@ export class TicketRepository {
         try {
             return await this.ticketRepo.findOne({
                 where: { channelId },
-                relations: ['category', 'category.ticketMessage']
+                relations: ['category', 'category.ticketMessage', 'category.guildConfig']
             });
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error getting ticket by channel ID: ${error}`);
@@ -540,14 +540,14 @@ export class TicketRepository {
                     where: {
                         category: { id: categoryIds[0] }
                     },
-                    relations: ['category']
+                    relations: ['category', 'category.guildConfig']
                 });
             } else {
                 return await this.ticketRepo.find({
                     where: {
                         category: { id: In(categoryIds) }
                     },
-                    relations: ['category']
+                    relations: ['category', 'category.guildConfig']
                 });
             }
         } catch (error) {
@@ -565,7 +565,7 @@ export class TicketRepository {
         try {
             return await this.ticketRepo.find({
                 where: { category: { id: categoryId } },
-                relations: ['category']
+                relations: ['category', 'category.guildConfig']
             });
         } catch (error) {
             client.logger.error(`[TICKET_REPO] Error getting category tickets: ${error}`);

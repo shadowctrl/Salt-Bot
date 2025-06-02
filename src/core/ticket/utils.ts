@@ -459,15 +459,69 @@ export class TicketUtils {
     };
 
     /**
-     * Update channel permissions for ticket closure
+     * Update channel permissions for ticket closure - Hide from non-support users
      * @param channel - Discord text channel
+     * @param ticket - Ticket object for permission context
      */
-    public updateChannelPermissionsForClosure = async (channel: discord.TextChannel): Promise<void> => {
+    public updateChannelPermissionsForClosure = async (channel: discord.TextChannel, ticket: ITicket): Promise<void> => {
         try {
-            await channel.permissionOverwrites.create(
+            await channel.permissionOverwrites.edit(
                 channel.guild.roles.everyone,
-                { SendMessages: false }
+                {
+                    ViewChannel: false,
+                    SendMessages: false
+                }
             );
+
+            await channel.permissionOverwrites.edit(
+                ticket.creatorId,
+                {
+                    ViewChannel: false,
+                    SendMessages: false
+                }
+            );
+
+            await channel.permissionOverwrites.edit(
+                this.client.user!.id,
+                {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ManageChannels: true,
+                    ReadMessageHistory: true
+                }
+            );
+
+            if (ticket.category.supportRoleId) {
+                await channel.permissionOverwrites.edit(
+                    ticket.category.supportRoleId,
+                    {
+                        ViewChannel: true,
+                        SendMessages: true,
+                        ReadMessageHistory: true
+                    }
+                );
+            }
+
+            const guild = channel.guild;
+            const membersWithManageChannels = guild.members.cache.filter(member =>
+                member.permissions.has(discord.PermissionFlagsBits.ManageChannels)
+            );
+
+            for (const [, member] of membersWithManageChannels) {
+                try {
+                    await channel.permissionOverwrites.edit(
+                        member.id,
+                        {
+                            ViewChannel: true,
+                            SendMessages: true,
+                            ReadMessageHistory: true
+                        }
+                    );
+                } catch (error) {
+                    this.client.logger.debug(`[TICKET_UTILS] Could not set permissions for ${member.user.tag}: ${error}`);
+                }
+            }
+
         } catch (error) {
             this.client.logger.error(`[TICKET_UTILS] Error updating closure permissions: ${error}`);
         }
@@ -485,7 +539,10 @@ export class TicketUtils {
         try {
             await channel.permissionOverwrites.edit(
                 channel.guild.roles.everyone,
-                { SendMessages: null }
+                {
+                    ViewChannel: false,
+                    SendMessages: null
+                }
             );
 
             await channel.permissionOverwrites.edit(
@@ -493,6 +550,16 @@ export class TicketUtils {
                 {
                     ViewChannel: true,
                     SendMessages: true,
+                    ReadMessageHistory: true
+                }
+            );
+
+            await channel.permissionOverwrites.edit(
+                this.client.user!.id,
+                {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ManageChannels: true,
                     ReadMessageHistory: true
                 }
             );
@@ -509,6 +576,75 @@ export class TicketUtils {
             }
         } catch (error) {
             this.client.logger.error(`[TICKET_UTILS] Error updating reopen permissions: ${error}`);
+        }
+    };
+
+    /**
+     * Update channel permissions for ticket archive - Similar to closure but with different message access
+     * @param channel - Discord text channel
+     * @param ticket - Ticket object for permission context
+     */
+    public updateChannelPermissionsForArchive = async (channel: discord.TextChannel, ticket: ITicket): Promise<void> => {
+        try {
+            await channel.permissionOverwrites.edit(
+                channel.guild.roles.everyone,
+                {
+                    ViewChannel: false,
+                    SendMessages: false
+                }
+            );
+
+            await channel.permissionOverwrites.edit(
+                ticket.creatorId,
+                {
+                    ViewChannel: false,
+                    SendMessages: false
+                }
+            );
+
+            await channel.permissionOverwrites.edit(
+                this.client.user!.id,
+                {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ManageChannels: true,
+                    ReadMessageHistory: true
+                }
+            );
+
+            if (ticket.category.supportRoleId) {
+                await channel.permissionOverwrites.edit(
+                    ticket.category.supportRoleId,
+                    {
+                        ViewChannel: true,
+                        SendMessages: false,
+                        ReadMessageHistory: true
+                    }
+                );
+            }
+
+            const guild = channel.guild;
+            const membersWithManageChannels = guild.members.cache.filter(member =>
+                member.permissions.has(discord.PermissionFlagsBits.ManageChannels)
+            );
+
+            for (const [, member] of membersWithManageChannels) {
+                try {
+                    await channel.permissionOverwrites.edit(
+                        member.id,
+                        {
+                            ViewChannel: true,
+                            SendMessages: true,
+                            ReadMessageHistory: true
+                        }
+                    );
+                } catch (error) {
+                    this.client.logger.debug(`[TICKET_UTILS] Could not set permissions for ${member.user.tag}: ${error}`);
+                }
+            }
+
+        } catch (error) {
+            this.client.logger.error(`[TICKET_UTILS] Error updating archive permissions: ${error}`);
         }
     };
 

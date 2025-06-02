@@ -183,7 +183,7 @@ export class Ticket {
 
             return {
                 success: true,
-                message: `Ticket #${ticket.ticketNumber} created successfully! Please wait ${Formatter.msToTime(this.COOLDOWN_DURATIONS.CREATE)} before performing actions on this ticket.`,
+                message: `Ticket #${ticket.ticketNumber} created successfully!`,
                 ticket,
                 channel: channelResult.channel
             };
@@ -219,6 +219,23 @@ export class Ticket {
                 };
             }
 
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    options.userId,
+                    ticket,
+                    'close',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to close this ticket."
+                    };
+                }
+            }
+
             const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLOSE');
             if (cooldownCheck.onCooldown) {
                 return {
@@ -237,7 +254,7 @@ export class Ticket {
             const channel = this.client.channels.cache.get(options.channelId) as discord.TextChannel;
             if (channel) {
                 await this.utils.sendCloseMessage(channel, ticket, options.userId, options.reason);
-                await this.utils.updateChannelPermissionsForClosure(channel);
+                await this.utils.updateChannelPermissionsForClosure(channel, ticket);
 
                 if (options.generateTranscript !== false) {
                     try {
@@ -297,6 +314,23 @@ export class Ticket {
                 };
             }
 
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    userId,
+                    ticket,
+                    'close',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to reopen this ticket."
+                    };
+                }
+            }
+
             const cooldownCheck = this.checkTicketCooldown(ticket.id, 'REOPEN');
             if (cooldownCheck.onCooldown) {
                 return {
@@ -313,7 +347,7 @@ export class Ticket {
                 await this.utils.updateChannelPermissionsForReopen(channel, ticket);
             }
 
-            await channel.setName(`reopen-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+            await channel.setName(`ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
             this.setTicketCooldown(ticket.id, 'REOPEN');
 
             this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} reopened by ${userId}`);
@@ -347,6 +381,23 @@ export class Ticket {
                     success: false,
                     message: "This is not a valid ticket channel."
                 };
+            }
+
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    userId,
+                    ticket,
+                    'claim',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to claim tickets. Only support team members can claim tickets."
+                    };
+                }
             }
 
             const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLAIM');
@@ -432,6 +483,23 @@ export class Ticket {
                 };
             }
 
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    userId,
+                    ticket,
+                    'archive',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to archive tickets. Only support team members can archive tickets."
+                    };
+                }
+            }
+
             const cooldownCheck = this.checkTicketCooldown(ticket.id, 'ARCHIVE');
             if (cooldownCheck.onCooldown) {
                 return {
@@ -450,6 +518,7 @@ export class Ticket {
             const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
             if (channel) {
                 await this.utils.sendArchiveMessage(channel, ticket, userId);
+                await this.utils.updateChannelPermissionsForArchive(channel, ticket);
             }
 
             await channel.setName(`archived-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
@@ -488,6 +557,23 @@ export class Ticket {
                     success: false,
                     message: "This is not a valid ticket channel."
                 };
+            }
+
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    userId,
+                    ticket,
+                    'delete',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You need the 'Manage Channels' permission to delete tickets."
+                    };
+                }
             }
 
             const cooldownCheck = this.checkTicketCooldown(ticket.id, 'DELETE');
@@ -559,6 +645,23 @@ export class Ticket {
                     success: false,
                     message: "This is not a valid ticket channel."
                 };
+            }
+
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    requesterId,
+                    ticket,
+                    'add_user',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to manage users in this ticket."
+                    };
+                }
             }
 
             const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
@@ -641,6 +744,23 @@ export class Ticket {
                 };
             }
 
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    requesterId,
+                    ticket,
+                    'remove_user',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to manage users in this ticket."
+                    };
+                }
+            }
+
             const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
             if (!channel) {
                 return {
@@ -714,6 +834,23 @@ export class Ticket {
                     success: false,
                     message: "User is already the ticket owner."
                 };
+            }
+
+            const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
+            if (guild) {
+                const permissionCheck = await this.permissions.checkTicketPermission(
+                    requesterId,
+                    ticket,
+                    'transfer_ownership',
+                    guild.id
+                );
+
+                if (!permissionCheck.hasPermission) {
+                    return {
+                        success: false,
+                        message: permissionCheck.reason || "You don't have permission to transfer ticket ownership. You need to be an administrator, the ticket creator, or have the support role."
+                    };
+                }
             }
 
             const newOwner = await this.client.users.fetch(newOwnerId).catch(() => null);

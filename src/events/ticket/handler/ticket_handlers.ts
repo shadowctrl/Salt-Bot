@@ -392,13 +392,23 @@ const handleClaimButton = async (
                 flags: discord.MessageFlags.Ephemeral
             });
         } else {
+            const isPermissionError = result.message.includes("permission") ||
+                result.message.includes("support team") ||
+                result.message.includes("claim tickets");
+
+            const embedBuilder = new discord.EmbedBuilder()
+                .setTitle("❌ Error")
+                .setDescription(result.message)
+                .setColor("Red");
+
+            if (isPermissionError) {
+                embedBuilder.setFooter({
+                    text: "Only support team members and administrators can claim tickets"
+                });
+            }
+
             await interaction.reply({
-                embeds: [
-                    new discord.EmbedBuilder()
-                        .setTitle("❌ Error")
-                        .setDescription(result.message)
-                        .setColor("Red")
-                ],
+                embeds: [embedBuilder],
                 flags: discord.MessageFlags.Ephemeral
             });
         }
