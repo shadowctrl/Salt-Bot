@@ -63,7 +63,7 @@ export class ChatbotConfigRepository {
         apiKey: string,
         modelName: string,
         baseUrl: string = "https://api.openai.com/v1",
-        chatbotName: string = "AI Assistant",
+        chatbotName: string = "Salt",
         responseType: string = ""
     ): Promise<ChatbotConfig | null> => {
         try {
@@ -85,7 +85,12 @@ export class ChatbotConfigRepository {
 
             const savedConfig = await this.configRepo.save(config);
 
-            savedConfig.apiKey = apiKey;
+            try {
+                savedConfig.apiKey = EncryptionUtil.decrypt(savedConfig.apiKey);
+            } catch (decryptionError) {
+                client.logger.error(`[CHATBOT_CONFIG_REPO] Failed to decrypt API key after creation for guild ${guildId}: ${decryptionError}`);
+                throw new Error("Failed to decrypt API key after creation");
+            }
 
             client.logger.info(`[CHATBOT_CONFIG_REPO] Created encrypted chatbot config for guild ${guildId}`);
             return savedConfig;
