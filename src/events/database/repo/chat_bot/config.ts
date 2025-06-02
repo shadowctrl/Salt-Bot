@@ -230,7 +230,7 @@ export class ChatbotConfigRepository {
                 encryptionValid: keyValidation.isValid
             };
 
-            client.logger.info(`[CHATBOT_CONFIG_REPO] Encryption validation complete: ${JSON.stringify(result)}`);
+            client.logger.debug(`[CHATBOT_CONFIG_REPO] Encryption validation complete: ${JSON.stringify(result)}`);
             return result;
         } catch (error) {
             client.logger.error(`[CHATBOT_CONFIG_REPO] Error during encryption validation: ${error}`);

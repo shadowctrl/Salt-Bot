@@ -150,13 +150,17 @@ export class EncryptionUtil {
     };
 
     /**
-     * Securely clears a string from memory (best effort)
-     * @param sensitiveString - String to clear
+     * Attempts to clear sensitive data from memory (best effort)
+     * Note: JavaScript strings are immutable and cannot be securely cleared
+     * For Buffers, this method will effectively zero out the memory
+     * @param sensitiveData - String or Buffer to clear
      */
-    public static clearSensitiveData = (sensitiveString: string): void => {
-        if (typeof sensitiveString === "string") {
-            for (let i = 0; i < sensitiveString.length; i++) {
-                (sensitiveString as any)[i] = '\0';
+    public static clearSensitiveData = (sensitiveData: string | Buffer): void => {
+        if (Buffer.isBuffer(sensitiveData)) {
+            sensitiveData.fill(0);
+        } else if (typeof sensitiveData === "string") {
+            if (process.env.NODE_ENV === 'development') {
+                console.debug('[ENCRYPTION] String clearing requested but not effective due to immutability. Consider using Buffer for sensitive data.');
             }
         }
     };

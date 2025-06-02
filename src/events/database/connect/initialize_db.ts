@@ -139,8 +139,6 @@ export const initializeEncryption = async (client: discord.Client): Promise<void
                 process.exit(1);
             }
         } else {
-            client.logger.success('[ENCRYPTION_VALIDATION] Master encryption key validation passed');
-
             if (keyValidation.recommendations.length > 0) {
                 client.logger.warn('[ENCRYPTION_VALIDATION] Encryption key recommendations:');
                 keyValidation.recommendations.forEach(rec => {
@@ -182,7 +180,7 @@ export const initializeEncryption = async (client: discord.Client): Promise<void
             const decrypted = EncryptionUtil.decrypt(encrypted);
 
             if (decrypted === testData) {
-                client.logger.success('[ENCRYPTION_VALIDATION] Encryption/decryption test passed');
+                client.logger.debug('[ENCRYPTION_VALIDATION] Encryption/decryption test passed');
             } else {
                 throw new Error('Decrypted data does not match original');
             }

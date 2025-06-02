@@ -187,8 +187,6 @@ When using this context:
 
             const llm = new LLM(config.apiKey, config.baseUrl);
 
-            EncryptionUtil.clearSensitiveData(config.apiKey);
-
             return llm;
         } catch (error) {
             client.logger.error(`[CHATBOT_SERVICE] Error creating secure LLM instance: ${error}`);
