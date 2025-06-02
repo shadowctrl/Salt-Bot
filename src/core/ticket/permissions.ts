@@ -82,6 +82,11 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkClaimPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
+        if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
+            return { hasPermission: true };
+        }
+
         if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
             return { hasPermission: true };
         }
@@ -92,7 +97,7 @@ export class TicketPermissions {
 
         return {
             hasPermission: false,
-            reason: "You don't have permission to claim tickets. Only support team members can claim tickets."
+            reason: "You don't have permission to claim tickets. Only support team members and administrators can claim tickets."
         };
     };
 
@@ -103,7 +108,12 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkClosePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
         if (member.id === ticket.creatorId) {
+            return { hasPermission: true };
+        }
+
+        if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
             return { hasPermission: true };
         }
 
@@ -128,7 +138,12 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkUserManagementPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
         if (member.id === ticket.creatorId) {
+            return { hasPermission: true };
+        }
+
+        if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
             return { hasPermission: true };
         }
 
@@ -153,6 +168,7 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkTransferOwnershipPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
         if (member.id === ticket.creatorId) {
             return { hasPermission: true };
         }
@@ -178,6 +194,11 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkArchivePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
+        if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
+            return { hasPermission: true };
+        }
+
         if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
             return { hasPermission: true };
         }
@@ -188,7 +209,7 @@ export class TicketPermissions {
 
         return {
             hasPermission: false,
-            reason: "You don't have permission to archive tickets. Only support team members can archive tickets."
+            reason: "You don't have permission to archive tickets. Only support team members and administrators can archive tickets."
         };
     };
 
@@ -199,13 +220,18 @@ export class TicketPermissions {
      * @returns Permission check result
      */
     private checkDeletePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
+
+        if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
+            return { hasPermission: true };
+        }
+
         if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
             return { hasPermission: true };
         }
 
         return {
             hasPermission: false,
-            reason: "You need the 'Manage Channels' permission to delete tickets."
+            reason: "You need the 'Manage Channels' permission or Administrator permission to delete tickets."
         };
     };
 
@@ -261,6 +287,40 @@ export class TicketPermissions {
             return member.roles.cache.has(roleId);
         } catch (error) {
             client.logger.error(`[TICKET_PERMISSIONS] Error checking role: ${error}`);
+            return false;
+        }
+    };
+
+    /**
+     * Check if a user is a support member (has support role or admin permissions)
+     * @param userId - Discord user ID
+     * @param guildId - Discord guild ID
+     * @param supportRoleId - Support role ID (optional)
+     * @returns Promise resolving to whether user is support member
+     */
+    public isSupportMember = async (userId: string, guildId: string, supportRoleId?: string): Promise<boolean> => {
+        try {
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) return false;
+
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (!member) return false;
+
+            if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
+                return true;
+            }
+
+            if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
+                return true;
+            }
+
+            if (supportRoleId && member.roles.cache.has(supportRoleId)) {
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            client.logger.error(`[TICKET_PERMISSIONS] Error checking support member status: ${error}`);
             return false;
         }
     };
