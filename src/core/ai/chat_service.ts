@@ -2,8 +2,10 @@ import discord from "discord.js";
 import { DataSource } from "typeorm";
 
 import client from "../../salt";
+import { EncryptionUtil } from "../../utils/encryption";
 import { RagRepository } from "../../events/database/repo/chat_bot";
 import { ChatbotConfig } from "../../events/database/entities/chat_bot";
+import { ChatbotConfigRepository } from "../../events/database/repo/chat_bot";
 
 import { RAG } from "./rag";
 import { LLM } from "./llm";
@@ -20,6 +22,7 @@ import { createDynamicTicketTool } from "./tools";
 export class ChatbotService {
     private ragRepo: RagRepository;
     private dataSource: DataSource;
+    private chatbotRepo: ChatbotConfigRepository;
 
     private static pendingTicketCreations: Map<string, {
         categoryId: string;
@@ -33,17 +36,17 @@ export class ChatbotService {
     constructor(dataSource: DataSource) {
         this.dataSource = dataSource;
         this.ragRepo = new RagRepository(dataSource);
+        this.chatbotRepo = new ChatbotConfigRepository(dataSource);
     }
 
     /**
-     * Get chatbot configuration by channel ID
+     * Get chatbot configuration by channel ID with decrypted API key
      * @param channelId - Discord channel ID
-     * @returns Chatbot configuration or null if not found
+     * @returns Chatbot configuration with decrypted API key or null if not found
      */
     public getConfigByChannelId = async (channelId: string): Promise<ChatbotConfig | null> => {
         try {
-            const configs = await this.dataSource.getRepository(ChatbotConfig).find();
-            return configs.find(config => config.channelId === channelId) || null;
+            return await this.chatbotRepo.getConfigByChannelId(channelId);
         } catch (error) {
             client.logger.error(`[CHATBOT_SERVICE] Error finding config by channel ID: ${error}`);
             return null;
@@ -66,10 +69,7 @@ export class ChatbotService {
             const embedding = new Embedding();
             const rag = new RAG(embedding);
 
-            // Get query embedding (dimensions will be automatically detected)
             const queryEmbedding = await rag.getQueryEmbedding(query);
-
-            // Log the dimensions for debugging
             client.logger.debug(`[CHATBOT_SERVICE] Query embedding has ${queryEmbedding.length} dimensions`);
 
             const similarChunks = await this.ragRepo.searchSimilarChunks(
@@ -96,7 +96,7 @@ export class ChatbotService {
 
     /**
      * Build the system prompt with optional RAG context
-     * @param config - Chatbot configuration
+     * @param config - Chatbot configuration (with decrypted API key)
      * @param ragContext - RAG context if available
      * @param includeTools - Whether to include tool instructions
      * @returns System prompt string
@@ -175,10 +175,32 @@ When using this context:
     };
 
     /**
+     * Securely create LLM instance with decrypted API key
+     * @param config - Chatbot configuration (API key should already be decrypted)
+     * @returns LLM instance
+     */
+    private createSecureLLM = (config: ChatbotConfig): LLM => {
+        try {
+            if (EncryptionUtil.isEncrypted(config.apiKey)) {
+                throw new Error("API key appears to still be encrypted - this should not happen");
+            }
+
+            const llm = new LLM(config.apiKey, config.baseUrl);
+
+            EncryptionUtil.clearSensitiveData(config.apiKey);
+
+            return llm;
+        } catch (error) {
+            client.logger.error(`[CHATBOT_SERVICE] Error creating secure LLM instance: ${error}`);
+            throw error;
+        }
+    };
+
+    /**
      * Process a user message and generate a response with two-stage LLM invocation
      * @param userMessage - The user's message content
      * @param userId - Discord user ID
-     * @param config - Chatbot configuration
+     * @param config - Chatbot configuration (with decrypted API key)
      * @param channelId - Discord channel ID
      * @returns Generated response, confirmation button, or null if failed
      */
@@ -194,7 +216,7 @@ When using this context:
         confirmationButtons?: discord.ActionRowBuilder<discord.ButtonBuilder>;
     } | null> => {
         try {
-            const llm = new LLM(config.apiKey, config.baseUrl);
+            const llm = this.createSecureLLM(config);
 
             const chatHistory = new ChatHistory(
                 this.dataSource,
@@ -316,6 +338,11 @@ When using this context:
 
         } catch (error) {
             client.logger.error(`[CHATBOT_SERVICE] Error processing message: ${error}`);
+
+            if (error instanceof Error && error.message.includes('decrypt')) {
+                client.logger.error(`[CHATBOT_SERVICE] API key decryption error - encryption key may have changed`);
+            }
+
             return null;
         }
     };
@@ -334,12 +361,13 @@ When using this context:
     ): Promise<{ success: boolean; message: string; ticketChannel?: string }> => {
         try {
             client.logger.debug(`[CHATBOT_SERVICE] Looking for confirmation ID: ${confirmationId}`);
-            client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`); const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
+            client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`);
+
+            const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
             if (!pendingCreation) {
                 return { success: false, message: "Ticket creation request has expired or is invalid." };
             }
 
-            // Security check
             if (pendingCreation.userId !== clickingUserId) {
                 return { success: false, message: "You can only confirm your own ticket creation requests." };
             }

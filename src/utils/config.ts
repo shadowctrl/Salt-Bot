@@ -20,6 +20,7 @@ const EnvSchema = z.object({
         return val;
     }),
     FEEDBACK_WEBHOOK: z.string(),
+    MASTER_ENCRYPTION_KEY: z.string().min(32, "Master encryption key must be at least 32 characters long"),
 });
 
 /**
@@ -60,6 +61,7 @@ export class ConfigManager {
                 POSTGRES_URI: process.env.POSTGRES_URI,
                 DEBUG_MODE: process.env.DEBUG_MODE || false,
                 FEEDBACK_WEBHOOK: process.env.FEEDBACK_WEBHOOK,
+                MASTER_ENCRYPTION_KEY: process.env.MASTER_ENCRYPTION_KEY,
             });
         } catch (error) {
             if (error instanceof z.ZodError) {
@@ -67,7 +69,7 @@ export class ConfigManager {
                     issue.path.join(".")
                 );
                 throw new Error(
-                    `Missing required environment variables: ${missingVars.join(
+                    `Missing or invalid environment variables: ${missingVars.join(
                         ", "
                     )}`
                 );
@@ -106,8 +108,8 @@ export class ConfigManager {
     }
 
     /**
-     * Gets the MongoDB connection URI
-     * @returns {string} The MongoDB connection URI from environment variables
+     * Gets the PostgreSQL connection URI
+     * @returns {string} The PostgreSQL connection URI from environment variables
      */
     public getPostgresUri(): string {
         return this.config.POSTGRES_URI;
@@ -127,6 +129,14 @@ export class ConfigManager {
      */
     public getFeedbackWebhook(): string {
         return this.config.FEEDBACK_WEBHOOK;
+    }
+
+    /**
+     * Gets the master encryption key
+     * @returns {string} The master encryption key from environment variables
+     */
+    public getMasterEncryptionKey(): string {
+        return this.config.MASTER_ENCRYPTION_KEY;
     }
 }
 
