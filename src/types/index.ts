@@ -21,6 +21,7 @@ declare global {
             TOKEN: string;
             POSTGRES_URI: string;
             FEEDBACK_WEBHOOK: string;
+            MASTER_ENCRYPTION_KEY: string;
         }
     }
 }
