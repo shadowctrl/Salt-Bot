@@ -21,6 +21,9 @@ declare global {
 			POSTGRES_URI: string;
 			FEEDBACK_WEBHOOK: string;
 			MASTER_ENCRYPTION_KEY: string;
+			DEFAULT_CHATBOT_API_KEY: string;
+			DEFAULT_CHATBOT_MODEL: string;
+			DEFAULT_CHATBOT_BASE_URL: string;
 		}
 	}
 }
