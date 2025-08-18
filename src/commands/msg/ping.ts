@@ -28,21 +28,9 @@ const command: Command = {
 				.setTitle('🤖 Bot Status')
 				.setDescription('> System metrics and performance data')
 				.addFields(
-					{
-						name: '📊 Latency',
-						value: [`• **Roundtrip**: \`${roundTripLatency}ms\``, `• **API**: \`${client.ws.ping}ms\``, `• **Uptime**: \`${Formatter.formatUptime(uptime)}\``].join('\n'),
-						inline: true,
-					},
-					{
-						name: '💾 Memory',
-						value: [`• **Heap**: \`${heapUsed}MB\``, `• **Used**: \`${usedMem}MB\``, `• **Total**: \`${totalMem}MB\``].join('\n'),
-						inline: true,
-					},
-					{
-						name: '🔧 System',
-						value: [`• **Platform**: \`${process.platform}\``, `• **Node**: \`${process.version}\``, `• **CPU**: \`${os.cpus()[0].model}\``].join('\n'),
-						inline: true,
-					}
+					{ name: '📊 Latency', value: [`• **Roundtrip**: \`${roundTripLatency}ms\``, `• **API**: \`${client.ws.ping}ms\``, `• **Uptime**: \`${Formatter.formatUptime(uptime)}\``].join('\n'), inline: true },
+					{ name: '💾 Memory', value: [`• **Heap**: \`${heapUsed}MB\``, `• **Used**: \`${usedMem}MB\``, `• **Total**: \`${totalMem}MB\``].join('\n'), inline: true },
+					{ name: '🔧 System', value: [`• **Platform**: \`${process.platform}\``, `• **Node**: \`${process.version}\``, `• **CPU**: \`${os.cpus()[0].model}\``].join('\n'), inline: true }
 				)
 				.setColor('#2B2D31')
 				.setFooter({ text: `${client.user?.username} Status Monitor` })
@@ -53,9 +41,7 @@ const command: Command = {
 			});
 		} catch (error) {
 			client.logger.error(`[PING] Failed to fetch system status: ${error}`);
-			await message.reply({
-				embeds: [new EmbedTemplate(client).error('Failed to fetch system status.')],
-			});
+			await message.reply({ embeds: [new EmbedTemplate(client).error('Failed to fetch system status.')] });
 		}
 	},
 };

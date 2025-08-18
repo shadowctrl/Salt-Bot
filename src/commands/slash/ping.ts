@@ -26,33 +26,17 @@ const pingCommand: SlashCommand = {
 				.setTitle('🤖 Bot Status')
 				.setDescription('> System metrics and performance data')
 				.addFields(
-					{
-						name: '📊 Latency',
-						value: [`• **Roundtrip**: \`${roundTripLatency}ms\``, `• **API**: \`${client.ws.ping}ms\``, `• **Uptime**: \`${Formatter.formatUptime(uptime)}\``].join('\n'),
-						inline: true,
-					},
-					{
-						name: '💾 Memory',
-						value: [`• **Heap**: \`${heapUsed}MB\``, `• **Used**: \`${usedMem}MB\``, `• **Total**: \`${totalMem}MB\``].join('\n'),
-						inline: true,
-					},
-					{
-						name: '🔧 System',
-						value: [`• **Platform**: \`${process.platform}\``, `• **Node**: \`${process.version}\``, `• **CPU**: \`${os.cpus()[0].model}\``].join('\n'),
-						inline: true,
-					}
+					{ name: '📊 Latency', value: [`• **Roundtrip**: \`${roundTripLatency}ms\``, `• **API**: \`${client.ws.ping}ms\``, `• **Uptime**: \`${Formatter.formatUptime(uptime)}\``].join('\n'), inline: true },
+					{ name: '💾 Memory', value: [`• **Heap**: \`${heapUsed}MB\``, `• **Used**: \`${usedMem}MB\``, `• **Total**: \`${totalMem}MB\``].join('\n'), inline: true },
+					{ name: '🔧 System', value: [`• **Platform**: \`${process.platform}\``, `• **Node**: \`${process.version}\``, `• **CPU**: \`${os.cpus()[0].model}\``].join('\n'), inline: true }
 				)
 				.setColor('#2B2D31')
 				.setFooter({ text: `${client.user?.username} Status Monitor` })
 				.setTimestamp();
-
 			await interaction.editReply({ embeds: [embed] });
 		} catch (error) {
 			client.logger.error(`[PING] Failed to fetch system status: ${error}`);
-			await interaction.reply({
-				embeds: [new EmbedTemplate(client).error('Failed to fetch system status.')],
-				flags: discord.MessageFlags.Ephemeral,
-			});
+			await interaction.reply({ embeds: [new EmbedTemplate(client).error('Failed to fetch system status.')], flags: discord.MessageFlags.Ephemeral });
 		}
 	},
 };

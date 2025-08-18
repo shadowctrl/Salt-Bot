@@ -18,26 +18,18 @@ export class ChatbotConfigRepository {
 	 */
 	getConfig = async (guildId: string): Promise<ChatbotConfig | null> => {
 		try {
-			const config = await this.configRepo.findOne({
-				where: { guildId },
-			});
-
-			if (!config) {
-				return null;
-			}
-
+			const config = await this.configRepo.findOne({ where: { guildId } });
+			if (!config) return null;
 			try {
 				config.apiKey = EncryptionUtil.decrypt(config.apiKey);
 			} catch (decryptionError) {
 				client.logger.error(`[CHATBOT_CONFIG_REPO] Failed to decrypt API key for guild ${guildId}: ${decryptionError}`);
-
 				if (EncryptionUtil.isEncrypted(config.apiKey)) {
 					throw new Error('Failed to decrypt API key - encryption key may have changed');
 				} else {
 					client.logger.warn(`[CHATBOT_CONFIG_REPO] API key for guild ${guildId} appears to be in plaintext - will re-encrypt on next update`);
 				}
 			}
-
 			return config;
 		} catch (error) {
 			client.logger.error(`[CHATBOT_CONFIG_REPO] Error getting config: ${error}`);
@@ -58,9 +50,7 @@ export class ChatbotConfigRepository {
 	 */
 	createConfig = async (guildId: string, channelId: string, apiKey: string, modelName: string, baseUrl: string = 'https://api.openai.com/v1', chatbotName: string = 'Salt', responseType: string = ''): Promise<ChatbotConfig | null> => {
 		try {
-			if (!apiKey || apiKey.trim().length === 0) {
-				throw new Error('API key cannot be empty');
-			}
+			if (!apiKey || apiKey.trim().length === 0) throw new Error('API key cannot be empty');
 
 			const encryptedApiKey = EncryptionUtil.encrypt(apiKey.trim());
 			const config = new ChatbotConfig();
@@ -73,16 +63,13 @@ export class ChatbotConfigRepository {
 			config.responseType = responseType;
 			config.cooldown = 5;
 			config.enabled = true;
-
 			const savedConfig = await this.configRepo.save(config);
-
 			try {
 				savedConfig.apiKey = EncryptionUtil.decrypt(savedConfig.apiKey);
 			} catch (decryptionError) {
 				client.logger.error(`[CHATBOT_CONFIG_REPO] Failed to decrypt API key after creation for guild ${guildId}: ${decryptionError}`);
 				throw new Error('Failed to decrypt API key after creation');
 			}
-
 			client.logger.info(`[CHATBOT_CONFIG_REPO] Created encrypted chatbot config for guild ${guildId}`);
 			return savedConfig;
 		} catch (error) {
@@ -99,19 +86,10 @@ export class ChatbotConfigRepository {
 	 */
 	updateConfig = async (guildId: string, updates: Partial<ChatbotConfig>): Promise<ChatbotConfig | null> => {
 		try {
-			const config = await this.configRepo.findOne({
-				where: { guildId },
-			});
-
-			if (!config) {
-				return null;
-			}
-
+			const config = await this.configRepo.findOne({ where: { guildId } });
+			if (!config) return null;
 			if (updates.apiKey !== undefined) {
-				if (!updates.apiKey || updates.apiKey.trim().length === 0) {
-					throw new Error('API key cannot be empty');
-				}
-
+				if (!updates.apiKey || updates.apiKey.trim().length === 0) throw new Error('API key cannot be empty');
 				if (!EncryptionUtil.isEncrypted(updates.apiKey)) {
 					updates.apiKey = EncryptionUtil.encrypt(updates.apiKey.trim());
 					client.logger.debug(`[CHATBOT_CONFIG_REPO] Encrypted new API key for guild ${guildId}`);
@@ -122,16 +100,13 @@ export class ChatbotConfigRepository {
 			}
 
 			Object.assign(config, updates);
-
 			const savedConfig = await this.configRepo.save(config);
-
 			try {
 				savedConfig.apiKey = EncryptionUtil.decrypt(savedConfig.apiKey);
 			} catch (decryptionError) {
 				client.logger.error(`[CHATBOT_CONFIG_REPO] Failed to decrypt API key after update for guild ${guildId}: ${decryptionError}`);
 				throw new Error('Failed to decrypt API key after update');
 			}
-
 			return savedConfig;
 		} catch (error) {
 			client.logger.error(`[CHATBOT_CONFIG_REPO] Error updating config: ${error}`);
@@ -146,14 +121,8 @@ export class ChatbotConfigRepository {
 	 */
 	deleteConfig = async (guildId: string): Promise<boolean> => {
 		try {
-			const config = await this.configRepo.findOne({
-				where: { guildId },
-			});
-
-			if (!config) {
-				return false;
-			}
-
+			const config = await this.configRepo.findOne({ where: { guildId } });
+			if (!config) return false;
 			await this.configRepo.remove(config);
 			client.logger.info(`[CHATBOT_CONFIG_REPO] Deleted chatbot config for guild ${guildId}`);
 			return true;
@@ -168,24 +137,12 @@ export class ChatbotConfigRepository {
 	 * This method can be called during bot startup to ensure all API keys are encrypted
 	 * @returns Object with validation results
 	 */
-	validateAndMigrateEncryption = async (): Promise<{
-		totalConfigs: number;
-		encryptedConfigs: number;
-		plaintextConfigs: number;
-		migrationErrors: number;
-		encryptionValid: boolean;
-	}> => {
+	validateAndMigrateEncryption = async (): Promise<{ totalConfigs: number; encryptedConfigs: number; plaintextConfigs: number; migrationErrors: number; encryptionValid: boolean }> => {
 		try {
 			const keyValidation = EncryptionUtil.validateMasterKey();
 			if (!keyValidation.isValid) {
 				client.logger.error(`[CHATBOT_CONFIG_REPO] Encryption validation failed: ${keyValidation.message}`);
-				return {
-					totalConfigs: 0,
-					encryptedConfigs: 0,
-					plaintextConfigs: 0,
-					migrationErrors: 0,
-					encryptionValid: false,
-				};
+				return { totalConfigs: 0, encryptedConfigs: 0, plaintextConfigs: 0, migrationErrors: 0, encryptionValid: false };
 			}
 
 			const allConfigs = await this.configRepo.find();
@@ -198,15 +155,12 @@ export class ChatbotConfigRepository {
 					encryptedCount++;
 				} else {
 					plaintextCount++;
-
 					try {
 						const encryptedKey = EncryptionUtil.encrypt(config.apiKey);
 						config.apiKey = encryptedKey;
 						await this.configRepo.save(config);
-
 						encryptedCount++;
 						plaintextCount--;
-
 						client.logger.info(`[CHATBOT_CONFIG_REPO] Migrated plaintext API key to encrypted for guild ${config.guildId}`);
 					} catch (encryptionError) {
 						migrationErrors++;
@@ -215,25 +169,12 @@ export class ChatbotConfigRepository {
 				}
 			}
 
-			const result = {
-				totalConfigs: allConfigs.length,
-				encryptedConfigs: encryptedCount,
-				plaintextConfigs: plaintextCount,
-				migrationErrors: migrationErrors,
-				encryptionValid: keyValidation.isValid,
-			};
-
+			const result = { totalConfigs: allConfigs.length, encryptedConfigs: encryptedCount, plaintextConfigs: plaintextCount, migrationErrors: migrationErrors, encryptionValid: keyValidation.isValid };
 			client.logger.debug(`[CHATBOT_CONFIG_REPO] Encryption validation complete: ${JSON.stringify(result)}`);
 			return result;
 		} catch (error) {
 			client.logger.error(`[CHATBOT_CONFIG_REPO] Error during encryption validation: ${error}`);
-			return {
-				totalConfigs: 0,
-				encryptedConfigs: 0,
-				plaintextConfigs: 0,
-				migrationErrors: 1,
-				encryptionValid: false,
-			};
+			return { totalConfigs: 0, encryptedConfigs: 0, plaintextConfigs: 0, migrationErrors: 1, encryptionValid: false };
 		}
 	};
 
@@ -244,26 +185,18 @@ export class ChatbotConfigRepository {
 	 */
 	getConfigByChannelId = async (channelId: string): Promise<ChatbotConfig | null> => {
 		try {
-			const config = await this.configRepo.findOne({
-				where: { channelId },
-			});
-
-			if (!config) {
-				return null;
-			}
-
+			const config = await this.configRepo.findOne({ where: { channelId } });
+			if (!config) return null;
 			try {
 				config.apiKey = EncryptionUtil.decrypt(config.apiKey);
 			} catch (decryptionError) {
 				client.logger.error(`[CHATBOT_CONFIG_REPO] Failed to decrypt API key for channel ${channelId}: ${decryptionError}`);
-
 				if (EncryptionUtil.isEncrypted(config.apiKey)) {
 					throw new Error('Failed to decrypt API key - encryption key may have changed');
 				} else {
 					client.logger.warn(`[CHATBOT_CONFIG_REPO] API key for channel ${channelId} appears to be in plaintext`);
 				}
 			}
-
 			return config;
 		} catch (error) {
 			client.logger.error(`[CHATBOT_CONFIG_REPO] Error getting config by channel ID: ${error}`);

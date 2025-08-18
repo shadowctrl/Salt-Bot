@@ -18,7 +18,6 @@ const command: Command = {
 
 			if (args.length > 0) {
 				const durationArg = args[0].toLowerCase();
-
 				switch (durationArg) {
 					case '1d':
 					case 'day':
@@ -42,28 +41,19 @@ const command: Command = {
 						break;
 					default:
 						const parsedDuration = parseInt(durationArg);
-						if (!isNaN(parsedDuration) && parsedDuration > 0) {
-							duration = parsedDuration;
-						}
+						if (!isNaN(parsedDuration) && parsedDuration > 0) duration = parsedDuration;
 				}
 			}
 
 			if (args.length > 1) {
 				const parsedCount = parseInt(args[1]);
-				if (!isNaN(parsedCount) && parsedCount > 0 && parsedCount <= 10) {
-					count = parsedCount;
-				}
+				if (!isNaN(parsedCount) && parsedCount > 0 && parsedCount <= 10) count = parsedCount;
 			}
 
 			const coupons = await premiumHandler.generateCoupons(message.author.id, count, duration);
-
 			if (!coupons || coupons.length === 0) {
 				try {
-					if (message.channel?.isTextBased() && 'send' in message.channel) {
-						await message.channel.send({
-							embeds: [new EmbedTemplate(client).error('Failed to generate coupon codes.')],
-						});
-					}
+					if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).error('Failed to generate coupon codes.')] });
 				} catch (error) {
 					client.logger.error(`[GENERATE] Failed to send error message: ${error}`);
 				}
@@ -84,9 +74,7 @@ const command: Command = {
 
 			if (!message.guild) {
 				try {
-					if (message.channel?.isTextBased() && 'send' in message.channel) {
-						await message.channel.send({ embeds: [embed] });
-					}
+					if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [embed] });
 				} catch (error) {
 					client.logger.error(`[GENERATE] Failed to send DM: ${error}`);
 				}
@@ -94,11 +82,7 @@ const command: Command = {
 				try {
 					await message.author.send({ embeds: [embed] });
 					try {
-						if (message.channel?.isTextBased() && 'send' in message.channel) {
-							await message.channel.send({
-								embeds: [new EmbedTemplate(client).success('I have sent you a DM with your coupon codes.')],
-							});
-						}
+						if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).success('I have sent you a DM with your coupon codes.')] });
 					} catch (sendError) {
 						client.logger.error(`[GENERATE] Failed to send confirmation in channel: ${sendError}`);
 					}
@@ -106,9 +90,7 @@ const command: Command = {
 					client.logger.warn(`[GENERATE] Could not send DM to ${message.author.tag}: ${dmError}`);
 					try {
 						if (message.channel?.isTextBased() && 'send' in message.channel) {
-							await message.channel.send({
-								embeds: [new EmbedTemplate(client).warning("I couldn't send you a DM. Here are your coupon codes:")],
-							});
+							await message.channel.send({ embeds: [new EmbedTemplate(client).warning("I couldn't send you a DM. Here are your coupon codes:")] });
 							await message.channel.send({ embeds: [embed] });
 						}
 					} catch (sendError) {
@@ -121,11 +103,7 @@ const command: Command = {
 		} catch (error) {
 			client.logger.error(`[GENERATE] Error generating coupons: ${error}`);
 			try {
-				if (message.channel?.isTextBased() && 'send' in message.channel) {
-					await message.channel.send({
-						embeds: [new EmbedTemplate(client).error('An error occurred while generating coupon codes.')],
-					});
-				}
+				if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).error('An error occurred while generating coupon codes.')] });
 			} catch (sendError) {
 				client.logger.error(`[GENERATE] Failed to send error message: ${sendError}`);
 			}

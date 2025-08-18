@@ -11,10 +11,7 @@ export class LLM {
 	private readonly retryDelayMs: number;
 
 	constructor(apiKey: string, baseUrl: string, maxRetries: number = 3, retryDelayMs: number = 1000) {
-		this.openai_client = new OpenAI({
-			baseURL: baseUrl,
-			apiKey: apiKey,
-		});
+		this.openai_client = new OpenAI({ baseURL: baseUrl, apiKey: apiKey });
 		this.maxRetries = maxRetries;
 		this.retryDelayMs = retryDelayMs;
 	}
@@ -35,17 +32,17 @@ export class LLM {
 				const response = await this.openai_client.chat.completions.create({
 					model: model,
 					messages: messages,
+					max_completion_tokens: 2048,
+					reasoning_effort: 'low',
+					stream: false,
+					// "tool_choice": "required",
+					// "tools": [{"type": "browser_search"}],
 					...(options || {}),
 				});
-
-				if (!response) {
-					throw new Error('No response from LLM');
-				}
-
+				if (!response) throw new Error('No response from LLM');
 				return response;
 			} catch (error: any) {
 				retries++;
-
 				if (retries <= this.maxRetries && (error.status === 429 || error.status >= 500)) {
 					const delay = this.retryDelayMs * Math.pow(2, retries - 1);
 					client.logger.warn(`API request failed, retrying in ${delay}ms: ${error.message}`);

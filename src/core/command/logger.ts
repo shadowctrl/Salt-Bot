@@ -7,18 +7,6 @@ import { ICommandLogger } from '../../types';
 /**
  * Class responsible for logging Discord bot command executions.
  * Handles both file-based logging and Discord channel logging with embeds.
- *
- * @example
- * ```typescript
- * const commandLogger = new CommandLogger('../../logs');
- * commandLogger.log({
- *     client,
- *     commandName: '!help',
- *     guild,
- *     user,
- *     channel
- * });
- * ```
  */
 class CommandLogger {
 	private readonly logFilePath: string;
@@ -79,18 +67,11 @@ class CommandLogger {
 	 */
 	private async createLogEmbed(options: ICommandLogger): Promise<discord.EmbedBuilder> {
 		const { client, user, commandName, guild, channel } = options;
-
 		const embed = new discord.EmbedBuilder()
 			.setColor('Green')
 			.setAuthor({ name: 'Command Log' })
 			.setTimestamp()
-			.addFields(
-				{
-					name: 'User',
-					value: user ? `${user.tag} (<@${user.id}>)` : 'N/A',
-				},
-				{ name: 'Command', value: commandName || 'N/A' }
-			);
+			.addFields({ name: 'User', value: user ? `${user.tag} (<@${user.id}>)` : 'N/A' }, { name: 'Command', value: commandName || 'N/A' });
 
 		if (!guild) {
 			embed.addFields({ name: 'Guild', value: 'DM' });
@@ -100,28 +81,14 @@ class CommandLogger {
 				?.members.fetch(client.user!.id)
 				.then((member) => member.displayName)
 				.catch(() => 'N/A');
-
-			embed.addFields(
-				{
-					name: 'Guild',
-					value: `${guild.name} (${guild.id})`,
-				},
-				{
-					name: 'Bot Nickname',
-					value: `${botGuildNickname}`,
-				}
-			);
+			embed.addFields({ name: 'Guild', value: `${guild.name} (${guild.id})` }, { name: 'Bot Nickname', value: `${botGuildNickname}` });
 		}
 
 		if (!channel) {
 			embed.addFields({ name: 'Channel', value: 'DM' });
 		} else {
-			embed.addFields({
-				name: 'Channel',
-				value: `${channel.name} (<#${channel.id}>)`,
-			});
+			embed.addFields({ name: 'Channel', value: `${channel.name} (<#${channel.id}>)` });
 		}
-
 		return embed;
 	}
 
@@ -142,39 +109,18 @@ class CommandLogger {
 	 *
 	 * @param options - The command logging options
 	 * @throws {Error} If unable to write to log file
-	 * @example
-	 * ```typescript
-	 * commandLogger.log({
-	 *     client,
-	 *     commandName: '!ping',
-	 *     guild: message.guild,
-	 *     user: message.author,
-	 *     channel: message.channel
-	 * });
-	 * ```
 	 */
 	public async log(options: ICommandLogger): Promise<void> {
 		const { client, user, commandName } = options;
 
-		if (!client?.config?.bot?.log?.command) {
-			client.logger.error('[COMMAND_LOG] Missing log channel configuration');
-			return;
-		}
-
-		if (!user) {
-			client.logger.error(`[COMMAND_LOG] User is undefined! ${commandName}`);
-		}
+		if (!client?.config?.bot?.log?.command) return client.logger.error('[COMMAND_LOG] Missing log channel configuration');
+		if (!user) client.logger.error(`[COMMAND_LOG] User is undefined! ${commandName}`);
 
 		const logChannel = client.channels.cache.get(client.config.bot.log.command.toString()) as discord.TextChannel | undefined;
-
-		if (!logChannel || !(logChannel instanceof discord.TextChannel)) {
-			client.logger.error(`[COMMAND_LOG] Invalid log channel: ${client.config.bot.log.command}`);
-			return;
-		}
+		if (!logChannel || !(logChannel instanceof discord.TextChannel)) return client.logger.error(`[COMMAND_LOG] Invalid log channel: ${client.config.bot.log.command}`);
 
 		const logMessage = this.createLogMessage(options);
 		this.writeToLogFile(logMessage);
-
 		const embed = await this.createLogEmbed(options);
 		logChannel.send({ embeds: [embed] }).catch((error) => client.logger.error(`[COMMAND_LOG] Send error: ${error}`));
 	}

@@ -41,43 +41,28 @@ class PremiumHandler {
 		try {
 			let codes = this.generateCouponCodes(count);
 			const existingCodes = new Set<string>();
-
 			for (const code of codes) {
 				const exists = await this.couponRepo.codeExists(code);
-				if (exists) {
-					existingCodes.add(code);
-				}
+				if (exists) existingCodes.add(code);
 			}
 
 			codes = codes.filter((code) => !existingCodes.has(code));
-
 			if (codes.length < count) {
 				const additionalCodes = this.generateCouponCodes(count * 2);
-
 				for (const code of additionalCodes) {
 					if (codes.length >= count) break;
-
 					const exists = await this.couponRepo.codeExists(code);
-					if (!exists && !existingCodes.has(code)) {
-						codes.push(code);
-					}
+					if (!exists && !existingCodes.has(code)) codes.push(code);
 				}
 			}
 
-			const couponData = codes.map((code) => ({
-				code,
-				userId,
-			}));
-
+			const couponData = codes.map((code) => ({ code, userId }));
 			const createdCoupons = await this.couponRepo.createCouponBatch(couponData);
-			if (createdCoupons.length === 0) {
-				return null;
-			}
+			if (createdCoupons.length === 0) return null;
 
 			setSafeTimeout(async () => {
 				await this.couponRepo.deleteExpiredCoupons(codes);
 			}, expiryDays * 24 * 60 * 60 * 1000);
-
 			return codes;
 		} catch (error) {
 			client.logger.error(`[PREMIUM_HANDLER] Error generating coupons: ${error}`);
@@ -96,17 +81,9 @@ class PremiumHandler {
 	public redeemCoupon = async (code: string, userId: string, premiumDurationDays: number = 30): Promise<boolean> => {
 		try {
 			const coupon = await this.couponRepo.findByCode(code);
-
-			if (!coupon || !coupon.status) {
-				return false;
-			}
-
+			if (!coupon || !coupon.status) return false;
 			const marked = await this.couponRepo.markCouponAsUsed(code);
-
-			if (!marked) {
-				return false;
-			}
-
+			if (!marked) return false;
 			const result = await this.userRepo.extendPremium(userId, premiumDurationDays);
 			return !!result;
 		} catch (error) {
@@ -183,11 +160,7 @@ class PremiumHandler {
 	 * @returns Array of generated codes
 	 */
 	private generateCouponCodes = (count: number): string[] => {
-		return voucher_codes.generate({
-			prefix: this.prefix,
-			pattern: this.pattern,
-			count,
-		});
+		return voucher_codes.generate({ prefix: this.prefix, pattern: this.pattern, count });
 	};
 }
 

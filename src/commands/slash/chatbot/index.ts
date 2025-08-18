@@ -25,28 +25,23 @@ const chatbotCommand: SlashCommand = {
 			subcommand
 				.setName('help')
 				.setDescription('Get comprehensive help and setup instructions for the chatbot')
-				.addStringOption((option) => option.setName('section').setDescription('Specific help section to view').setRequired(false).addChoices({ name: 'Overview', value: 'overview' }, { name: 'Setup Guide', value: 'setup' }, { name: 'AI Providers', value: 'providers' }, { name: 'Parameters', value: 'parameters' }, { name: 'Knowledge System (RAG)', value: 'rag' }, { name: 'Examples', value: 'examples' }, { name: 'Troubleshooting', value: 'troubleshooting' }))
+				.addStringOption((option) => option.setName('section').setDescription('Specific help section to view').setRequired(false).addChoices({ name: 'Overview', value: 'overview' }, { name: 'Setup Guide', value: 'setup' }, { name: 'Customization', value: 'customization' }, { name: 'Knowledge System (RAG)', value: 'rag' }, { name: 'Examples', value: 'examples' }, { name: 'Troubleshooting', value: 'troubleshooting' }))
 		)
 		.addSubcommand((subcommand) =>
 			subcommand
 				.setName('setup')
-				.setDescription('Set up a chatbot in a channel')
-				.addStringOption((option) => option.setName('api_key').setDescription('The API key for the chatbot service (OpenAI, Groq, etc.)').setRequired(true))
-				.addStringOption((option) => option.setName('model_name').setDescription('The model name for the chatbot (e.g., gpt-4o-mini, compound-beta, claude-3.5-sonnet)').setRequired(true))
+				.setDescription('Set up a chatbot in a channel with your preferred customizations')
 				.addChannelOption((option) => option.setName('channel').setDescription('The channel to use for the chatbot').addChannelTypes(discord.ChannelType.GuildText).setRequired(false))
-				.addStringOption((option) => option.setName('base_url').setDescription('The base URL for the chatbot API (default: OpenAI)').setRequired(false))
-				.addStringOption((option) => option.setName('name').setDescription('The name for the chatbot').setRequired(false))
-				.addStringOption((option) => option.setName('response_type').setDescription('How the chatbot should respond (instruction prompt)').setRequired(false))
+				.addStringOption((option) => option.setName('name').setDescription('The name for the chatbot (default: AI Assistant)').setRequired(false))
+				.addStringOption((option) => option.setName('response_type').setDescription('How the chatbot should respond and behave (personality/instructions)').setRequired(false))
 		)
 		.addSubcommand((subcommand) =>
 			subcommand
 				.setName('settings')
-				.setDescription('Update chatbot settings')
-				.addStringOption((option) => option.setName('api_key').setDescription('The API key for the chatbot service').setRequired(false))
-				.addStringOption((option) => option.setName('model_name').setDescription('The model name for the chatbot').setRequired(false))
-				.addStringOption((option) => option.setName('base_url').setDescription('The base URL for the chatbot API').setRequired(false))
-				.addStringOption((option) => option.setName('name').setDescription('The name for the chatbot').setRequired(false))
-				.addStringOption((option) => option.setName('response_type').setDescription('How the chatbot should respond (instruction prompt)').setRequired(false))
+				.setDescription('Update chatbot customizations')
+				.addStringOption((option) => option.setName('name').setDescription('Update the chatbot name').setRequired(false))
+				.addStringOption((option) => option.setName('response_type').setDescription('Update how the chatbot should respond and behave').setRequired(false))
+				.addBooleanOption((option) => option.setName('enabled').setDescription('Enable or disable the chatbot').setRequired(false))
 		)
 		.addSubcommand((subcommand) => subcommand.setName('delete').setDescription('Delete the chatbot configuration for this server'))
 		.addSubcommand((subcommand) => subcommand.setName('info').setDescription('Get information about the chatbot configuration'))
@@ -64,18 +59,14 @@ const chatbotCommand: SlashCommand = {
 		await interaction.deferReply({ flags: discord.MessageFlags.Ephemeral });
 
 		try {
-			if (!(client as any).dataSource) {
-				return interaction.editReply({
-					embeds: [new EmbedTemplate(client).error('Database connection is not available.')],
-				});
-			}
+			if (!(client as any).dataSource) return interaction.editReply({ embeds: [new EmbedTemplate(client).error('Database connection is not available.')] });
 
 			const chatbotRepo = new ChatbotConfigRepository((client as any).dataSource);
+			const ragRepo = new RagRepository((client as any).dataSource);
 			const subcommand = interaction.options.getSubcommand();
-
 			switch (subcommand) {
 				case 'help':
-					await handleHelp(interaction, client, chatbotRepo);
+					await handleHelp(interaction, client);
 					break;
 				case 'setup':
 					await handleSetup(interaction, client, chatbotRepo);
@@ -90,26 +81,20 @@ const chatbotCommand: SlashCommand = {
 					await handleInfo(interaction, client, chatbotRepo);
 					break;
 				case 'upload_rag':
-					const ragRepo = new RagRepository((client as any).dataSource);
 					await handleUploadRag(interaction, client, ragRepo);
 					break;
 				case 'delete_rag':
-					const deleteRagRepo = new RagRepository((client as any).dataSource);
-					await handleDeleteRag(interaction, client, deleteRagRepo);
+					await handleDeleteRag(interaction, client, ragRepo);
 					break;
 				case 'clear_history':
 					await handleClearHistory(interaction, client);
 					break;
 				default:
-					await interaction.editReply({
-						embeds: [new EmbedTemplate(client).error('Unknown subcommand.')],
-					});
+					await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Unknown subcommand.')] });
 			}
 		} catch (error) {
-			client.logger.error(`[CHATBOT_CMD] Error in chatbot command: ${error}`);
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('An error occurred while processing your request.')],
-			});
+			client.logger.error(`[CHATBOT_COMMAND] Error executing chatbot command: ${error}`);
+			await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while executing the chatbot command.')] });
 		}
 	},
 };

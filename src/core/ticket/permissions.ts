@@ -19,20 +19,9 @@ export class TicketPermissions {
 	public checkTicketPermission = async (userId: string, ticket: ITicket, action: TicketAction, guildId: string): Promise<PermissionCheckResult> => {
 		try {
 			const guild = client.guilds.cache.get(guildId);
-			if (!guild) {
-				return {
-					hasPermission: false,
-					reason: 'Guild not found.',
-				};
-			}
-
+			if (!guild) return { hasPermission: false, reason: 'Guild not found.' };
 			const member = await guild.members.fetch(userId).catch(() => null);
-			if (!member) {
-				return {
-					hasPermission: false,
-					reason: 'Member not found in guild.',
-				};
-			}
+			if (!member) return { hasPermission: false, reason: 'Member not found in guild.' };
 
 			switch (action) {
 				case 'claim':
@@ -55,17 +44,11 @@ export class TicketPermissions {
 					return this.checkDeletePermission(member, ticket);
 
 				default:
-					return {
-						hasPermission: false,
-						reason: 'Unknown action.',
-					};
+					return { hasPermission: false, reason: 'Unknown action.' };
 			}
 		} catch (error) {
 			client.logger.error(`[TICKET_PERMISSIONS] Error checking permission: ${error}`);
-			return {
-				hasPermission: false,
-				reason: 'An error occurred while checking permissions.',
-			};
+			return { hasPermission: false, reason: 'An error occurred while checking permissions.' };
 		}
 	};
 
@@ -76,22 +59,10 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkClaimPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-			return { hasPermission: true };
-		}
-
-		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You don't have permission to claim tickets. Only support team members and administrators can claim tickets.",
-		};
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return { hasPermission: true };
+		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You don't have permission to claim tickets. Only support team members and administrators can claim tickets." };
 	};
 
 	/**
@@ -101,26 +72,11 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkClosePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.id === ticket.creatorId) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-			return { hasPermission: true };
-		}
-
-		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You don't have permission to close this ticket.",
-		};
+		if (member.id === ticket.creatorId) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return { hasPermission: true };
+		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You don't have permission to close this ticket." };
 	};
 
 	/**
@@ -130,26 +86,11 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkUserManagementPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.id === ticket.creatorId) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-			return { hasPermission: true };
-		}
-
-		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You don't have permission to manage users in this ticket.",
-		};
+		if (member.id === ticket.creatorId) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return { hasPermission: true };
+		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You don't have permission to manage users in this ticket." };
 	};
 
 	/**
@@ -159,22 +100,10 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkTransferOwnershipPermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.id === ticket.creatorId) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You don't have permission to transfer ticket ownership. You need to be an administrator, the ticket creator, or have the support role.",
-		};
+		if (member.id === ticket.creatorId) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You don't have permission to transfer ticket ownership. You need to be an administrator, the ticket creator, or have the support role." };
 	};
 
 	/**
@@ -184,22 +113,10 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkArchivePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-			return { hasPermission: true };
-		}
-
-		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You don't have permission to archive tickets. Only support team members and administrators can archive tickets.",
-		};
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return { hasPermission: true };
+		if (ticket.category.supportRoleId && member.roles.cache.has(ticket.category.supportRoleId)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You don't have permission to archive tickets. Only support team members and administrators can archive tickets." };
 	};
 
 	/**
@@ -209,18 +126,9 @@ export class TicketPermissions {
 	 * @returns Permission check result
 	 */
 	private checkDeletePermission = (member: discord.GuildMember, ticket: ITicket): PermissionCheckResult => {
-		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-			return { hasPermission: true };
-		}
-
-		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-			return { hasPermission: true };
-		}
-
-		return {
-			hasPermission: false,
-			reason: "You need the 'Manage Channels' permission or Administrator permission to delete tickets.",
-		};
+		if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return { hasPermission: true };
+		if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return { hasPermission: true };
+		return { hasPermission: false, reason: "You need the 'Manage Channels' permission or Administrator permission to delete tickets." };
 	};
 
 	/**
@@ -246,10 +154,8 @@ export class TicketPermissions {
 		try {
 			const guild = client.guilds.cache.get(guildId);
 			if (!guild) return false;
-
 			const member = await guild.members.fetch(userId).catch(() => null);
 			if (!member) return false;
-
 			return member.permissions.has(discord.PermissionFlagsBits.Administrator);
 		} catch (error) {
 			client.logger.error(`[TICKET_PERMISSIONS] Error checking admin permissions: ${error}`);
@@ -268,10 +174,8 @@ export class TicketPermissions {
 		try {
 			const guild = client.guilds.cache.get(guildId);
 			if (!guild) return false;
-
 			const member = await guild.members.fetch(userId).catch(() => null);
 			if (!member) return false;
-
 			return member.roles.cache.has(roleId);
 		} catch (error) {
 			client.logger.error(`[TICKET_PERMISSIONS] Error checking role: ${error}`);
@@ -290,22 +194,11 @@ export class TicketPermissions {
 		try {
 			const guild = client.guilds.cache.get(guildId);
 			if (!guild) return false;
-
 			const member = await guild.members.fetch(userId).catch(() => null);
 			if (!member) return false;
-
-			if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) {
-				return true;
-			}
-
-			if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) {
-				return true;
-			}
-
-			if (supportRoleId && member.roles.cache.has(supportRoleId)) {
-				return true;
-			}
-
+			if (member.permissions.has(discord.PermissionFlagsBits.Administrator)) return true;
+			if (member.permissions.has(discord.PermissionFlagsBits.ManageChannels)) return true;
+			if (supportRoleId && member.roles.cache.has(supportRoleId)) return true;
 			return false;
 		} catch (error) {
 			client.logger.error(`[TICKET_PERMISSIONS] Error checking support member status: ${error}`);

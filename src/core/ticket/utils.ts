@@ -48,31 +48,15 @@ export class TicketUtils {
 				type: discord.ChannelType.GuildText,
 				parent: category.categoryId,
 				permissionOverwrites: [
-					{
-						id: guild.roles.everyone,
-						deny: [discord.PermissionFlagsBits.ViewChannel],
-					},
-					{
-						id: this.client.user!.id,
-						allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels, discord.PermissionFlagsBits.ReadMessageHistory],
-					},
-					{
-						id: userId,
-						allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ReadMessageHistory],
-					},
+					{ id: guild.roles.everyone, deny: [discord.PermissionFlagsBits.ViewChannel] },
+					{ id: this.client.user!.id, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels, discord.PermissionFlagsBits.ReadMessageHistory] },
+					{ id: userId, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ReadMessageHistory] },
 				],
 			});
-
-			return {
-				success: true,
-				channel: ticketChannel,
-			};
+			return { success: true, channel: ticketChannel };
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error creating ticket channel: ${error}`);
-			return {
-				success: false,
-				message: 'Failed to create ticket channel.',
-			};
+			return { success: false, message: 'Failed to create ticket channel.' };
 		}
 	};
 
@@ -84,13 +68,7 @@ export class TicketUtils {
 	 */
 	public setupChannelPermissions = async (channel: discord.TextChannel, category: ITicketCategory, userId: string): Promise<void> => {
 		try {
-			if (category.supportRoleId) {
-				await channel.permissionOverwrites.create(category.supportRoleId, {
-					ViewChannel: true,
-					SendMessages: true,
-					ReadMessageHistory: true,
-				});
-			}
+			if (category.supportRoleId) await channel.permissionOverwrites.create(category.supportRoleId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 		} catch (error) {
 			this.client.logger.warn(`[TICKET_UTILS] Could not set permissions for support role: ${error}`);
 		}
@@ -107,9 +85,7 @@ export class TicketUtils {
 		try {
 			const ticketMessage = category.ticketMessage;
 			const welcomeMessage = ticketMessage?.welcomeMessage || `Welcome to your ticket in the **${category.name}** category!\n\nPlease describe your issue and wait for a staff member to assist you.`;
-
 			const creationTimestamp = Math.floor(Date.now() / 1000);
-
 			const welcomeEmbed = new discord.EmbedBuilder()
 				.setTitle(`Ticket #${ticket.ticketNumber}`)
 				.setDescription(welcomeMessage)
@@ -119,12 +95,7 @@ export class TicketUtils {
 				.setTimestamp();
 
 			const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new discord.ButtonBuilder().setCustomId('ticket_claim').setLabel('Claim Ticket').setStyle(discord.ButtonStyle.Primary).setEmoji('👋'), new discord.ButtonBuilder().setCustomId('ticket_close').setLabel('Close Ticket').setStyle(discord.ButtonStyle.Danger).setEmoji('🔒'));
-
-			await channel.send({
-				content: ticketMessage?.includeSupportTeam && category.supportRoleId ? `<@${userId}> | <@&${category.supportRoleId}>` : `<@${userId}>`,
-				embeds: [welcomeEmbed],
-				components: [actionRow],
-			});
+			await channel.send({ content: ticketMessage?.includeSupportTeam && category.supportRoleId ? `<@${userId}> | <@&${category.supportRoleId}>` : `<@${userId}>`, embeds: [welcomeEmbed], components: [actionRow] });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error sending welcome message: ${error}`);
 		}
@@ -141,7 +112,6 @@ export class TicketUtils {
 		try {
 			const ticketMessage = await this.ticketRepo.getTicketMessage(ticket.category.id);
 			const category = ticket.category;
-
 			const closeEmbed = new discord.EmbedBuilder()
 				.setTitle(`Ticket #${ticket.ticketNumber} Closed`)
 				.setDescription(ticketMessage?.closeMessage || 'This ticket has been closed.')
@@ -149,9 +119,7 @@ export class TicketUtils {
 				.setColor('Red')
 				.setFooter({ text: `Use /ticket reopen to reopen this ticket | ID: ${ticket.id}` })
 				.setTimestamp();
-
 			const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new discord.ButtonBuilder().setCustomId('ticket_reopen').setLabel('Reopen').setStyle(discord.ButtonStyle.Success), new discord.ButtonBuilder().setCustomId('ticket_archive').setLabel('Archive').setStyle(discord.ButtonStyle.Secondary), new discord.ButtonBuilder().setCustomId('ticket_delete').setLabel('Delete').setStyle(discord.ButtonStyle.Danger));
-
 			await channel.send({ embeds: [closeEmbed], components: [actionRow] });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error sending close message: ${error}`);
@@ -175,7 +143,6 @@ export class TicketUtils {
 				.setTimestamp();
 
 			const actionRow = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new discord.ButtonBuilder().setCustomId('ticket_claim').setLabel('Claim Ticket').setStyle(discord.ButtonStyle.Primary).setEmoji('👋'), new discord.ButtonBuilder().setCustomId('ticket_close').setLabel('Close Ticket').setStyle(discord.ButtonStyle.Danger).setEmoji('🔒'));
-
 			await channel.send({ embeds: [reopenEmbed], components: [actionRow] });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error sending reopen message: ${error}`);
@@ -257,7 +224,6 @@ export class TicketUtils {
 	public sendUserAddedMessage = async (channel: discord.TextChannel, ticket: ITicket, targetUser: discord.User, requesterId: string): Promise<void> => {
 		try {
 			const addedEmbed = new discord.EmbedBuilder().setTitle('User Added').setDescription(`${targetUser} has been added to this ticket by <@${requesterId}>.`).setColor('Green').setTimestamp();
-
 			await channel.send({ embeds: [addedEmbed] });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error sending user added message: ${error}`);
@@ -274,7 +240,6 @@ export class TicketUtils {
 	public sendUserRemovedMessage = async (channel: discord.TextChannel, ticket: ITicket, targetUser: discord.User, requesterId: string): Promise<void> => {
 		try {
 			const removedEmbed = new discord.EmbedBuilder().setTitle('User Removed').setDescription(`${targetUser} has been removed from this ticket by <@${requesterId}>.`).setColor('Red').setTimestamp();
-
 			await channel.send({ embeds: [removedEmbed] });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error sending user removed message: ${error}`);
@@ -311,7 +276,6 @@ export class TicketUtils {
 	public sendDeletionNotification = async (creator: discord.User, ticket: ITicket): Promise<void> => {
 		try {
 			const deleteEmbed = new discord.EmbedBuilder().setTitle('Ticket Deleted').setDescription(`Ticket #${ticket.ticketNumber} has been deleted.`).setColor('Red').setTimestamp();
-
 			await creator.send({ embeds: [deleteEmbed] });
 		} catch (error) {
 			this.client.logger.warn(`[TICKET_UTILS] Could not send DM to ticket creator: ${error}`);
@@ -325,41 +289,17 @@ export class TicketUtils {
 	 */
 	public updateChannelPermissionsForClosure = async (channel: discord.TextChannel, ticket: ITicket): Promise<void> => {
 		try {
-			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
-				ViewChannel: false,
-				SendMessages: false,
-			});
-
-			await channel.permissionOverwrites.edit(ticket.creatorId, {
-				ViewChannel: false,
-				SendMessages: false,
-			});
-
-			await channel.permissionOverwrites.edit(this.client.user!.id, {
-				ViewChannel: true,
-				SendMessages: true,
-				ManageChannels: true,
-				ReadMessageHistory: true,
-			});
-
-			if (ticket.category.supportRoleId) {
-				await channel.permissionOverwrites.edit(ticket.category.supportRoleId, {
-					ViewChannel: true,
-					SendMessages: true,
-					ReadMessageHistory: true,
-				});
-			}
+			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { ViewChannel: false, SendMessages: false });
+			await channel.permissionOverwrites.edit(ticket.creatorId, { ViewChannel: false, SendMessages: false });
+			await channel.permissionOverwrites.edit(this.client.user!.id, { ViewChannel: true, SendMessages: true, ManageChannels: true, ReadMessageHistory: true });
+			if (ticket.category.supportRoleId) await channel.permissionOverwrites.edit(ticket.category.supportRoleId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 
 			const guild = channel.guild;
 			const membersWithManageChannels = guild.members.cache.filter((member) => member.permissions.has(discord.PermissionFlagsBits.ManageChannels));
 
 			for (const [, member] of membersWithManageChannels) {
 				try {
-					await channel.permissionOverwrites.edit(member.id, {
-						ViewChannel: true,
-						SendMessages: true,
-						ReadMessageHistory: true,
-					});
+					await channel.permissionOverwrites.edit(member.id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 				} catch (error) {
 					this.client.logger.debug(`[TICKET_UTILS] Could not set permissions for ${member.user.tag}: ${error}`);
 				}
@@ -376,31 +316,10 @@ export class TicketUtils {
 	 */
 	public updateChannelPermissionsForReopen = async (channel: discord.TextChannel, ticket: ITicket): Promise<void> => {
 		try {
-			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
-				ViewChannel: false,
-				SendMessages: null,
-			});
-
-			await channel.permissionOverwrites.edit(ticket.creatorId, {
-				ViewChannel: true,
-				SendMessages: true,
-				ReadMessageHistory: true,
-			});
-
-			await channel.permissionOverwrites.edit(this.client.user!.id, {
-				ViewChannel: true,
-				SendMessages: true,
-				ManageChannels: true,
-				ReadMessageHistory: true,
-			});
-
-			if (ticket.category.supportRoleId) {
-				await channel.permissionOverwrites.edit(ticket.category.supportRoleId, {
-					ViewChannel: true,
-					SendMessages: true,
-					ReadMessageHistory: true,
-				});
-			}
+			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { ViewChannel: false, SendMessages: null });
+			await channel.permissionOverwrites.edit(ticket.creatorId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
+			await channel.permissionOverwrites.edit(this.client.user!.id, { ViewChannel: true, SendMessages: true, ManageChannels: true, ReadMessageHistory: true });
+			if (ticket.category.supportRoleId) await channel.permissionOverwrites.edit(ticket.category.supportRoleId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error updating reopen permissions: ${error}`);
 		}
@@ -413,41 +332,17 @@ export class TicketUtils {
 	 */
 	public updateChannelPermissionsForArchive = async (channel: discord.TextChannel, ticket: ITicket): Promise<void> => {
 		try {
-			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
-				ViewChannel: false,
-				SendMessages: false,
-			});
-
-			await channel.permissionOverwrites.edit(ticket.creatorId, {
-				ViewChannel: false,
-				SendMessages: false,
-			});
-
-			await channel.permissionOverwrites.edit(this.client.user!.id, {
-				ViewChannel: true,
-				SendMessages: true,
-				ManageChannels: true,
-				ReadMessageHistory: true,
-			});
-
-			if (ticket.category.supportRoleId) {
-				await channel.permissionOverwrites.edit(ticket.category.supportRoleId, {
-					ViewChannel: true,
-					SendMessages: false,
-					ReadMessageHistory: true,
-				});
-			}
+			await channel.permissionOverwrites.edit(channel.guild.roles.everyone, { ViewChannel: false, SendMessages: false });
+			await channel.permissionOverwrites.edit(ticket.creatorId, { ViewChannel: false, SendMessages: false });
+			await channel.permissionOverwrites.edit(this.client.user!.id, { ViewChannel: true, SendMessages: true, ManageChannels: true, ReadMessageHistory: true });
+			if (ticket.category.supportRoleId) await channel.permissionOverwrites.edit(ticket.category.supportRoleId, { ViewChannel: true, SendMessages: false, ReadMessageHistory: true });
 
 			const guild = channel.guild;
 			const membersWithManageChannels = guild.members.cache.filter((member) => member.permissions.has(discord.PermissionFlagsBits.ManageChannels));
 
 			for (const [, member] of membersWithManageChannels) {
 				try {
-					await channel.permissionOverwrites.edit(member.id, {
-						ViewChannel: true,
-						SendMessages: true,
-						ReadMessageHistory: true,
-					});
+					await channel.permissionOverwrites.edit(member.id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 				} catch (error) {
 					this.client.logger.debug(`[TICKET_UTILS] Could not set permissions for ${member.user.tag}: ${error}`);
 				}
@@ -464,11 +359,7 @@ export class TicketUtils {
 	 */
 	public setupOwnerPermissions = async (channel: discord.TextChannel, newOwnerId: string): Promise<void> => {
 		try {
-			await channel.permissionOverwrites.create(newOwnerId, {
-				ViewChannel: true,
-				SendMessages: true,
-				ReadMessageHistory: true,
-			});
+			await channel.permissionOverwrites.create(newOwnerId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 		} catch (error) {
 			this.client.logger.error(`[TICKET_UTILS] Error setting up owner permissions: ${error}`);
 		}
@@ -484,7 +375,6 @@ export class TicketUtils {
 		try {
 			const currentName = channel.name;
 			const ticketNumberStr = ticketNumber.toString().padStart(4, '0');
-
 			if (currentName.includes(ticketNumberStr)) {
 				const newOwnerName = newOwnerUsername
 					.toLowerCase()

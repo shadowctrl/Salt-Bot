@@ -22,9 +22,7 @@ export class UserDataRepository {
 	 */
 	async findByUserId(userId: string): Promise<UserData | null> {
 		try {
-			return await this.userDataRepo.findOne({
-				where: { userId },
-			});
+			return await this.userDataRepo.findOne({ where: { userId } });
 		} catch (error) {
 			client.logger.error(`[USER_DATA_REPO] Error finding user data by ID: ${error}`);
 			return null;
@@ -40,15 +38,12 @@ export class UserDataRepository {
 	async setUserPremium(userId: string, expiryDate: Date): Promise<UserData | null> {
 		try {
 			let userData = await this.findByUserId(userId);
-
 			if (!userData) {
 				userData = new UserData();
 				userData.userId = userId;
 			}
-
 			userData.premiumStatus = true;
 			userData.premiumExpiresAt = expiryDate;
-
 			return await this.userDataRepo.save(userData);
 		} catch (error) {
 			client.logger.error(`[USER_DATA_REPO] Error setting user premium status: ${error}`);
@@ -64,13 +59,11 @@ export class UserDataRepository {
 	async extendPremium(userId: string, additionalDays: number): Promise<UserData | null> {
 		try {
 			const userData = await this.findByUserId(userId);
-
 			if (!userData) {
 				const expiryDate = new Date();
 				expiryDate.setDate(expiryDate.getDate() + additionalDays);
 				return this.setUserPremium(userId, expiryDate);
 			}
-
 			if (!userData.premiumStatus || !userData.premiumExpiresAt) {
 				const expiryDate = new Date();
 				expiryDate.setDate(expiryDate.getDate() + additionalDays);
@@ -79,7 +72,6 @@ export class UserDataRepository {
 			} else {
 				const currentExpiry = new Date(userData.premiumExpiresAt);
 				const now = new Date();
-
 				if (currentExpiry < now) {
 					const expiryDate = new Date();
 					expiryDate.setDate(expiryDate.getDate() + additionalDays);
@@ -89,7 +81,6 @@ export class UserDataRepository {
 					userData.premiumExpiresAt = currentExpiry;
 				}
 			}
-
 			return await this.userDataRepo.save(userData);
 		} catch (error) {
 			client.logger.error(`[USER_DATA_REPO] Error extending premium period: ${error}`);
@@ -105,14 +96,9 @@ export class UserDataRepository {
 	async revokePremium(userId: string): Promise<boolean> {
 		try {
 			const userData = await this.findByUserId(userId);
-
-			if (!userData) {
-				return false;
-			}
-
+			if (!userData) return false;
 			userData.premiumStatus = false;
 			userData.premiumExpiresAt = null;
-
 			await this.userDataRepo.save(userData);
 			return true;
 		} catch (error) {
@@ -131,19 +117,13 @@ export class UserDataRepository {
 	async checkPremiumStatus(userId: string): Promise<[boolean, Date | null]> {
 		try {
 			const userData = await this.findByUserId(userId);
-
-			if (!userData) {
-				return [false, null];
-			}
-
+			if (!userData) return [false, null];
 			if (userData.premiumStatus && userData.premiumExpiresAt && new Date(userData.premiumExpiresAt) < new Date()) {
 				userData.premiumStatus = false;
 				userData.premiumExpiresAt = null;
 				await this.userDataRepo.save(userData);
-
 				return [false, null];
 			}
-
 			return [userData.premiumStatus, userData.premiumExpiresAt];
 		} catch (error) {
 			client.logger.error(`[USER_DATA_REPO] Error checking premium status: ${error}`);

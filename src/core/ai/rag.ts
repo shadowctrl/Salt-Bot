@@ -33,10 +33,7 @@ export class RAG {
 	private validateFile = (filePath: string): void => {
 		const validExtensions = ['.txt', '.md'];
 		const ext = path.extname(filePath).toLowerCase();
-
-		if (!validExtensions.includes(ext)) {
-			throw new Error(`Invalid file extension. Supported extensions are: ${validExtensions.join(', ')}`);
-		}
+		if (!validExtensions.includes(ext)) throw new Error(`Invalid file extension. Supported extensions are: ${validExtensions.join(', ')}`);
 	};
 
 	/**
@@ -47,9 +44,7 @@ export class RAG {
 			await fs.access(filePath);
 			return await fs.readFile(filePath, 'utf-8');
 		} catch (error: Error | any) {
-			if (error.code === 'ENOENT') {
-				throw new Error(`File not found: ${filePath}`);
-			}
+			if (error.code === 'ENOENT') throw new Error(`File not found: ${filePath}`);
 			throw new Error(`Failed to read file: ${error.message}`);
 		}
 	};
@@ -58,12 +53,7 @@ export class RAG {
 	 * Creates chunks from text using semantic chunking
 	 */
 	private semanticChunking = async (content: string, options: Required<IProcessingOptions> & { customSeparators: string[] }): Promise<string[]> => {
-		const splitter = new RecursiveCharacterTextSplitter({
-			chunkSize: options.chunkSize,
-			chunkOverlap: options.chunkOverlap,
-			separators: options.customSeparators || this.defaultOptions.customSeparators,
-		});
-
+		const splitter = new RecursiveCharacterTextSplitter({ chunkSize: options.chunkSize, chunkOverlap: options.chunkOverlap, separators: options.customSeparators || this.defaultOptions.customSeparators });
 		return await splitter.splitText(content);
 	};
 
@@ -100,10 +90,7 @@ export class RAG {
 			charCount: content.length,
 		};
 
-		if (generateHash) {
-			metadata.hash = this.generateContentHash(content);
-		}
-
+		if (generateHash) metadata.hash = this.generateContentHash(content);
 		return metadata;
 	};
 
@@ -115,7 +102,6 @@ export class RAG {
 		const batchSize = options.maxConcurrentEmbeddings;
 		const totalChunks = chunks.length;
 		const seenHashes = new Set<string>();
-
 		let expectedDimensions: number | null = null;
 		if (!options.skipEmbedding) {
 			try {
@@ -131,45 +117,24 @@ export class RAG {
 			const batchPromises = batch.map(async (chunk, batchIndex) => {
 				const chunkIndex = i + batchIndex;
 				const metadata = this.createMetadata(filePath, chunk, chunkIndex, totalChunks, options.tags, options.deduplicate);
-
-				if (options.deduplicate && metadata.hash && seenHashes.has(metadata.hash)) {
-					return null;
-				}
-
-				if (metadata.hash) {
-					seenHashes.add(metadata.hash);
-				}
-
-				const document: IDocument = {
-					content: chunk,
-					metadata,
-				};
-
+				if (options.deduplicate && metadata.hash && seenHashes.has(metadata.hash)) return null;
+				if (metadata.hash) seenHashes.add(metadata.hash);
+				const document: IDocument = { content: chunk, metadata };
 				if (!options.skipEmbedding) {
 					try {
 						const embeddingVector = await this.embedding.create(chunk);
-
-						if (expectedDimensions && embeddingVector.length !== expectedDimensions) {
-							client.logger.warn(`[RAG] Embedding dimension mismatch for chunk ${chunkIndex}: expected ${expectedDimensions}, got ${embeddingVector.length}`);
-						}
-
+						if (expectedDimensions && embeddingVector.length !== expectedDimensions) client.logger.warn(`[RAG] Embedding dimension mismatch for chunk ${chunkIndex}: expected ${expectedDimensions}, got ${embeddingVector.length}`);
 						document.embedding = embeddingVector;
-
-						if (chunkIndex === 0) {
-							client.logger.log(`[RAG] Generated embeddings with ${embeddingVector.length} dimensions`);
-						}
+						if (chunkIndex === 0) client.logger.log(`[RAG] Generated embeddings with ${embeddingVector.length} dimensions`);
 					} catch (error: Error | any) {
 						client.logger.error(`Failed to create embedding for chunk ${chunkIndex}: ${error.message}`);
 					}
 				}
-
 				return document;
 			});
-
 			const batchResults = await Promise.all(batchPromises);
 			documents.push(...batchResults.filter((doc): doc is IDocument => doc !== null));
 		}
-
 		return documents;
 	};
 
@@ -178,16 +143,13 @@ export class RAG {
 	 */
 	public processDocument = async (filePath: string, options?: IProcessingOptions): Promise<IDocument[]> => {
 		this.validateFile(filePath);
-
 		const mergedOptions = {
 			...this.defaultOptions,
 			...options,
 			customSeparators: options?.customSeparators || this.defaultOptions.customSeparators,
 		};
-
 		const content = await this.readFile(filePath);
 		const chunks = await this.semanticChunking(content, mergedOptions);
-
 		return this.processChunksInBatches(chunks, filePath, mergedOptions);
 	};
 
@@ -197,7 +159,6 @@ export class RAG {
 	public processMultipleDocuments = async (filePaths: string[], options?: IProcessingOptions): Promise<IDocument[]> => {
 		const allDocuments: IDocument[] = [];
 		const results = { success: 0, failed: 0, skipped: 0 };
-
 		for (const filePath of filePaths) {
 			try {
 				const documents = await this.processDocument(filePath, options);
@@ -208,7 +169,6 @@ export class RAG {
 				results.failed++;
 			}
 		}
-
 		client.logger.log(`Processing complete: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped.`);
 		return allDocuments;
 	};
@@ -222,10 +182,8 @@ export class RAG {
 			...options,
 			customSeparators: options?.customSeparators || this.defaultOptions.customSeparators,
 		};
-
 		const chunks = await this.semanticChunking(text, mergedOptions);
 		const virtualFilePath = `memory://${source.name}.${source.type}`;
-
 		return this.processChunksInBatches(chunks, virtualFilePath, mergedOptions);
 	};
 

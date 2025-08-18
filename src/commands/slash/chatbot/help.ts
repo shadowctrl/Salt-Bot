@@ -1,27 +1,20 @@
 import discord from 'discord.js';
 
-import Formatter from '../../../utils/format';
 import { EmbedTemplate } from '../../../core/embed/template';
-import { ChatbotConfigRepository } from '../../../events/database/repo/chat_bot';
 
-export const handleHelp = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client, chatbotRepo: ChatbotConfigRepository): Promise<void> => {
+export const handleHelp = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client): Promise<void> => {
 	try {
 		const helpSection = interaction.options.getString('section') || 'overview';
-
 		const embeds: discord.EmbedBuilder[] = [];
-
 		switch (helpSection) {
 			case 'overview':
-				embeds.push(createOverviewEmbed());
+				embeds.push(createOverviewEmbed(client));
 				break;
 			case 'setup':
 				embeds.push(...createSetupEmbeds());
 				break;
-			case 'providers':
-				embeds.push(...createProvidersEmbeds());
-				break;
-			case 'parameters':
-				embeds.push(...createParametersEmbeds());
+			case 'customization':
+				embeds.push(...createCustomizationEmbeds());
 				break;
 			case 'rag':
 				embeds.push(...createRagEmbeds());
@@ -33,36 +26,31 @@ export const handleHelp = async (interaction: discord.ChatInputCommandInteractio
 				embeds.push(...createExamplesEmbeds());
 				break;
 			default:
-				embeds.push(createOverviewEmbed());
+				embeds.push(createOverviewEmbed(client));
 		}
 
-		// Discord allows max 10 embeds per message
 		const embedsToSend = embeds.slice(0, 10);
-
 		await interaction.editReply({ embeds: embedsToSend });
 	} catch (error) {
 		client.logger.error(`[CHATBOT_HELP] Error displaying help: ${error}`);
-		await interaction.editReply({
-			embeds: [new EmbedTemplate(client).error('An error occurred while displaying help information.')],
-		});
+		await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while displaying help information.')] });
 	}
 };
 
-const createOverviewEmbed = (): discord.EmbedBuilder => {
+const createOverviewEmbed = (client: discord.Client): discord.EmbedBuilder => {
 	return new discord.EmbedBuilder()
 		.setTitle('🤖 AI Chatbot System - Overview')
 		.setDescription(
-			'Welcome to the Salt Bot AI Chatbot system! This powerful feature allows you to create intelligent AI assistants that can respond to users in your Discord channels.\n\n' +
+			`Welcome to the $ Bot AI Chatbot system! This powerful feature allows you to create intelligent AI assistants that can respond to users in your Discord channels.\n\n` +
 				'**🌟 Key Features:**\n' +
-				'• **Multiple AI Providers** - Support for OpenAI, Groq, Anthropic, and more\n' +
+				'• **Ready to Use** - No API keys or setup complexity required\n' +
+				'• **Customizable Personality** - Define how your bot responds and behaves\n' +
 				'• **Knowledge Integration** - Upload documents for context-aware responses (RAG)\n' +
 				'• **Conversation Memory** - Maintains chat history for natural conversations\n' +
-				'• **Customizable Personality** - Define how your bot responds and behaves\n' +
 				'• **Easy Management** - Simple commands to configure and maintain\n\n' +
 				'**📚 Help Sections:**\n' +
-				'`/chatbot help section:setup` - Step-by-step setup guide\n' +
-				'`/chatbot help section:providers` - Popular AI provider configurations\n' +
-				'`/chatbot help section:parameters` - Detailed parameter explanations\n' +
+				'`/chatbot help section:setup` - Quick setup guide\n' +
+				'`/chatbot help section:customization` - Customization options\n' +
 				'`/chatbot help section:rag` - Knowledge base system guide\n' +
 				'`/chatbot help section:examples` - Real-world setup examples\n' +
 				'`/chatbot help section:troubleshooting` - Common issues and solutions'
@@ -73,217 +61,125 @@ const createOverviewEmbed = (): discord.EmbedBuilder => {
 
 const createSetupEmbeds = (): discord.EmbedBuilder[] => {
 	const setupEmbed1 = new discord.EmbedBuilder()
-		.setTitle('🚀 Step-by-Step Setup Guide')
+		.setTitle('🚀 Quick Setup Guide')
 		.setDescription(
-			'Follow these steps to set up your AI chatbot:\n\n' +
-				'**Step 1: Choose Your AI Provider**\n' +
-				'Select an AI service provider (OpenAI, Groq, Anthropic, etc.) and obtain an API key.\n\n' +
-				'**Step 2: Get Your API Credentials**\n' +
-				"• Visit your provider's website\n" +
-				'• Create an account and navigate to API settings\n' +
-				'• Generate an API key\n' +
-				'• Note the base URL (if different from OpenAI)\n\n' +
-				'**Step 3: Choose a Model**\n' +
-				'Select an appropriate model for your needs:\n' +
-				'• `gpt-4o-mini` - Fast and cost-effective (OpenAI)\n' +
-				'• `llama-3.3-70b-versatile` - High quality responses (Groq)\n' +
-				'• `claude-3.5-sonnet` - Advanced reasoning (Anthropic)'
+			'Setting up your AI chatbot is now incredibly simple! No API keys or technical configuration required.\n\n' +
+				'**Step 1: Run the Setup Command**\n' +
+				'Use `/chatbot setup` to create your AI assistant. The command will automatically handle all technical aspects.\n\n' +
+				'**Step 2: Customize (Optional)**\n' +
+				'You can customize your chatbot during setup or later:\n' +
+				'• **Name** - Give your bot a unique name\n' +
+				'• **Channel** - Choose where it operates (creates one if not specified)\n' +
+				'• **Response Type** - Define personality and behavior\n\n' +
+				'**Step 3: Start Chatting!**\n' +
+				'Once set up, users can immediately start chatting with your AI assistant in the designated channel.'
 		)
 		.setColor('Green');
 
 	const setupEmbed2 = new discord.EmbedBuilder()
 		.setTitle('⚙️ Setup Command Usage')
 		.setDescription(
-			'**Basic Setup Command:**\n' +
+			'**Basic Setup (Minimal):**\n' +
+				'```\n/chatbot setup\n```\n' +
+				'Creates a chatbot with default settings in a new channel.\n\n' +
+				'**Custom Setup:**\n' +
 				'```\n/chatbot setup\n' +
-				'  api_key: your-api-key-here\n' +
-				'  model_name: gpt-4o-mini\n```\n\n' +
-				'**Advanced Setup with Custom Settings:**\n' +
-				'```\n/chatbot setup\n' +
-				'  api_key: your-api-key-here\n' +
-				'  model_name: llama-3.3-70b-versatile\n' +
-				'  base_url: https://api.groq.com/openai/v1\n' +
-				'  name: GroqBot\n' +
-				'  channel: #ai-chat\n' +
-				'  response_type: Helpful and friendly assistant```\n\n' +
-				'**What Happens After Setup:**\n' +
-				'• A dedicated channel is created (or configured)\n' +
-				'• The bot will respond to all messages in that channel\n' +
-				'• Users can start chatting immediately\n' +
-				'• Conversation history is maintained automatically'
+				'  name: SupportBot\n' +
+				'  channel: #ai-support\n' +
+				'  response_type: Professional customer service representative\n```\n\n' +
+				'**What Happens During Setup:**\n' +
+				'• Creates or configures the specified channel\n' +
+				'• Sets up proper bot permissions\n' +
+				'• Applies a 5-second rate limit for quality conversations\n' +
+				'• Tests the AI connection to ensure everything works\n' +
+				'• Sends a welcome message to the channel'
 		)
 		.setColor('Green');
-
 	return [setupEmbed1, setupEmbed2];
 };
 
-const createProvidersEmbeds = (): discord.EmbedBuilder[] => {
-	const providersEmbed1 = new discord.EmbedBuilder()
-		.setTitle('🌐 Popular AI Providers')
+const createCustomizationEmbeds = (): discord.EmbedBuilder[] => {
+	const customizationEmbed1 = new discord.EmbedBuilder()
+		.setTitle('🎨 Customization Options')
 		.setDescription(
-			'**🔥 OpenAI (Most Popular)**\n' +
-				'• **Base URL:** `https://api.openai.com/v1`\n' +
-				'• **Popular Models:** `gpt-4o-mini`, `gpt-4.1-mini`, `gpt-4.1-nano`\n' +
-				'• **Get API Key:** [platform.openai.com](https://platform.openai.com)\n' +
-				'• **Pros:** High quality, reliable, good documentation\n' +
-				'• **Cons:** Can be expensive for high usage\n\n' +
-				'**⚡ Groq (Fast & Free Tier)**\n' +
-				'• **Base URL:** `https://api.groq.com/openai/v1`\n' +
-				'• **Popular Models:** `llama-3.3-70b-versatile`, `llama3-70b-8192`, `llama-3.1-8b-instant`\n' +
-				'• **Get API Key:** [console.groq.com](https://console.groq.com)\n' +
-				'• **Pros:** Very fast responses, generous free tier\n' +
-				'• **Cons:** Lower availability during peak times'
+			"Personalize your chatbot to match your server's needs and personality.\n\n" +
+				'**🏷️ Chatbot Name**\n' +
+				"Choose a name that reflects your bot's purpose:\n" +
+				'• `SupportBot` - For customer support\n' +
+				'• `GameGuide` - For gaming assistance\n' +
+				'• `StudyBuddy` - For educational help\n' +
+				'• `CreativeAI` - For creative projects\n\n' +
+				'**🎭 Response Type (Personality)**\n' +
+				'Define how your bot should respond and behave:\n' +
+				'• Professional and formal\n' +
+				'• Friendly and casual\n' +
+				'• Technical expert with detailed explanations\n' +
+				'• Creative and imaginative\n' +
+				'• Patient teacher who explains step by step'
 		)
 		.setColor('Purple');
 
-	const providersEmbed2 = new discord.EmbedBuilder()
-		.setTitle('🌐 More AI Providers')
+	const customizationEmbed2 = new discord.EmbedBuilder()
+		.setTitle('⚡ Managing Your Chatbot')
 		.setDescription(
-			'**🧠 Anthropic (Claude)**\n' +
-				'• **Base URL:** `https://api.anthropic.com/v1`\n' +
-				'• **Popular Models:** `claude-3.5-sonnet`, `claude-3.7-sonnet`, `claude-3-haiku`\n' +
-				'• **Get API Key:** [console.anthropic.com](https://console.anthropic.com)\n' +
-				'• **Pros:** Excellent reasoning, safety-focused\n' +
-				'• **Cons:** More expensive, complex setup\n\n' +
-				'**🌟 Mistral AI**\n' +
-				'• **Base URL:** `https://api.mistral.ai/v1`\n' +
-				'• **Popular Models:** `mistral-large`, `mistral-medium`\n' +
-				'• **Get API Key:** [console.mistral.ai](https://console.mistral.ai)\n' +
-				'• **Pros:** European-based, competitive pricing\n' +
-				'• **Cons:** Smaller model selection\n\n' +
-				'**💡 Local/Custom Providers**\n' +
-				'You can also use local AI models or custom OpenAI-compatible APIs by providing the appropriate base URL.'
+			'**View Current Settings:**\n' +
+				'```\n/chatbot settings\n```\n' +
+				'Shows all current configuration details.\n\n' +
+				'**Update Settings:**\n' +
+				'```\n/chatbot settings\n' +
+				'  name: NewBotName\n' +
+				'  response_type: Updated personality description\n' +
+				'  enabled: true/false\n```\n\n' +
+				'**Other Management Commands:**\n' +
+				'• `/chatbot info` - View detailed bot information\n' +
+				'• `/chatbot delete` - Remove the chatbot completely\n' +
+				'• `/chatbot clear_history` - Clear conversation history'
 		)
 		.setColor('Purple');
-
-	return [providersEmbed1, providersEmbed2];
-};
-
-const createParametersEmbeds = (): discord.EmbedBuilder[] => {
-	const parametersEmbed1 = new discord.EmbedBuilder()
-		.setTitle('📋 Required Parameters')
-		.setDescription(
-			'**🔑 API Key** *(Required)*\n' +
-				'Your authentication key from the AI provider.\n' +
-				'• **Format:** Usually a long string starting with `sk-` or similar\n' +
-				"• **Security:** Keep this secret! Don't share it publicly\n" +
-				'• **Example:** `sk-1234567890abcdef...`\n\n' +
-				'**🤖 Model Name** *(Required)*\n' +
-				'The specific AI model to use for responses.\n' +
-				'• **OpenAI:** `gpt-4o-mini`, `gpt-4o`, `gpt-3.5-turbo`\n' +
-				'• **Groq:** `llama-3.3-70b-versatile`, `mixtral-8x7b-32768`\n' +
-				'• **Anthropic:** `claude-3.5-sonnet`, `claude-3-haiku`\n' +
-				'• **Tip:** Start with smaller/faster models for testing'
-		)
-		.setColor('Orange');
-
-	const parametersEmbed2 = new discord.EmbedBuilder()
-		.setTitle('📋 Optional Parameters')
-		.setDescription(
-			'**🌐 Base URL** *(Optional)*\n' +
-				"The API endpoint URL. Defaults to OpenAI's API.\n" +
-				'• **Default:** `https://api.openai.com/v1`\n' +
-				'• **Groq:** `https://api.groq.com/openai/v1`\n' +
-				'• **Custom:** Your own API endpoint\n\n' +
-				'**📛 Name** *(Optional)*\n' +
-				'What to call your chatbot. Default: `AI Assistant`\n' +
-				'• **Examples:** `HelperBot`, `GameMaster`, `TechSupport`\n' +
-				"• **Tip:** Choose something that fits your server's theme\n\n" +
-				'**💬 Channel** *(Optional)*\n' +
-				'Which channel to use. If not specified, a new one is created.\n' +
-				'• **Recommendation:** Use a dedicated channel for the bot\n' +
-				'• **Note:** The bot will respond to ALL messages in this channel'
-		)
-		.setColor('Orange');
-
-	const parametersEmbed3 = new discord.EmbedBuilder()
-		.setTitle('📋 Response Type Parameter')
-		.setDescription(
-			'**🎭 Response Type** *(Optional)*\n' +
-				"Instructions that define your bot's personality and behavior.\n\n" +
-				'**Examples:**\n' +
-				'• `Helpful and friendly assistant`\n' +
-				'• `Professional technical support agent`\n' +
-				'• `Casual gaming buddy who loves memes`\n' +
-				'• `Wise mentor who speaks in philosophical terms`\n' +
-				'• `Enthusiastic teacher who explains things simply`\n\n' +
-				'**Tips for Good Response Types:**\n' +
-				'• Be specific about tone and style\n' +
-				'• Include relevant expertise areas\n' +
-				'• Mention any special behaviors\n' +
-				'• Keep it concise but descriptive\n' +
-				'• Test different styles to find what works best'
-		)
-		.setColor('Orange');
-
-	return [parametersEmbed1, parametersEmbed2, parametersEmbed3];
+	return [customizationEmbed1, customizationEmbed2];
 };
 
 const createRagEmbeds = (): discord.EmbedBuilder[] => {
 	const ragEmbed1 = new discord.EmbedBuilder()
 		.setTitle('📚 Knowledge Base System (RAG)')
 		.setDescription(
-			'**What is RAG?**\n' +
-				'RAG (Retrieval-Augmented Generation) allows your chatbot to use specific knowledge from documents you upload. This makes responses more accurate and contextual.\n\n' +
-				'**How It Works:**\n' +
-				'1. You upload text or markdown files with information\n' +
-				'2. The system breaks them into searchable chunks\n' +
-				'3. When users ask questions, relevant chunks are found\n' +
-				'4. The AI uses this context to provide better answers\n\n' +
-				'**Perfect For:**\n' +
-				'• Server rules and guidelines\n' +
-				'• Game guides and wikis\n' +
-				'• FAQ documents\n' +
-				'• Product documentation\n' +
-				'• Company policies\n' +
-				'• Any text-based knowledge'
+			'Enhance your chatbot with custom knowledge by uploading documents. The bot will use this information to provide more accurate and relevant responses.\n\n' +
+				'**🔍 How It Works:**\n' +
+				'• Upload text or markdown files containing information\n' +
+				'• The system processes and indexes the content\n' +
+				'• Your chatbot can reference this knowledge in conversations\n' +
+				'• Perfect for FAQs, documentation, policies, and guides\n\n' +
+				'**📄 Supported File Types:**\n' +
+				'• `.txt` - Plain text files\n' +
+				'• `.md` - Markdown files\n' +
+				'• Maximum file size: 10MB\n' +
+				'• UTF-8 encoding recommended'
 		)
-		.setColor('#1ABC9C');
+		.setColor('Orange');
 
 	const ragEmbed2 = new discord.EmbedBuilder()
-		.setTitle('📚 Using the Knowledge System')
+		.setTitle('🔧 RAG Management Commands')
 		.setDescription(
-			'**📤 Upload Knowledge:**\n' +
-				'```\n/chatbot upload_rag\n' +
-				'  file: your-document.txt\n' +
-				'  description: Server rules and guidelines```\n\n' +
-				'**📋 File Requirements:**\n' +
-				'• **Formats:** `.txt` or `.md` files only\n' +
-				'• **Size Limit:** 1MB maximum\n' +
-				'• **Content:** Plain text or Markdown formatted\n' +
-				'• **Language:** English works best\n\n' +
-				'**🗑️ Manage Knowledge:**\n' +
-				'• `/chatbot delete_rag` - Remove all knowledge data\n' +
-				'• Only one knowledge file per server (replace to update)\n\n' +
-				'**💡 Tips:**\n' +
-				'• Write clear, well-structured documents\n' +
-				'• Use headings and sections for better organization\n' +
-				'• Include common questions and answers\n' +
-				'• Test the bot after uploading to verify it works'
+			'**Upload Knowledge:**\n' + '```\n/chatbot upload_rag\n' + '  file: [attach your file]\n' + '  description: Server rules and guidelines\n```\n\n' + '**Delete Knowledge:**\n' + '```\n/chatbot delete_rag\n```\n' + 'Removes all uploaded knowledge data.\n\n' + '**💡 Best Practices:**\n' + '• Use clear, well-structured documents\n' + '• Include relevant keywords and topics\n' + '• Keep information up to date\n' + '• Test the bot after uploading to ensure it understands the content'
 		)
-		.setColor('#1ABC9C');
-
+		.setColor('Orange');
 	return [ragEmbed1, ragEmbed2];
 };
 
 const createExamplesEmbeds = (): discord.EmbedBuilder[] => {
 	const examplesEmbed1 = new discord.EmbedBuilder()
-		.setTitle('💡 Real-World Setup Examples')
+		.setTitle('💼 Real-World Setup Examples')
 		.setDescription(
 			'**🎮 Gaming Server Assistant**\n' +
 				'```\n/chatbot setup\n' +
-				'  api_key: sk-your-openai-key\n' +
-				'  model_name: gpt-4o-mini\n' +
 				'  name: GameGuide\n' +
 				'  channel: #game-help\n' +
-				'  response_type: Friendly gaming expert who helps with strategies, tips, and game mechanics```\n\n' +
+				'  response_type: Friendly gaming expert who helps with strategies, tips, and game mechanics. Always enthusiastic about gaming and provides helpful advice.```\n\n' +
 				'**💼 Business Support Bot**\n' +
 				'```\n/chatbot setup\n' +
-				'  api_key: your-groq-key\n' +
-				'  model_name: llama-3.3-70b-versatile\n' +
-				'  base_url: https://api.groq.com/openai/v1\n' +
 				'  name: SupportBot\n' +
-				'  response_type: Professional customer service representative with expertise in our products and services```'
+				'  channel: #customer-support\n' +
+				'  response_type: Professional customer service representative with expertise in our products and services. Always polite, helpful, and solution-oriented.```'
 		)
 		.setColor('Yellow');
 
@@ -292,20 +188,20 @@ const createExamplesEmbeds = (): discord.EmbedBuilder[] => {
 		.setDescription(
 			'**🎓 Educational Tutor**\n' +
 				'```\n/chatbot setup\n' +
-				'  api_key: sk-your-openai-key\n' +
-				'  model_name: gpt-4o\n' +
 				'  name: TutorBot\n' +
-				'  response_type: Patient and encouraging teacher who explains concepts clearly with examples and helps students learn step by step```\n\n' +
+				'  channel: #study-help\n' +
+				'  response_type: Patient and encouraging teacher who explains concepts clearly with examples and helps students learn step by step.```\n\n' +
 				'**🤖 Technical Assistant**\n' +
 				'```\n/chatbot setup\n' +
-				'  api_key: your-api-key\n' +
-				'  model_name: claude-3.5-sonnet\n' +
-				'  base_url: https://api.anthropic.com/v1\n' +
 				'  name: TechExpert\n' +
-				'  response_type: Knowledgeable programmer and system administrator who provides accurate technical solutions and code examples```'
+				'  channel: #tech-support\n' +
+				'  response_type: Knowledgeable programmer and system administrator who provides accurate technical solutions and code examples.```\n\n' +
+				'**🎨 Creative Helper**\n' +
+				'```\n/chatbot setup\n' +
+				'  name: CreativeAI\n' +
+				'  response_type: Imaginative and inspiring creative assistant who helps with writing, art ideas, and brainstorming sessions.```'
 		)
 		.setColor('Yellow');
-
 	return [examplesEmbed1, examplesEmbed2];
 };
 
@@ -314,29 +210,24 @@ const createTroubleshootingEmbed = (): discord.EmbedBuilder => {
 		.setTitle('🛠️ Troubleshooting Guide')
 		.setDescription(
 			'**❌ Common Issues & Solutions:**\n\n' +
-				'**"Failed to connect to API"**\n' +
-				'• Double-check your API key is correct\n' +
-				'• Verify the base URL matches your provider\n' +
-				'• Ensure your account has credits/quota remaining\n\n' +
 				'**"Bot not responding"**\n' +
-				'• Check if the bot has permission to send messages\n' +
+				'• Check if the bot has permission to send messages in the channel\n' +
 				'• Verify the chatbot is enabled: `/chatbot info`\n' +
-				'• Try `/chatbot settings` to test configuration\n\n' +
-				'**"Model not found"**\n' +
-				'• Verify the model name is exactly correct\n' +
-				"• Check your provider's available models\n" +
-				'• Some models require special access/approval\n\n' +
-				'**"Rate limiting errors"**\n' +
-				'• Your API key may have hit usage limits\n' +
-				'• Try a different model or wait a few minutes\n' +
-				'• Consider upgrading your API plan\n\n' +
-				'**"RAG not working"**\n' +
+				'• Try `/chatbot settings enabled:true` to re-enable\n\n' +
+				'**"Setup failed"**\n' +
+				'• Ensure you have Administrator permissions\n' +
+				'• Check if the bot has necessary permissions in the server\n' +
+				'• Try creating the channel manually first, then running setup\n\n' +
+				'**"Chatbot giving unexpected responses"**\n' +
+				'• Update the response type with `/chatbot settings`\n' +
+				'• Clear conversation history with `/chatbot clear_history`\n' +
+				'• Check if uploaded RAG knowledge conflicts with expectations\n\n' +
+				'**"RAG knowledge not working"**\n' +
 				'• Ensure your document uploaded successfully\n' +
 				'• Try asking questions that directly relate to your content\n' +
-				'• Check file format is .txt or .md\n\n' +
+				'• Check file format is .txt or .md and under 10MB\n\n' +
 				'**🆘 Still Need Help?**\n' +
-				`Join our ${Formatter.hyperlink('support server', 'https://discord.gg/XzE9hSbsNb')} support server with specific error messages.`
+				'Contact your server administrators for assistance.'
 		)
-		.setColor('Red')
-		.setFooter({ text: 'Remember to never share your API keys in public channels!' });
+		.setColor('Red');
 };

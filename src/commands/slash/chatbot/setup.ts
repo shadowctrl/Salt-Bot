@@ -4,23 +4,22 @@ import { LLM } from '../../../core/ai';
 import { EmbedTemplate } from '../../../core/embed/template';
 import { createDynamicTicketTool } from '../../../core/ai/tools';
 import { ChatbotConfigRepository } from '../../../events/database/repo/chat_bot';
+import { ConfigManager } from '../../../utils/config';
 
-export const handleSetup = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client, chatbotRepo: ChatbotConfigRepository): Promise<void> => {
+export const handleSetup = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client, chatbotRepo: ChatbotConfigRepository): Promise<discord.Message<boolean> | void> => {
 	try {
 		const existingConfig = await chatbotRepo.getConfig(interaction.guildId!);
-		if (existingConfig) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).warning('A chatbot is already set up for this server.').setDescription(`The chatbot is currently configured for <#${existingConfig.channelId}>. Use \`/chatbot settings\` to update the configuration or \`/chatbot delete\` to remove it first.`)],
-			});
-			return;
-		}
+		if (existingConfig) return await interaction.editReply({ embeds: [new EmbedTemplate(client).warning('A chatbot is already set up for this server.').setDescription(`The chatbot is currently configured for <#${existingConfig.channelId}>. Use \`/chatbot settings\` to update the configuration or \`/chatbot delete\` to remove it first.`)] });
+
+		const configManager = ConfigManager.getInstance();
 
 		let channel = interaction.options.getChannel('channel') as discord.TextChannel | null;
-		const apiKey = interaction.options.getString('api_key', true);
-		const modelName = interaction.options.getString('model_name', true);
-		const baseUrl = interaction.options.getString('base_url') || 'https://api.openai.com/v1';
 		const name = interaction.options.getString('name') || 'AI Assistant';
-		const responseType = interaction.options.getString('response_type') || 'Friendly and helpful';
+		const responseType = interaction.options.getString('response_type') || 'Friendly and helpful assistant';
+		const apiKey = configManager.getDefaultChatbotApiKey();
+		const modelName = configManager.getDefaultChatbotModel();
+		const baseUrl = configManager.getDefaultChatbotBaseUrl();
+
 		const tools = createDynamicTicketTool([
 			{ id: '1', name: 'Technical Support' },
 			{ id: '2', name: 'Billing Issues' },
@@ -29,65 +28,38 @@ export const handleSetup = async (interaction: discord.ChatInputCommandInteracti
 
 		try {
 			const llm = new LLM(apiKey, baseUrl);
-			await llm.invoke([{ role: 'user', content: "Say 'API connection successful'" }], modelName, {
-				max_tokens: 50,
-				tools: tools,
-				tool_choice: 'auto',
-			});
+			await llm.invoke([{ role: 'user', content: "Say 'API connection successful'" }], modelName, { max_tokens: 50, tools: tools, tool_choice: 'auto' });
 		} catch (error) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Failed to connect to the API.').setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)],
-			});
-			return;
+			client.logger.error(`[CHATBOT_SETUP] API connection failed with predefined credentials: ${error}`);
+			return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to connect to the chatbot API.').setDescription('The bot owner needs to check the API configuration. Please contact an administrator.')] });
 		}
 
 		let createdNewChannel = false;
-
 		if (!channel) {
 			const currentChannel = interaction.channel as discord.TextChannel;
 			const categoryId = currentChannel.parentId;
-
 			try {
 				channel = await interaction.guild!.channels.create({
 					name: `${name.toLowerCase().replace(/\s+/g, '-')}-chat`,
 					type: discord.ChannelType.GuildText,
 					parent: categoryId || undefined,
 					permissionOverwrites: [
-						{
-							id: interaction.guild!.roles.everyone,
-							allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages],
-						},
-						{
-							id: client.user!.id,
-							allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.EmbedLinks, discord.PermissionFlagsBits.ReadMessageHistory],
-						},
+						{ id: interaction.guild!.roles.everyone, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages] },
+						{ id: client.user!.id, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.EmbedLinks, discord.PermissionFlagsBits.ReadMessageHistory] },
 					],
 				});
 				createdNewChannel = true;
 			} catch (error) {
-				await interaction.editReply({
-					embeds: [new EmbedTemplate(client).error('Failed to create chatbot channel.').setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)],
-				});
-				return;
+				return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to create chatbot channel.').setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)] });
 			}
 		}
 
-		if (!channel || !channel.isTextBased() || channel.isDMBased()) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Invalid channel type. Please select a valid text channel.')],
-			});
-			return;
-		}
+		if (!channel || !channel.isTextBased() || channel.isDMBased()) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Invalid channel type. Please select a valid text channel.')] });
 
 		const botMember = await interaction.guild!.members.fetchMe();
 		const botPermissions = channel.permissionsFor(botMember!);
 
-		if (!botPermissions?.has([discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.EmbedLinks, discord.PermissionFlagsBits.ReadMessageHistory])) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error("I don't have the required permissions in that channel.").setDescription('I need the following permissions in the chatbot channel:\n• Send Messages\n• Embed Links\n• Read Message History')],
-			});
-			return;
-		}
+		if (!botPermissions?.has([discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.EmbedLinks, discord.PermissionFlagsBits.ReadMessageHistory])) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error("I don't have the required permissions in that channel.").setDescription('I need the following permissions in the chatbot channel:\n• Send Messages\n• Embed Links\n• Read Message History')] });
 
 		try {
 			await channel.setRateLimitPerUser(5, 'Chatbot rate limit');
@@ -96,37 +68,34 @@ export const handleSetup = async (interaction: discord.ChatInputCommandInteracti
 		}
 
 		const config = await chatbotRepo.createConfig(interaction.guildId!, channel.id, apiKey, modelName, baseUrl, name, responseType);
-
-		if (!config) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Failed to create chatbot configuration.')],
-			});
-			return;
-		}
+		if (!config) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to create chatbot configuration.')] });
 
 		try {
 			await channel.send({
-				embeds: [new discord.EmbedBuilder().setTitle(`${name} is now active!`).setDescription(`This channel has been configured as an AI chatbot channel. You can start chatting with ${name} right away!`).setColor('Blue').setFooter({ text: 'AI chatbot powered by Salt Bot', iconURL: client.user?.displayAvatarURL() }).setTimestamp()],
+				embeds: [
+					new discord.EmbedBuilder()
+						.setTitle(`${name} is now active!`)
+						.setDescription(`This channel has been configured as an AI chatbot channel. You can start chatting with ${name} right away!`)
+						.setColor('Blue')
+						.setFooter({ text: `AI chatbot powered by ${client.user?.username} Bot`, iconURL: client.user?.displayAvatarURL() })
+						.setTimestamp(),
+				],
 			});
 		} catch (error) {
 			client.logger.warn(`[CHATBOT_SETUP] Could not send welcome message: ${error}`);
 		}
 
-		await interaction.editReply({
+		return await interaction.editReply({
 			embeds: [
 				new EmbedTemplate(client)
 					.success('Chatbot set up successfully!')
-					.setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.\n\nUse \`/chatbot settings\` to update the configuration or \`/chatbot delete\` to remove it.`)
-					.addFields({ name: 'Name', value: name, inline: true }, { name: 'Model', value: modelName, inline: true }, { name: 'Cooldown', value: '5 seconds', inline: true }, { name: 'API', value: baseUrl, inline: true })
-					.setFooter({ text: 'Use `/chatbot help` for more additional setup!', iconURL: client.user?.displayAvatarURL() }),
+					.setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.\n\nUse \`/chatbot settings\` to update the name or personality, or \`/chatbot delete\` to remove it.`)
+					.addFields({ name: 'Name', value: name, inline: true }, { name: 'Model', value: modelName, inline: true }, { name: 'Cooldown', value: '5 seconds', inline: true }, { name: 'Response Type', value: responseType, inline: false })
+					.setFooter({ text: 'Use `/chatbot help` for more information!', iconURL: client.user?.displayAvatarURL() }),
 			],
 		});
-
-		return;
 	} catch (error) {
 		client.logger.error(`[CHATBOT_SETUP] Error setting up chatbot: ${error}`);
-		await interaction.editReply({
-			embeds: [new EmbedTemplate(client).error('An error occurred while setting up the chatbot.')],
-		});
+		await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while setting up the chatbot.')] });
 	}
 };

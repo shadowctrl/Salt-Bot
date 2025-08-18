@@ -22,22 +22,13 @@ const setupCommand: SlashCommand = {
 		try {
 			await interaction.deferReply();
 
-			if (!(client as any).dataSource) {
-				return interaction.editReply({
-					embeds: [new EmbedTemplate(client).error('Database connection is not available.')],
-				});
-			}
-
+			if (!(client as any).dataSource) return interaction.editReply({ embeds: [new EmbedTemplate(client).error('Database connection is not available.')] });
 			const ticketManager = new Ticket((client as any).dataSource, client);
 			const ticketRepo = ticketManager.getRepository();
 			const guildConfig = await ticketRepo.getOrCreateGuildConfig(interaction.guildId!);
 
 			const ticketChannel = interaction.options.getChannel('ticket_channel') || interaction.channel;
-			if (!ticketChannel || !(ticketChannel instanceof discord.TextChannel)) {
-				return interaction.editReply({
-					embeds: [new EmbedTemplate(client).error('Invalid ticket channel. Please specify a text channel.')],
-				});
-			}
+			if (!ticketChannel || !(ticketChannel instanceof discord.TextChannel)) return interaction.editReply({ embeds: [new EmbedTemplate(client).error('Invalid ticket channel. Please specify a text channel.')] });
 
 			const supportersRole = interaction.options.getRole('ticket_supporters');
 			const transcriptChannel = interaction.options.getChannel('transcript_channel') as discord.TextChannel | null;
@@ -47,14 +38,8 @@ const setupCommand: SlashCommand = {
 				type: discord.ChannelType.GuildCategory,
 				position: 0,
 				permissionOverwrites: [
-					{
-						id: interaction.guild!.roles.everyone,
-						deny: [discord.PermissionFlagsBits.ViewChannel],
-					},
-					{
-						id: client.user!.id,
-						allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels],
-					},
+					{ id: interaction.guild!.roles.everyone, deny: [discord.PermissionFlagsBits.ViewChannel] },
+					{ id: client.user!.id, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels] },
 				],
 			});
 
@@ -64,11 +49,7 @@ const setupCommand: SlashCommand = {
 				if (guild) {
 					try {
 						supporterRole = (await guild.roles.fetch(supportersRole.id)) || null;
-						await ticketDiscordCategory.permissionOverwrites.create(supporterRole?.id || '', {
-							ViewChannel: true,
-							SendMessages: true,
-							ReadMessageHistory: true,
-						});
+						await ticketDiscordCategory.permissionOverwrites.create(supporterRole?.id || '', { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 					} catch (err) {
 						client.logger.warn(`[SETUP] Failed to fetch role: ${err}`);
 					}
@@ -80,19 +61,7 @@ const setupCommand: SlashCommand = {
 					new discord.EmbedBuilder()
 						.setTitle('🎫 Ticket System Setup')
 						.setDescription('Setting up your ticket system with basic configuration...\n\n' + 'You can customize all aspects of your ticket system later using `/ticket config`.')
-						.addFields(
-							{ name: 'Ticket Channel', value: `${ticketChannel}`, inline: true },
-							{
-								name: 'Support Role',
-								value: supporterRole ? `${supporterRole}` : 'Not specified',
-								inline: true,
-							},
-							{
-								name: 'Transcript Channel',
-								value: transcriptChannel ? `${transcriptChannel}` : 'Not specified',
-								inline: true,
-							}
-						)
+						.addFields({ name: 'Ticket Channel', value: `${ticketChannel}`, inline: true }, { name: 'Support Role', value: supporterRole ? `${supporterRole}` : 'Not specified', inline: true }, { name: 'Transcript Channel', value: transcriptChannel ? `${transcriptChannel}` : 'Not specified', inline: true })
 						.setColor('Blue'),
 				],
 			});
@@ -135,7 +104,6 @@ const setupCommand: SlashCommand = {
 			});
 
 			const deployButtons = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new discord.ButtonBuilder().setCustomId('deploy_now').setLabel('Deploy Now').setStyle(discord.ButtonStyle.Success).setEmoji('🚀'), new discord.ButtonBuilder().setCustomId('deploy_later').setLabel('Deploy Later').setStyle(discord.ButtonStyle.Secondary));
-
 			const deployMessage = await interaction.editReply({
 				embeds: [
 					new discord.EmbedBuilder()
@@ -147,18 +115,10 @@ const setupCommand: SlashCommand = {
 			});
 
 			try {
-				const collector = deployMessage.createMessageComponentCollector({
-					filter: (i) => (i.customId === 'deploy_now' || i.customId === 'deploy_later') && i.user.id === interaction.user.id,
-					time: 60000,
-					max: 1,
-				});
-
+				const collector = deployMessage.createMessageComponentCollector({ filter: (i) => (i.customId === 'deploy_now' || i.customId === 'deploy_later') && i.user.id === interaction.user.id, time: 60000, max: 1 });
 				collector.on('collect', async (buttonInteraction) => {
 					try {
-						await buttonInteraction.deferUpdate().catch(() => {
-							client.logger.debug('[SETUP] Failed to defer button update - interaction may have expired');
-						});
-
+						await buttonInteraction.deferUpdate().catch(() => client.logger.debug('[SETUP] Failed to defer button update - interaction may have expired'));
 						if (buttonInteraction.customId === 'deploy_now') {
 							await deployTicketSystem(buttonInteraction, client, ticketRepo, ticketChannel as discord.TextChannel);
 						} else {
@@ -172,22 +132,12 @@ const setupCommand: SlashCommand = {
 									],
 									components: [],
 								})
-								.catch(() => {
-									interaction
-										.followUp({
-											embeds: [new EmbedTemplate(client).info('Setup complete! You can deploy the ticket panel later with `/ticket deploy`.')],
-											flags: discord.MessageFlags.Ephemeral,
-										})
-										.catch(() => {});
-								});
+								.catch(() => interaction.followUp({ embeds: [new EmbedTemplate(client).info('Setup complete! You can deploy the ticket panel later with `/ticket deploy`.')], flags: discord.MessageFlags.Ephemeral }).catch(() => {}));
 						}
 					} catch (error) {
 						client.logger.error(`[SETUP] Error handling button interaction: ${error}`);
 						try {
-							await interaction.followUp({
-								embeds: [new EmbedTemplate(client).error('An error occurred during deployment.')],
-								flags: discord.MessageFlags.Ephemeral,
-							});
+							await interaction.followUp({ embeds: [new EmbedTemplate(client).error('An error occurred during deployment.')], flags: discord.MessageFlags.Ephemeral });
 						} catch (followUpError) {
 							client.logger.error(`[SETUP] Failed to send followUp: ${followUpError}`);
 						}
@@ -197,10 +147,7 @@ const setupCommand: SlashCommand = {
 				collector.on('end', async (collected, reason) => {
 					if (reason === 'time' && collected.size === 0) {
 						try {
-							await interaction.editReply({
-								embeds: [new EmbedTemplate(client).info('Setup completed, but deployment timed out. You can deploy your ticket system later using `/ticket deploy`.')],
-								components: [],
-							});
+							await interaction.editReply({ embeds: [new EmbedTemplate(client).info('Setup completed, but deployment timed out. You can deploy your ticket system later using `/ticket deploy`.')], components: [] });
 						} catch (error) {
 							client.logger.debug(`[SETUP] Failed to edit reply after timeout: ${error}`);
 						}
@@ -208,24 +155,15 @@ const setupCommand: SlashCommand = {
 				});
 			} catch (error) {
 				client.logger.error(`[SETUP] Error creating collector: ${error}`);
-				await interaction.editReply({
-					embeds: [new EmbedTemplate(client).success('Setup complete!').setDescription('Your ticket system has been configured. You can deploy it using `/ticket deploy`.')],
-					components: [],
-				});
+				await interaction.editReply({ embeds: [new EmbedTemplate(client).success('Setup complete!').setDescription('Your ticket system has been configured. You can deploy it using `/ticket deploy`.')], components: [] });
 			}
 		} catch (error) {
 			client.logger.error(`[SETUP] Error in setup command: ${error}`);
 			try {
 				if (interaction.replied || interaction.deferred) {
-					await interaction.followUp({
-						embeds: [new EmbedTemplate(client).error('An error occurred during setup.')],
-						flags: discord.MessageFlags.Ephemeral,
-					});
+					await interaction.followUp({ embeds: [new EmbedTemplate(client).error('An error occurred during setup.')], flags: discord.MessageFlags.Ephemeral });
 				} else {
-					await interaction.reply({
-						embeds: [new EmbedTemplate(client).error('An error occurred during setup.')],
-						flags: discord.MessageFlags.Ephemeral,
-					});
+					await interaction.reply({ embeds: [new EmbedTemplate(client).error('An error occurred during setup.')], flags: discord.MessageFlags.Ephemeral });
 				}
 			} catch (replyError) {
 				client.logger.error(`[SETUP] Failed to send error response: ${replyError}`);

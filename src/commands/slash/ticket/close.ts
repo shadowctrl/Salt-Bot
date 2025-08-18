@@ -18,18 +18,12 @@ export const closeTicket = async (interaction: discord.ChatInputCommandInteracti
 		});
 
 		if (result.success) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).success(result.message)],
-			});
+			await interaction.editReply({ embeds: [new EmbedTemplate(client).success(result.message)] });
 		} else {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error(result.message)],
-			});
+			await interaction.editReply({ embeds: [new EmbedTemplate(client).error(result.message)] });
 		}
 	} catch (error) {
 		client.logger.error(`[TICKET_CLOSE] Error closing ticket: ${error}`);
-		await interaction.editReply({
-			embeds: [new EmbedTemplate(client).error('An error occurred while closing the ticket.')],
-		});
+		await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while closing the ticket.')] });
 	}
 };

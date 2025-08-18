@@ -110,7 +110,7 @@ const handleCreateTicketButton = async (interaction: discord.ButtonInteraction, 
 			.setTitle(menuConfig?.embedTitle || 'Create a Ticket')
 			.setDescription(menuConfig?.embedDescription || 'Please select a category for your ticket')
 			.setColor((menuConfig?.embedColor || 'Blue') as discord.ColorResolvable)
-			.setFooter({ text: 'Powered by Salt Bot', iconURL: client.user?.displayAvatarURL() })
+			.setFooter({ text: `Powered by ${client.user?.username} Bot`, iconURL: client.user?.displayAvatarURL() })
 			.setTimestamp();
 
 		const actionRow = new discord.ActionRowBuilder<discord.StringSelectMenuBuilder>().addComponents(selectMenu);

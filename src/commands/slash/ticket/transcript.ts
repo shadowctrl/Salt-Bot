@@ -5,34 +5,18 @@ import { Ticket } from '../../../core/ticket';
 import { EmbedTemplate } from '../../../core/embed/template';
 import { AttachmentBuffer } from '../../../types/ticket';
 
-export const transcriptTicket = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client): Promise<void> => {
+export const transcriptTicket = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client): Promise<discord.Message<boolean> | void> => {
 	await interaction.deferReply();
 
 	try {
 		const ticketManager = new Ticket((client as any).dataSource, client);
 		const ticket = await ticketManager.getInfo(interaction.channelId);
-
-		if (!ticket) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('This is not a valid ticket channel.')],
-			});
-			return;
-		}
-
+		if (!ticket) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('This is not a valid ticket channel.')] });
 		const targetUser = interaction.options.getUser('user');
-
-		await interaction.editReply({
-			embeds: [new discord.EmbedBuilder().setTitle('📝 Generating Transcript').setDescription('Please wait while I generate the transcript...').setColor('Blue')],
-		});
-
+		await interaction.editReply({ embeds: [new discord.EmbedBuilder().setTitle('📝 Generating Transcript').setDescription('Please wait while I generate the transcript...').setColor('Blue')] });
 		const channel = interaction.channel as discord.TextChannel;
 		const creator = await client.users.fetch(ticket.creatorId).catch(() => null);
-		const attachment = (await createTranscript(channel, {
-			limit: 10000,
-			saveImages: true,
-			poweredBy: false,
-			filename: `ticket-${ticket.ticketNumber}.html`,
-		})) as AttachmentBuffer;
+		const attachment = (await createTranscript(channel, { limit: 10000, saveImages: true, poweredBy: false, filename: `ticket-${ticket.ticketNumber}.html` })) as AttachmentBuffer;
 
 		const embed = new discord.EmbedBuilder()
 			.setTitle(`Ticket #${ticket.ticketNumber} Transcript`)
@@ -65,26 +49,16 @@ Transcript from **${interaction.guild?.name}**
 					files: [attachment],
 				});
 
-				await interaction.editReply({
-					embeds: [new EmbedTemplate(client).success('Transcript sent successfully!').setDescription(`A transcript of this ticket has been sent to ${targetUser}.`)],
-				});
+				await interaction.editReply({ embeds: [new EmbedTemplate(client).success('Transcript sent successfully!').setDescription(`A transcript of this ticket has been sent to ${targetUser}.`)] });
 			} catch (error) {
 				client.logger.error(`[TICKET_TRANSCRIPT] Failed to DM transcript: ${error}`);
-				await interaction.editReply({
-					embeds: [new EmbedTemplate(client).warning(`Could not send transcript to ${targetUser}. Their DMs may be closed.`).setDescription('The transcript will be attached to this message instead.')],
-					files: [attachment],
-				});
+				await interaction.editReply({ embeds: [new EmbedTemplate(client).warning(`Could not send transcript to ${targetUser}. Their DMs may be closed.`).setDescription('The transcript will be attached to this message instead.')], files: [attachment] });
 			}
 		} else {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).success('Transcript generated successfully!')],
-				files: [attachment],
-			});
+			await interaction.editReply({ embeds: [new EmbedTemplate(client).success('Transcript generated successfully!')], files: [attachment] });
 		}
 	} catch (error) {
 		client.logger.error(`[TICKET_TRANSCRIPT] Error generating transcript: ${error}`);
-		await interaction.editReply({
-			embeds: [new EmbedTemplate(client).error('An error occurred while generating the transcript.')],
-		});
+		await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while generating the transcript.')] });
 	}
 };

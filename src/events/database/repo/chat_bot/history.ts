@@ -33,7 +33,6 @@ export class ChatHistoryRepository {
 			entry.userId = userId;
 			entry.role = role;
 			entry.content = content;
-
 			return await this.historyRepo.save(entry);
 		} catch (error) {
 			client.logger.error(`[CHAT_HISTORY_REPO] Error adding message: ${error}`);
@@ -49,15 +48,7 @@ export class ChatHistoryRepository {
 	 */
 	async getHistory(guildId: string, userId: string): Promise<ChatHistoryEntry[]> {
 		try {
-			return await this.historyRepo.find({
-				where: {
-					guildId,
-					userId,
-				},
-				order: {
-					createdAt: 'ASC',
-				},
-			});
+			return await this.historyRepo.find({ where: { guildId, userId }, order: { createdAt: 'ASC' } });
 		} catch (error) {
 			client.logger.error(`[CHAT_HISTORY_REPO] Error getting history: ${error}`);
 			return [];
@@ -73,16 +64,7 @@ export class ChatHistoryRepository {
 	 */
 	async getRecentMessages(guildId: string, userId: string, count: number): Promise<ChatHistoryEntry[]> {
 		try {
-			return await this.historyRepo.find({
-				where: {
-					guildId,
-					userId,
-				},
-				order: {
-					createdAt: 'DESC',
-				},
-				take: count,
-			});
+			return await this.historyRepo.find({ where: { guildId, userId }, order: { createdAt: 'DESC' }, take: count });
 		} catch (error) {
 			client.logger.error(`[CHAT_HISTORY_REPO] Error getting recent messages: ${error}`);
 			return [];
@@ -97,37 +79,12 @@ export class ChatHistoryRepository {
 	 */
 	async trimHistory(guildId: string, userId: string, maxLength: number): Promise<void> {
 		try {
-			const nonSystemCount = await this.historyRepo.count({
-				where: {
-					guildId,
-					userId,
-					role: Not('system'),
-				},
-			});
-			const systemCount = await this.historyRepo.count({
-				where: {
-					guildId,
-					userId,
-					role: 'system',
-				},
-			});
-
+			const nonSystemCount = await this.historyRepo.count({ where: { guildId, userId, role: Not('system') } });
+			const systemCount = await this.historyRepo.count({ where: { guildId, userId, role: 'system' } });
 			const nonSystemAllowed = maxLength - systemCount;
-
 			if (nonSystemCount > nonSystemAllowed && nonSystemAllowed >= 0) {
 				const toDelete = nonSystemCount - nonSystemAllowed;
-				const oldestEntries = await this.historyRepo.find({
-					where: {
-						guildId,
-						userId,
-						role: Not('system'),
-					},
-					order: {
-						createdAt: 'ASC',
-					},
-					take: toDelete,
-				});
-
+				const oldestEntries = await this.historyRepo.find({ where: { guildId, userId, role: Not('system') }, order: { createdAt: 'ASC' }, take: toDelete });
 				if (oldestEntries.length > 0) {
 					const idsToDelete = oldestEntries.map((entry) => entry.id);
 					await this.historyRepo.delete(idsToDelete);
@@ -148,16 +105,9 @@ export class ChatHistoryRepository {
 	async clearHistory(guildId: string, userId: string, keepSystemMessages: boolean = true): Promise<boolean> {
 		try {
 			if (keepSystemMessages) {
-				await this.historyRepo.delete({
-					guildId,
-					userId,
-					role: Not('system'),
-				});
+				await this.historyRepo.delete({ guildId, userId, role: Not('system') });
 			} else {
-				await this.historyRepo.delete({
-					guildId,
-					userId,
-				});
+				await this.historyRepo.delete({ guildId, userId });
 			}
 			return true;
 		} catch (error) {
@@ -172,9 +122,6 @@ export class ChatHistoryRepository {
 	 * @returns OpenAI format messages
 	 */
 	convertToOpenAIMessages(entries: ChatHistoryEntry[]): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-		return entries.map((entry) => ({
-			role: entry.role as 'system' | 'user' | 'assistant',
-			content: entry.content,
-		}));
+		return entries.map((entry) => ({ role: entry.role as 'system' | 'user' | 'assistant', content: entry.content }));
 	}
 }

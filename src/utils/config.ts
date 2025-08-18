@@ -20,6 +20,9 @@ const EnvSchema = z.object({
 	}),
 	FEEDBACK_WEBHOOK: z.string(),
 	MASTER_ENCRYPTION_KEY: z.string().min(32, 'Master encryption key must be at least 32 characters long'),
+	DEFAULT_CHATBOT_API_KEY: z.string(),
+	DEFAULT_CHATBOT_MODEL: z.string().default('gpt-4o-mini'),
+	DEFAULT_CHATBOT_BASE_URL: z.string().default('https://api.openai.com/v1'),
 });
 
 /**
@@ -59,6 +62,9 @@ export class ConfigManager {
 				DEBUG_MODE: process.env.DEBUG_MODE || false,
 				FEEDBACK_WEBHOOK: process.env.FEEDBACK_WEBHOOK,
 				MASTER_ENCRYPTION_KEY: process.env.MASTER_ENCRYPTION_KEY,
+				DEFAULT_CHATBOT_API_KEY: process.env.DEFAULT_CHATBOT_API_KEY,
+				DEFAULT_CHATBOT_MODEL: process.env.DEFAULT_CHATBOT_MODEL || 'gpt-4o-mini',
+				DEFAULT_CHATBOT_BASE_URL: process.env.DEFAULT_CHATBOT_BASE_URL || 'https://api.openai.com/v1',
 			});
 		} catch (error) {
 			if (error instanceof z.ZodError) {
@@ -128,6 +134,30 @@ export class ConfigManager {
 	 */
 	public getMasterEncryptionKey(): string {
 		return this.config.MASTER_ENCRYPTION_KEY;
+	}
+
+	/**
+	 * Gets the default chatbot API key
+	 * @returns {string} The default chatbot API key from environment variables
+	 */
+	public getDefaultChatbotApiKey(): string {
+		return this.config.DEFAULT_CHATBOT_API_KEY;
+	}
+
+	/**
+	 * Gets the default chatbot model
+	 * @returns {string} The default chatbot model from environment variables
+	 */
+	public getDefaultChatbotModel(): string {
+		return this.config.DEFAULT_CHATBOT_MODEL;
+	}
+
+	/**
+	 * Gets the default chatbot base URL
+	 * @returns {string} The default chatbot base URL from environment variables
+	 */
+	public getDefaultChatbotBaseUrl(): string {
+		return this.config.DEFAULT_CHATBOT_BASE_URL;
 	}
 }
 

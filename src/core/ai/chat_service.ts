@@ -23,17 +23,7 @@ export class ChatbotService {
 	private dataSource: DataSource;
 	private chatbotRepo: ChatbotConfigRepository;
 
-	private static pendingTicketCreations: Map<
-		string,
-		{
-			categoryId: string;
-			userMessage: string;
-			guildId: string;
-			channelId: string;
-			userId: string;
-			toolMessage: string;
-		}
-	> = new Map();
+	private static pendingTicketCreations: Map<string, { categoryId: string; userMessage: string; guildId: string; channelId: string; userId: string; toolMessage: string }> = new Map();
 
 	constructor(dataSource: DataSource) {
 		this.dataSource = dataSource;
@@ -64,9 +54,7 @@ export class ChatbotService {
 	private searchRagContext = async (query: string, guildId: string): Promise<string | null> => {
 		try {
 			const hasRagData = await this.ragRepo.hasRagData(guildId);
-			if (!hasRagData) {
-				return null;
-			}
+			if (!hasRagData) return null;
 
 			const embedding = new Embedding();
 			const rag = new RAG(embedding);
@@ -75,13 +63,8 @@ export class ChatbotService {
 			client.logger.debug(`[CHATBOT_SERVICE] Query embedding has ${queryEmbedding.length} dimensions`);
 
 			const similarChunks = await this.ragRepo.searchSimilarChunks(guildId, queryEmbedding, 5);
-
-			if (similarChunks.length === 0) {
-				return null;
-			}
-
+			if (similarChunks.length === 0) return null;
 			const context = similarChunks.map((chunk, index) => `[Context ${index + 1}]\n${chunk.content}`).join('\n\n');
-
 			client.logger.debug(`[CHATBOT_SERVICE] Found ${similarChunks.length} relevant chunks for query`);
 			return context;
 		} catch (error) {
@@ -99,17 +82,15 @@ export class ChatbotService {
 	 */
 	private buildSystemPrompt = (config: ChatbotConfig, ragContext: string | null, includeTools: boolean = false): string => {
 		let systemPrompt = `You are ${config.chatbotName}, an AI assistant in a Discord server. `;
-
-		if (config.responseType && config.responseType.trim().length > 0) {
-			systemPrompt += `Your personality and response style: ${config.responseType}. `;
-		}
+		if (config.responseType && config.responseType.trim().length > 0) systemPrompt += `Your personality and response style: ${config.responseType}. `;
 
 		systemPrompt += `
 Guidelines:
 - Be helpful, informative, and engaging
 - Keep responses concise but thorough
-- Use Discord-friendly formatting when appropriate
+- Use Discord-friendly formatting using Discord's markdown (Bold, Italics, Underline, Headers, Subtext, Masked links, Lists, Code Blocks, Spoilers and Block Quotes only). Include emojis in your response if needed
 - If you don't know something, say so honestly
+- If the user's question or query is not clear, ask for clarification and questions to better understand the user's needs.
 - Stay in character as ${config.chatbotName}
 - Answer questions directly without suggesting tickets unless explicitly needed`;
 
@@ -134,7 +115,7 @@ DO NOT use the create_ticket tool when:
 Be conservative with ticket creation. Always try to help the user first with a direct answer. Only suggest tickets when the user clearly needs human intervention or explicitly requests it.`;
 		}
 
-		if (ragContext) {
+		if (ragContext)
 			systemPrompt += `
 
 You have access to specific knowledge about this server/topic. Use the following context to answer questions when relevant:
@@ -146,7 +127,6 @@ When using this context:
 - If the context is relevant, use it to provide accurate, detailed answers
 - If the context doesn't relate to the question, you can still provide general help
 - Don't mention that you're using "context" or "knowledge base" explicitly`;
-		}
 
 		return systemPrompt;
 	};
@@ -175,12 +155,8 @@ When using this context:
 	 */
 	private createSecureLLM = (config: ChatbotConfig): LLM => {
 		try {
-			if (EncryptionUtil.isEncrypted(config.apiKey)) {
-				throw new Error('API key appears to still be encrypted - this should not happen');
-			}
-
+			if (EncryptionUtil.isEncrypted(config.apiKey)) throw new Error('API key appears to still be encrypted - this should not happen');
 			const llm = new LLM(config.apiKey, config.baseUrl);
-
 			return llm;
 		} catch (error) {
 			client.logger.error(`[CHATBOT_SERVICE] Error creating secure LLM instance: ${error}`);
@@ -196,22 +172,10 @@ When using this context:
 	 * @param channelId - Discord channel ID
 	 * @returns Generated response, confirmation button, or null if failed
 	 */
-	public processMessage = async (
-		userMessage: string,
-		userId: string,
-		config: ChatbotConfig,
-		channelId: string
-	): Promise<{
-		response?: string;
-		needsConfirmation?: boolean;
-		confirmationEmbed?: discord.EmbedBuilder;
-		confirmationButtons?: discord.ActionRowBuilder<discord.ButtonBuilder>;
-	} | null> => {
+	public processMessage = async (userMessage: string, userId: string, config: ChatbotConfig, channelId: string): Promise<{ response?: string; needsConfirmation?: boolean; confirmationEmbed?: discord.EmbedBuilder; confirmationButtons?: discord.ActionRowBuilder<discord.ButtonBuilder> } | null> => {
 		try {
 			const llm = this.createSecureLLM(config);
-
 			const chatHistory = new ChatHistory(this.dataSource, userId, config.guildId, 20);
-
 			const ragContext = await this.searchRagContext(userMessage, config.guildId);
 			const categories = await this.getTicketCategories(config.guildId);
 
@@ -220,32 +184,20 @@ When using this context:
 				const toolSystemPrompt = this.buildSystemPrompt(config, ragContext, true);
 				const history = await chatHistory.getHistory();
 				const filteredHistory = history.filter((msg) => msg.role !== 'system');
-
 				const toolMessages = [{ role: 'system' as const, content: toolSystemPrompt }, ...filteredHistory, { role: 'user' as const, content: userMessage }];
-
 				const tools = createDynamicTicketTool(categories);
 
-				const toolResponse = await llm.invoke(toolMessages, config.modelName, {
-					max_tokens: 2000,
-					temperature: 0.3,
-					tools: tools,
-					tool_choice: 'auto',
-				});
-
+				const toolResponse = await llm.invoke(toolMessages, config.modelName, { temperature: 0.3, tools: tools, tool_choice: 'auto' });
 				const toolCalls = toolResponse.choices[0]?.message?.tool_calls;
 
 				if (toolCalls && toolCalls.length > 0) {
 					const toolCall = toolCalls[0];
-
-					if (toolCall.function.name === 'create_ticket') {
+					if (toolCall.type === 'function' && toolCall.function.name === 'create_ticket') {
 						const args = JSON.parse(toolCall.function.arguments);
 						const selectedCategory = categories.find((cat) => cat.name === args.ticket_category);
-
 						if (selectedCategory) {
 							const confirmationId = `ticket_confirm_${userId}_${Date.now()}`;
-
 							this.cleanupOldConfirmations();
-
 							ChatbotService.pendingTicketCreations.set(confirmationId, {
 								categoryId: selectedCategory.id,
 								userMessage,
@@ -256,7 +208,6 @@ When using this context:
 							});
 
 							client.logger.debug(`[CHATBOT_SERVICE] Stored pending ticket creation with ID: ${confirmationId}`);
-
 							const confirmationEmbed = new discord.EmbedBuilder()
 								.setTitle('🎫 Create Ticket Confirmation')
 								.setDescription(`${args.message || "I'd like to create a ticket to better assist you with your request."}\n\n` + `**Category:** ${selectedCategory.name}\n` + `**Your message:** ${userMessage.length > 100 ? userMessage.substring(0, 100) + '...' : userMessage}`)
@@ -264,12 +215,7 @@ When using this context:
 								.setFooter({ text: 'This will create a private support channel for you' });
 
 							const confirmationButtons = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new discord.ButtonBuilder().setCustomId(`ticket_confirm_yes_${confirmationId}`).setLabel('Create Ticket').setStyle(discord.ButtonStyle.Success).setEmoji('✅'), new discord.ButtonBuilder().setCustomId(`ticket_confirm_no_${confirmationId}`).setLabel('Cancel').setStyle(discord.ButtonStyle.Secondary).setEmoji('❌'));
-
-							return {
-								needsConfirmation: true,
-								confirmationEmbed,
-								confirmationButtons,
-							};
+							return { needsConfirmation: true, confirmationEmbed, confirmationButtons };
 						}
 					}
 				}
@@ -279,14 +225,8 @@ When using this context:
 			const normalSystemPrompt = this.buildSystemPrompt(config, ragContext, false);
 			const history = await chatHistory.getHistory();
 			const filteredHistory = history.filter((msg) => msg.role !== 'system');
-
 			const normalMessages = [{ role: 'system' as const, content: normalSystemPrompt }, ...filteredHistory, { role: 'user' as const, content: userMessage }];
-
-			const response = await llm.invoke(normalMessages, config.modelName, {
-				max_tokens: 2000,
-				temperature: 0.7,
-			});
-
+			const response = await llm.invoke(normalMessages, config.modelName, { temperature: 0.7 });
 			const assistantMessage = response.choices[0]?.message?.content;
 
 			if (!assistantMessage) {
@@ -296,15 +236,10 @@ When using this context:
 
 			await chatHistory.addUserMessage(userMessage);
 			await chatHistory.addAssistantMessage(assistantMessage);
-
 			return { response: assistantMessage };
 		} catch (error) {
 			client.logger.error(`[CHATBOT_SERVICE] Error processing message: ${error}`);
-
-			if (error instanceof Error && error.message.includes('decrypt')) {
-				client.logger.error(`[CHATBOT_SERVICE] API key decryption error - encryption key may have changed`);
-			}
-
+			if (error instanceof Error && error.message.includes('decrypt')) client.logger.error(`[CHATBOT_SERVICE] API key decryption error - encryption key may have changed`);
 			return null;
 		}
 	};
@@ -322,13 +257,8 @@ When using this context:
 			client.logger.debug(`[CHATBOT_SERVICE] Available confirmations: ${Array.from(ChatbotService.pendingTicketCreations.keys()).join(', ')}`);
 
 			const pendingCreation = ChatbotService.pendingTicketCreations.get(confirmationId);
-			if (!pendingCreation) {
-				return { success: false, message: 'Ticket creation request has expired or is invalid.' };
-			}
-
-			if (pendingCreation.userId !== clickingUserId) {
-				return { success: false, message: 'You can only confirm your own ticket creation requests.' };
-			}
+			if (!pendingCreation) return { success: false, message: 'Ticket creation request has expired or is invalid.' };
+			if (pendingCreation.userId !== clickingUserId) return { success: false, message: 'You can only confirm your own ticket creation requests.' };
 
 			ChatbotService.pendingTicketCreations.delete(confirmationId);
 			client.logger.debug(`[CHATBOT_SERVICE] Deleted confirmation ID: ${confirmationId}`);
@@ -338,41 +268,23 @@ When using this context:
 			if (!confirmed) {
 				await chatHistory.addUserMessage(pendingCreation.userMessage);
 				await chatHistory.addAssistantMessage("I understand you don't need a ticket right now. Feel free to ask me anything else!");
-
 				return { success: true, message: 'Ticket creation has been cancelled.' };
 			}
 
 			const ticketManager = new Ticket(this.dataSource, client);
-
-			const result = await ticketManager.create({
-				guildId: pendingCreation.guildId,
-				userId: pendingCreation.userId,
-				categoryId: pendingCreation.categoryId,
-				initialMessage: pendingCreation.userMessage,
-			});
-
+			const result = await ticketManager.create({ guildId: pendingCreation.guildId, userId: pendingCreation.userId, categoryId: pendingCreation.categoryId, initialMessage: pendingCreation.userMessage });
 			if (!result.success) {
 				await chatHistory.addUserMessage(pendingCreation.userMessage);
 				await chatHistory.addAssistantMessage('I apologize, but there was an issue creating your ticket. Please try again or contact an administrator.');
-
 				return { success: false, message: result.message };
 			}
 
 			const ticketChannel = result.channel;
-			if (!ticketChannel) {
-				return { success: false, message: 'Ticket was created but channel reference was not found.' };
-			}
-
+			if (!ticketChannel) return { success: false, message: 'Ticket was created but channel reference was not found.' };
 			await chatHistory.addUserMessage(pendingCreation.userMessage);
 			await chatHistory.addAssistantMessage(`I've created ticket #${result.ticket?.ticketNumber} for you. You can find it here: ${ticketChannel}. A staff member will assist you shortly!`);
-
 			client.logger.info(`[CHATBOT_SERVICE] Created ticket #${result.ticket?.ticketNumber} via AI assistant for user ${pendingCreation.userId}`);
-
-			return {
-				success: true,
-				message: `Ticket created successfully! Please check ${ticketChannel} for further assistance.`,
-				ticketChannel: ticketChannel.toString(),
-			};
+			return { success: true, message: `Ticket created successfully! Please check ${ticketChannel} for further assistance.`, ticketChannel: ticketChannel.toString() };
 		} catch (error) {
 			client.logger.error(`[CHATBOT_SERVICE] Error handling ticket confirmation: ${error}`);
 			return { success: false, message: 'An error occurred while creating the ticket.' };
@@ -384,7 +296,6 @@ When using this context:
 	 */
 	private cleanupOldConfirmations = (): void => {
 		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-
 		for (const [key, value] of ChatbotService.pendingTicketCreations.entries()) {
 			const timestamp = parseInt(key.split('_').pop() || '0');
 			if (timestamp < fiveMinutesAgo) {
@@ -402,21 +313,15 @@ When using this context:
 	public splitResponse = (response: string): string[] => {
 		const maxLength = 2000;
 		const chunks: string[] = [];
-
-		if (response.length <= maxLength) {
-			return [response];
-		}
-
+		if (response.length <= maxLength) return [response];
 		const paragraphs = response.split('\n\n');
 		let currentChunk = '';
-
 		for (const paragraph of paragraphs) {
 			if ((currentChunk + paragraph).length > maxLength) {
 				if (currentChunk) {
 					chunks.push(currentChunk.trim());
 					currentChunk = '';
 				}
-
 				if (paragraph.length > maxLength) {
 					const sentences = paragraph.split('. ');
 					for (const sentence of sentences) {
@@ -451,9 +356,7 @@ When using this context:
 			}
 		}
 
-		if (currentChunk.trim()) {
-			chunks.push(currentChunk.trim());
-		}
+		if (currentChunk.trim()) chunks.push(currentChunk.trim());
 
 		return chunks;
 	};

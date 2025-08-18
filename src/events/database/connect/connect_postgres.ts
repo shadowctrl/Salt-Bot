@@ -30,7 +30,6 @@ const event: BotEvent = {
 			const dataSource = await initializeDatabase(client);
 			(client as any).dataSource = dataSource;
 			client.logger.success(`[DATABASE] Connected to PostgreSQL database.`);
-
 			await initializeEncryption(client);
 		} catch (error) {
 			client.logger.error(`[DATABASE] Failed to connect to PostgreSQL: ${error}`);

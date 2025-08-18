@@ -4,93 +4,35 @@ import { RAG, Embedding } from '../../../core/ai';
 import { EmbedTemplate } from '../../../core/embed/template';
 import { RagRepository } from '../../../events/database/repo/chat_bot';
 
-export const handleUploadRag = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client, ragRepo: RagRepository): Promise<void> => {
+export const handleUploadRag = async (interaction: discord.ChatInputCommandInteraction, client: discord.Client, ragRepo: RagRepository): Promise<discord.Message<boolean> | void> => {
 	try {
 		const hasExistingData = await ragRepo.hasRagData(interaction.guildId!);
-		if (hasExistingData) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).warning('Knowledge data already exists for this server.').setDescription('You can only have one set of knowledge data. Please delete the existing data first using `/chatbot delete_rag` before uploading new data.')],
-			});
-			return;
-		}
+		if (hasExistingData) return await interaction.editReply({ embeds: [new EmbedTemplate(client).warning('Knowledge data already exists for this server.').setDescription('You can only have one set of knowledge data. Please delete the existing data first using `/chatbot delete_rag` before uploading new data.')] });
 
 		const file = interaction.options.getAttachment('file');
-		if (!file) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('No file was provided.')],
-			});
-			return;
-		}
-
+		if (!file) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('No file was provided.')] });
 		const fileExtension = file.name.split('.').pop()?.toLowerCase();
-		if (!fileExtension || !['txt', 'md'].includes(fileExtension)) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Invalid file type.').setDescription('Please upload a text (.txt) or Markdown (.md) file.')],
-			});
-			return;
-		}
+		if (!fileExtension || !['txt', 'md'].includes(fileExtension)) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Invalid file type.').setDescription('Please upload a text (.txt) or Markdown (.md) file.')] });
 
 		// Validate file size (max 1MB)
-		if (file.size > 1024 * 1024) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('File too large.').setDescription('Maximum file size is 1MB.')],
-			});
-			return;
-		}
-
-		await interaction.editReply({
-			embeds: [new discord.EmbedBuilder().setTitle('Processing Knowledge Data').setDescription('Downloading and processing your knowledge data. This may take a moment...').setColor('Blue')],
-		});
+		if (file.size > 1024 * 1024) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('File too large.').setDescription('Maximum file size is 1MB.')] });
+		await interaction.editReply({ embeds: [new discord.EmbedBuilder().setTitle('Processing Knowledge Data').setDescription('Downloading and processing your knowledge data. This may take a moment...').setColor('Blue')] });
 
 		const response = await fetch(file.url);
-		if (!response.ok) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Failed to download file.').setDescription(`HTTP error: ${response.status}`)],
-			});
-			return;
-		}
-
+		if (!response.ok) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to download file.').setDescription(`HTTP error: ${response.status}`)] });
 		const textContent = await response.text();
-		if (!textContent || textContent.trim().length === 0) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('The file is empty.').setDescription('Please upload a file with content.')],
-			});
-			return;
-		}
-
+		if (!textContent || textContent.trim().length === 0) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('The file is empty.').setDescription('Please upload a file with content.')] });
 		const description = interaction.options.getString('description');
+
 		const embedding = new Embedding();
 		const rag = new RAG(embedding);
 
-		await interaction.editReply({
-			embeds: [new discord.EmbedBuilder().setTitle('Generating Embeddings').setDescription('Creating semantic chunks and generating embeddings...').setColor('Blue')],
-		});
+		await interaction.editReply({ embeds: [new discord.EmbedBuilder().setTitle('Generating Embeddings').setDescription('Creating semantic chunks and generating embeddings...').setColor('Blue')] });
 
-		const processedDocs = await rag.processText(
-			textContent,
-			{ name: file.name, type: fileExtension as 'txt' | 'md' },
-			{
-				chunkSize: 500,
-				chunkOverlap: 50,
-				deduplicate: true,
-			}
-		);
-
-		if (processedDocs.length === 0) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Failed to process document.').setDescription('No chunks were generated. The file may be too short or contain unsupported content.')],
-			});
-			return;
-		}
-
+		const processedDocs = await rag.processText(textContent, { name: file.name, type: fileExtension as 'txt' | 'md' }, { chunkSize: 500, chunkOverlap: 50, deduplicate: true });
+		if (processedDocs.length === 0) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to process document.').setDescription('No chunks were generated. The file may be too short or contain unsupported content.')] });
 		const storedDocument = await ragRepo.storeRagData(interaction.guildId!, file.name, fileExtension, description, processedDocs);
-
-		if (!storedDocument) {
-			await interaction.editReply({
-				embeds: [new EmbedTemplate(client).error('Failed to store knowledge data.').setDescription('There was an error saving your data to the database.')],
-			});
-			return;
-		}
+		if (!storedDocument) return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to store knowledge data.').setDescription('There was an error saving your data to the database.')] });
 
 		await interaction.editReply({
 			embeds: [
@@ -104,8 +46,6 @@ export const handleUploadRag = async (interaction: discord.ChatInputCommandInter
 		client.logger.info(`[CHATBOT_RAG] Added RAG data for guild ${interaction.guildId}: ${file.name} (${storedDocument.chunkCount} chunks)`);
 	} catch (error) {
 		client.logger.error(`[CHATBOT_RAG] Error uploading RAG data: ${error}`);
-		await interaction.editReply({
-			embeds: [new EmbedTemplate(client).error('An error occurred while processing your knowledge data.').setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)],
-		});
+		await interaction.editReply({ embeds: [new EmbedTemplate(client).error('An error occurred while processing your knowledge data.').setDescription(`Error: ${error instanceof Error ? error.message : String(error)}`)] });
 	}
 };

@@ -33,7 +33,6 @@ export class PremiumCouponRepository {
 			coupon.status = true;
 			coupon.createdAt = new Date();
 			coupon.updatedAt = new Date();
-
 			return await this.couponRepo.save(coupon);
 		} catch (error) {
 			client.logger.error(`[PREMIUM_USER_REPO] Error creating coupon: ${error}`);
@@ -48,9 +47,7 @@ export class PremiumCouponRepository {
 	 */
 	async findByCode(code: string): Promise<PremiumCoupon | null> {
 		try {
-			return await this.couponRepo.findOne({
-				where: { code },
-			});
+			return await this.couponRepo.findOne({ where: { code } });
 		} catch (error) {
 			client.logger.error(`[PREMIUM_USER_REPO] Error finding coupon by code: ${error}`);
 			return null;
@@ -79,9 +76,7 @@ export class PremiumCouponRepository {
 	 */
 	async findActiveByUserId(userId: string): Promise<PremiumCoupon[]> {
 		try {
-			return await this.couponRepo.find({
-				where: { userId, status: true },
-			});
+			return await this.couponRepo.find({ where: { userId, status: true } });
 		} catch (error) {
 			client.logger.error(`[PREMIUM_USER_REPO] Error finding coupons by user ID: ${error}`);
 			return [];
@@ -96,15 +91,10 @@ export class PremiumCouponRepository {
 	async markCouponAsUsed(code: string): Promise<boolean> {
 		try {
 			const coupon = await this.findByCode(code);
-
-			if (!coupon) {
-				return false;
-			}
-
+			if (!coupon) return false;
 			coupon.status = false;
 			coupon.updatedAt = new Date();
 			await this.couponRepo.save(coupon);
-
 			return true;
 		} catch (error) {
 			client.logger.error(`[PREMIUM_USER_REPO] Error marking coupon as used: ${error}`);
@@ -119,11 +109,7 @@ export class PremiumCouponRepository {
 	 */
 	async deleteExpiredCoupons(codes: string[]): Promise<number> {
 		try {
-			const result = await this.couponRepo.delete({
-				code: { $in: codes } as any,
-				status: true,
-			});
-
+			const result = await this.couponRepo.delete({ code: { $in: codes } as any, status: true });
 			return result.affected || 0;
 		} catch (error) {
 			client.logger.error(`[PREMIUM_USER_REPO] Error deleting expired coupons: ${error}`);
@@ -136,12 +122,7 @@ export class PremiumCouponRepository {
 	 * @param coupons - Array of coupon data objects to create
 	 * @returns Array of created coupons or empty array if operation failed
 	 */
-	async createCouponBatch(
-		coupons: Array<{
-			code: string;
-			userId: string;
-		}>
-	): Promise<PremiumCoupon[]> {
+	async createCouponBatch(coupons: Array<{ code: string; userId: string }>): Promise<PremiumCoupon[]> {
 		const queryRunner = this.dataSource.createQueryRunner();
 
 		await queryRunner.connect();
@@ -149,7 +130,6 @@ export class PremiumCouponRepository {
 
 		try {
 			const createdCoupons: PremiumCoupon[] = [];
-
 			for (const couponData of coupons) {
 				const coupon = new PremiumCoupon();
 				coupon.code = couponData.code;
@@ -157,11 +137,9 @@ export class PremiumCouponRepository {
 				coupon.status = true;
 				coupon.createdAt = new Date();
 				coupon.updatedAt = new Date();
-
 				const createdCoupon = await queryRunner.manager.save(coupon);
 				createdCoupons.push(createdCoupon);
 			}
-
 			await queryRunner.commitTransaction();
 			return createdCoupons;
 		} catch (error) {

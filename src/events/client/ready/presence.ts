@@ -24,17 +24,12 @@ const processActivityName = (name: string, client: discord.Client): string => {
 	return Object.entries(replacements).reduce((acc, [token, value]) => acc.replace(new RegExp(token, 'g'), value ?? ''), name);
 };
 
-const createActivityList = (client: discord.Client, activities: BotPresence[]): BotPresence[] =>
-	activities.map((activity) => ({
-		name: processActivityName(activity.name, client),
-		type: ACTIVITY_TYPE_MAP[activity.type] || discord.ActivityType.Playing,
-	}));
+const createActivityList = (client: discord.Client, activities: BotPresence[]): BotPresence[] => activities.map((activity) => ({ name: processActivityName(activity.name, client), type: ACTIVITY_TYPE_MAP[activity.type] || discord.ActivityType.Playing }));
 
 const event: BotEvent = {
 	name: discord.Events.ClientReady,
 	execute: async (client: discord.Client): Promise<void> => {
 		if (!(client as any).config.bot.presence.enabled) return;
-
 		let currentIndex = 0;
 		setInterval(() => {
 			let activityList = createActivityList(client, (client as any).config.bot.presence.activity);
@@ -42,7 +37,6 @@ const event: BotEvent = {
 			client.user?.setActivity(activityList[currentIndex]);
 			currentIndex++;
 		}, (client as any).config.bot.presence.interval);
-
 		client.user?.setStatus((client as any).config.bot.presence.status.toLowerCase());
 	},
 };

@@ -21,10 +21,7 @@ class EmbedTemplate {
 		return new discord.EmbedBuilder()
 			.setColor(this.client.config.embed.color.success)
 			.setDescription(message)
-			.setFooter({
-				text: this.client.user?.username || 'Ticket Bot',
-				iconURL: this.client.user?.displayAvatarURL(),
-			})
+			.setFooter({ text: this.client.user?.username || 'Ticket Bot', iconURL: this.client.user?.displayAvatarURL() })
 			.setTimestamp();
 	}
 
@@ -37,10 +34,7 @@ class EmbedTemplate {
 		return new discord.EmbedBuilder()
 			.setColor(this.client.config.embed.color.error)
 			.setDescription(message)
-			.setFooter({
-				text: this.client.user?.username || 'Ticket Bot',
-				iconURL: this.client.user?.displayAvatarURL(),
-			})
+			.setFooter({ text: this.client.user?.username || 'Ticket Bot', iconURL: this.client.user?.displayAvatarURL() })
 			.setTimestamp();
 	}
 
@@ -53,10 +47,7 @@ class EmbedTemplate {
 		return new discord.EmbedBuilder()
 			.setColor(this.client.config.embed.color.warning)
 			.setDescription(message)
-			.setFooter({
-				text: this.client.user?.username || 'Ticket Bot',
-				iconURL: this.client.user?.displayAvatarURL(),
-			})
+			.setFooter({ text: this.client.user?.username || 'Ticket Bot', iconURL: this.client.user?.displayAvatarURL() })
 			.setTimestamp();
 	}
 
@@ -69,10 +60,7 @@ class EmbedTemplate {
 		return new discord.EmbedBuilder()
 			.setColor(this.client.config.embed.color.default)
 			.setDescription(message)
-			.setFooter({
-				text: this.client.user?.username || 'Ticket Bot',
-				iconURL: this.client.user?.displayAvatarURL(),
-			})
+			.setFooter({ text: this.client.user?.username || 'Ticket Bot', iconURL: this.client.user?.displayAvatarURL() })
 			.setTimestamp();
 	}
 }

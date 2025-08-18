@@ -18,10 +18,8 @@ const handleCommandPrerequisites = async (client: discord.Client, message: disco
 		}
 
 		const [isBlocked, blockReason] = await checkBlockedStatus(message.author.id);
-
 		if (isBlocked) {
 			const reasonText = blockReason ? `Reason: ${blockReason}` : 'No specific reason provided';
-
 			const embed = new EmbedTemplate(client).error(`🚫 You are blocked from using this bot. \n**${reasonText}**`).setFooter({ text: 'Join Salt support server and raise ticket for unblock.' });
 			const components = new discord.ActionRowBuilder<discord.ButtonBuilder>().addComponents(new ButtonTemplate(client).supportButton());
 			await sendTempMessage(message, null, embed, components, 10000);
@@ -33,9 +31,7 @@ const handleCommandPrerequisites = async (client: discord.Client, message: disco
 			if (cooldown.has(cooldownKey)) {
 				const cooldownTime = cooldown.get(cooldownKey);
 				const remainingTime = cooldownTime ? cooldownTime - Date.now() : 0;
-
 				const coolMsg = client.config.bot.command.cooldown_message.replace('<duration>', ms(remainingTime));
-
 				await sendTempMessage(message, null, new EmbedTemplate(client).warning(coolMsg), null, 10000);
 				return false;
 			}
@@ -96,25 +92,14 @@ const executeCommand = async (client: discord.Client, message: discord.Message, 
 			return;
 		}
 
-		if (message.channel?.isTextBased() && 'send' in message.channel) {
-			await message.channel.sendTyping();
-		}
-
+		if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.sendTyping();
 		await command.execute(client, message, args);
-
-		await client.cmdLogger.log({
-			client,
-			commandName: `${client.config.bot.command.prefix}${command.name}`,
-			guild: message.guild,
-			user: message.author,
-			channel: message.channel as discord.TextChannel,
-		});
+		await client.cmdLogger.log({ client, commandName: `${client.config.bot.command.prefix}${command.name}`, guild: message.guild, user: message.author, channel: message.channel as discord.TextChannel });
 
 		if (command.cooldown) {
 			if (client.config.bot.owners.includes(message.author.id)) return;
 			const cooldownKey = `${command.name}${message.author.id}`;
 			const cooldownAmount = command.cooldown * 1000;
-
 			cooldown.set(cooldownKey, Date.now() + cooldownAmount);
 			setTimeout(() => cooldown.delete(cooldownKey), cooldownAmount);
 		}
@@ -123,14 +108,9 @@ const executeCommand = async (client: discord.Client, message: discord.Message, 
 			client.logger.debug(`[MESSAGE_CREATE] Message no longer exists during execution: ${error}`);
 			return;
 		}
-
 		client.logger.error(`[MESSAGE_CREATE] Error executing command: ${error}`);
 		try {
-			if (message.channel?.isTextBased() && 'send' in message.channel) {
-				await message.channel.send({
-					embeds: [new EmbedTemplate(client).error('❌ An error occurred while executing the command.')],
-				});
-			}
+			if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).error('❌ An error occurred while executing the command.')] });
 		} catch (sendError) {
 			client.logger.debug(`[MESSAGE_CREATE] Could not send error message: ${sendError}`);
 		}
@@ -153,42 +133,25 @@ const event: BotEvent = {
 			let command = client.commands.get(commandName);
 			if (!command && 'aliases' in client) {
 				const alias = (client as any).aliases.get(commandName);
-				if (alias) {
-					command = client.commands.get(alias);
-				}
+				if (alias) command = client.commands.get(alias);
 			}
 
 			if (!command) return;
-
 			if (!(client as any).dataSource) {
 				try {
-					if (message.channel?.isTextBased() && 'send' in message.channel) {
-						await message.channel.send({
-							embeds: [new EmbedTemplate(client).error('❌ Database connection is not available.')],
-						});
-					}
+					if (message.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).error('❌ Database connection is not available.')] });
 				} catch (sendError) {
 					client.logger.debug(`[MESSAGE_CREATE] Could not send database error message: ${sendError}`);
 				}
 				return;
 			}
 
-			if (await handleCommandPrerequisites(client, message, command)) {
-				await executeCommand(client, message, command, args);
-			}
+			if (await handleCommandPrerequisites(client, message, command)) await executeCommand(client, message, command, args);
 		} catch (error: Error | any) {
-			if (error?.code === 10008 || error?.message?.includes('Unknown Message')) {
-				client.logger.debug(`[MESSAGE_CREATE] Message no longer exists in event handler: ${error}`);
-				return;
-			}
-
+			if (error?.code === 10008 || error?.message?.includes('Unknown Message')) return client.logger.debug(`[MESSAGE_CREATE] Message no longer exists in event handler: ${error}`);
 			client.logger.error(`[MESSAGE_CREATE] Error in event handler: ${error}`);
 			try {
-				if (message?.channel?.isTextBased() && 'send' in message.channel) {
-					await message.channel.send({
-						embeds: [new EmbedTemplate(client).error('❌ An error occurred while processing your message.')],
-					});
-				}
+				if (message?.channel?.isTextBased() && 'send' in message.channel) await message.channel.send({ embeds: [new EmbedTemplate(client).error('❌ An error occurred while processing your message.')] });
 			} catch (sendError) {
 				client.logger.debug(`[MESSAGE_CREATE] Could not send error message: ${sendError}`);
 			}

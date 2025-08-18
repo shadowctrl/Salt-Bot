@@ -42,21 +42,15 @@ export class TicketRepository {
 	 */
 	async getOrCreateGuildConfig(guildId: string): Promise<IGuildConfig> {
 		try {
-			let guildConfig = await this.guildConfigRepo.findOne({
-				where: { guildId },
-				relations: ['ticketCategories', 'ticketButton', 'selectMenu'],
-			});
-
+			let guildConfig = await this.guildConfigRepo.findOne({ where: { guildId }, relations: ['ticketCategories', 'ticketButton', 'selectMenu'] });
 			if (!guildConfig) {
 				guildConfig = new GuildConfig();
 				guildConfig.guildId = guildId;
 				guildConfig.defaultCategoryName = 'tickets';
 				guildConfig.isEnabled = true;
 				guildConfig = await this.guildConfigRepo.save(guildConfig);
-
 				client.logger.info(`[TICKET_REPO] Created new guild config for ${guildId}`);
 			}
-
 			return guildConfig;
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting guild config: ${error}`);
@@ -71,10 +65,7 @@ export class TicketRepository {
 	 */
 	async getGuildConfig(guildId: string): Promise<IGuildConfig | null> {
 		try {
-			return await this.guildConfigRepo.findOne({
-				where: { guildId },
-				relations: ['ticketCategories', 'ticketButton', 'selectMenu'],
-			});
+			return await this.guildConfigRepo.findOne({ where: { guildId }, relations: ['ticketCategories', 'ticketButton', 'selectMenu'] });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting guild config: ${error}`);
 			return null;
@@ -87,24 +78,11 @@ export class TicketRepository {
 	 * @param configData - Guild configuration data
 	 * @returns Updated guild configuration
 	 */
-	async updateGuildConfig(
-		guildId: string,
-		configData: {
-			defaultCategoryName?: string;
-			isEnabled?: boolean;
-		}
-	): Promise<IGuildConfig | null> {
+	async updateGuildConfig(guildId: string, configData: { defaultCategoryName?: string; isEnabled?: boolean }): Promise<IGuildConfig | null> {
 		try {
 			const guildConfig = await this.getOrCreateGuildConfig(guildId);
-
-			if (configData.defaultCategoryName !== undefined) {
-				guildConfig.defaultCategoryName = configData.defaultCategoryName;
-			}
-
-			if (configData.isEnabled !== undefined) {
-				guildConfig.isEnabled = configData.isEnabled;
-			}
-
+			if (configData.defaultCategoryName !== undefined) guildConfig.defaultCategoryName = configData.defaultCategoryName;
+			if (configData.isEnabled !== undefined) guildConfig.isEnabled = configData.isEnabled;
 			return await this.guildConfigRepo.save(guildConfig as GuildConfig);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error updating guild config: ${error}`);
@@ -121,17 +99,11 @@ export class TicketRepository {
 		const queryRunner = this.dataSource.createQueryRunner();
 		await queryRunner.connect();
 		await queryRunner.startTransaction();
-
 		try {
 			const guildConfig = await this.getGuildConfig(guildId);
-
-			if (!guildConfig) {
-				return false;
-			}
-
+			if (!guildConfig) return false;
 			await this.guildConfigRepo.remove(guildConfig as GuildConfig);
 			await queryRunner.commitTransaction();
-
 			return true;
 		} catch (error) {
 			await queryRunner.rollbackTransaction();
@@ -150,17 +122,7 @@ export class TicketRepository {
 	 * @param categoryData - Ticket category data
 	 * @returns Created ticket category
 	 */
-	async createTicketCategory(
-		guildId: string,
-		categoryData: {
-			name: string;
-			description?: string;
-			emoji?: string;
-			supportRoleId?: string;
-			position?: number;
-			categoryId?: string;
-		}
-	): Promise<ITicketCategory> {
+	async createTicketCategory(guildId: string, categoryData: { name: string; description?: string; emoji?: string; supportRoleId?: string; position?: number; categoryId?: string }): Promise<ITicketCategory> {
 		const queryRunner = this.dataSource.createQueryRunner();
 		await queryRunner.connect();
 		await queryRunner.startTransaction();
@@ -168,9 +130,7 @@ export class TicketRepository {
 		try {
 			const guildConfig = await this.getOrCreateGuildConfig(guildId);
 			const guild = client.guilds.cache.get(guildId);
-			if (!guild) {
-				throw new Error('Guild not found');
-			}
+			if (!guild) throw new Error('Guild not found');
 			let discordCategoryId = categoryData.categoryId;
 			if (!discordCategoryId) {
 				const categoryName = `${categoryData.name} Ticket`;
@@ -179,25 +139,12 @@ export class TicketRepository {
 					type: discord.ChannelType.GuildCategory,
 					position: 0,
 					permissionOverwrites: [
-						{
-							id: guild.roles.everyone,
-							deny: [discord.PermissionFlagsBits.ViewChannel],
-						},
-						{
-							id: client.user!.id,
-							allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels],
-						},
+						{ id: guild.roles.everyone, deny: [discord.PermissionFlagsBits.ViewChannel] },
+						{ id: client.user!.id, allow: [discord.PermissionFlagsBits.ViewChannel, discord.PermissionFlagsBits.SendMessages, discord.PermissionFlagsBits.ManageChannels] },
 					],
 				});
-
 				discordCategoryId = discordCategory.id;
-				if (categoryData.supportRoleId) {
-					await discordCategory.permissionOverwrites.create(categoryData.supportRoleId, {
-						ViewChannel: true,
-						SendMessages: true,
-						ReadMessageHistory: true,
-					});
-				}
+				if (categoryData.supportRoleId) await discordCategory.permissionOverwrites.create(categoryData.supportRoleId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 			}
 
 			const category = new TicketCategory();
@@ -234,10 +181,7 @@ export class TicketRepository {
 	 */
 	async getTicketCategory(categoryId: string): Promise<ITicketCategory | null> {
 		try {
-			return await this.ticketCategoryRepo.findOne({
-				where: { id: categoryId },
-				relations: ['guildConfig', 'ticketMessage'],
-			});
+			return await this.ticketCategoryRepo.findOne({ where: { id: categoryId }, relations: ['guildConfig', 'ticketMessage'] });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket category: ${error}`);
 			return null;
@@ -251,14 +195,8 @@ export class TicketRepository {
 	 */
 	async getTicketCategories(guildId: string): Promise<ITicketCategory[]> {
 		try {
-			const guildConfig = await this.guildConfigRepo.findOne({
-				where: { guildId },
-				relations: ['ticketCategories', 'ticketCategories.ticketMessage'],
-			});
-
-			if (!guildConfig) {
-				return [];
-			}
+			const guildConfig = await this.guildConfigRepo.findOne({ where: { guildId }, relations: ['ticketCategories', 'ticketCategories.ticketMessage'] });
+			if (!guildConfig) return [];
 			return guildConfig.ticketCategories.sort((a, b) => a.position - b.position);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket categories: ${error}`);
@@ -272,23 +210,10 @@ export class TicketRepository {
 	 * @param categoryData - Ticket category data to update
 	 * @returns Updated ticket category
 	 */
-	async updateTicketCategory(
-		categoryId: string,
-		categoryData: {
-			name?: string;
-			description?: string;
-			emoji?: string;
-			supportRoleId?: string;
-			position?: number;
-			isEnabled?: boolean;
-		}
-	): Promise<ITicketCategory | null> {
+	async updateTicketCategory(categoryId: string, categoryData: { name?: string; description?: string; emoji?: string; supportRoleId?: string; position?: number; isEnabled?: boolean }): Promise<ITicketCategory | null> {
 		try {
 			const category = await this.getTicketCategory(categoryId);
-
-			if (!category) {
-				return null;
-			}
+			if (!category) return null;
 
 			if (categoryData.name !== undefined) category.name = categoryData.name;
 			if (categoryData.description !== undefined) category.description = categoryData.description;
@@ -313,17 +238,11 @@ export class TicketRepository {
 		const queryRunner = this.dataSource.createQueryRunner();
 		await queryRunner.connect();
 		await queryRunner.startTransaction();
-
 		try {
 			const category = await this.getTicketCategory(categoryId);
-
-			if (!category) {
-				return false;
-			}
-
+			if (!category) return false;
 			await this.ticketCategoryRepo.remove(category as TicketCategory);
 			await queryRunner.commitTransaction();
-
 			return true;
 		} catch (error) {
 			await queryRunner.rollbackTransaction();
@@ -350,25 +269,12 @@ export class TicketRepository {
 		await queryRunner.startTransaction();
 
 		try {
-			const guildConfig = await this.guildConfigRepo.findOne({
-				where: { guildId },
-			});
-
-			if (!guildConfig) {
-				throw new Error('Guild configuration not found');
-			}
-
+			const guildConfig = await this.guildConfigRepo.findOne({ where: { guildId } });
+			if (!guildConfig) throw new Error('Guild configuration not found');
 			guildConfig.globalTicketCount++;
 			await this.guildConfigRepo.save(guildConfig);
-			const category = await this.ticketCategoryRepo.findOne({
-				where: { id: categoryId },
-				relations: ['guildConfig', 'ticketMessage'],
-			});
-
-			if (!category || category.guildConfig.guildId !== guildId) {
-				throw new Error('Ticket category not found or does not belong to this guild');
-			}
-
+			const category = await this.ticketCategoryRepo.findOne({ where: { id: categoryId }, relations: ['guildConfig', 'ticketMessage'] });
+			if (!category || category.guildConfig.guildId !== guildId) throw new Error('Ticket category not found or does not belong to this guild');
 			category.ticketCount++;
 			await this.ticketCategoryRepo.save(category);
 			const ticket = new Ticket();
@@ -397,17 +303,10 @@ export class TicketRepository {
 	 */
 	async claimTicket(ticketId: string, userId: string): Promise<ITicket | null> {
 		try {
-			const ticket = await this.ticketRepo.findOne({
-				where: { id: ticketId },
-			});
-
-			if (!ticket) {
-				return null;
-			}
-
+			const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
+			if (!ticket) return null;
 			ticket.claimedById = userId;
 			ticket.claimedAt = new Date();
-
 			return await this.ticketRepo.save(ticket);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error claiming ticket: ${error}`);
@@ -422,17 +321,10 @@ export class TicketRepository {
 	 */
 	async unclaimTicket(ticketId: string): Promise<ITicket | null> {
 		try {
-			const ticket = await this.ticketRepo.findOne({
-				where: { id: ticketId },
-			});
-
-			if (!ticket) {
-				return null;
-			}
-
+			const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
+			if (!ticket) return null;
 			ticket.claimedById = null;
 			ticket.claimedAt = null;
-
 			return await this.ticketRepo.save(ticket);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error unclaiming ticket: ${error}`);
@@ -448,17 +340,9 @@ export class TicketRepository {
 	 */
 	async updateTicketOwner(ticketId: string, newOwnerId: string): Promise<ITicket | null> {
 		try {
-			const ticket = await this.ticketRepo.findOne({
-				where: { id: ticketId },
-				relations: ['category'],
-			});
-
-			if (!ticket) {
-				return null;
-			}
-
+			const ticket = await this.ticketRepo.findOne({ where: { id: ticketId }, relations: ['category'] });
+			if (!ticket) return null;
 			ticket.creatorId = newOwnerId;
-
 			return await this.ticketRepo.save(ticket);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error updating ticket owner: ${error}`);
@@ -473,10 +357,7 @@ export class TicketRepository {
 	 */
 	async getTicket(ticketId: string): Promise<ITicket | null> {
 		try {
-			return await this.ticketRepo.findOne({
-				where: { id: ticketId },
-				relations: ['category', 'category.ticketMessage', 'category.guildConfig'],
-			});
+			return await this.ticketRepo.findOne({ where: { id: ticketId }, relations: ['category', 'category.ticketMessage', 'category.guildConfig'] });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket: ${error}`);
 			return null;
@@ -490,10 +371,7 @@ export class TicketRepository {
 	 */
 	async getTicketByChannelId(channelId: string): Promise<ITicket | null> {
 		try {
-			return await this.ticketRepo.findOne({
-				where: { channelId },
-				relations: ['category', 'category.ticketMessage', 'category.guildConfig'],
-			});
+			return await this.ticketRepo.findOne({ where: { channelId }, relations: ['category', 'category.ticketMessage', 'category.guildConfig'] });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket by channel ID: ${error}`);
 			return null;
@@ -508,26 +386,12 @@ export class TicketRepository {
 	async getGuildTickets(guildId: string): Promise<ITicket[]> {
 		try {
 			const categories = await this.getTicketCategories(guildId);
-
-			if (categories.length === 0) {
-				return [];
-			}
-
+			if (categories.length === 0) return [];
 			const categoryIds = categories.map((cat) => cat.id);
 			if (categoryIds.length === 1) {
-				return await this.ticketRepo.find({
-					where: {
-						category: { id: categoryIds[0] },
-					},
-					relations: ['category', 'category.guildConfig'],
-				});
+				return await this.ticketRepo.find({ where: { category: { id: categoryIds[0] } }, relations: ['category', 'category.guildConfig'] });
 			} else {
-				return await this.ticketRepo.find({
-					where: {
-						category: { id: In(categoryIds) },
-					},
-					relations: ['category', 'category.guildConfig'],
-				});
+				return await this.ticketRepo.find({ where: { category: { id: In(categoryIds) } }, relations: ['category', 'category.guildConfig'] });
 			}
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting guild tickets: ${error}`);
@@ -542,10 +406,7 @@ export class TicketRepository {
 	 */
 	async getCategoryTickets(categoryId: string): Promise<ITicket[]> {
 		try {
-			return await this.ticketRepo.find({
-				where: { category: { id: categoryId } },
-				relations: ['category', 'category.guildConfig'],
-			});
+			return await this.ticketRepo.find({ where: { category: { id: categoryId } }, relations: ['category', 'category.guildConfig'] });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting category tickets: ${error}`);
 			return [];
@@ -562,22 +423,14 @@ export class TicketRepository {
 	 */
 	async updateTicketStatus(ticketId: string, status: ITicketStatus, userId?: string, reason?: string): Promise<ITicket | null> {
 		try {
-			const ticket = await this.ticketRepo.findOne({
-				where: { id: ticketId },
-			});
-
-			if (!ticket) {
-				return null;
-			}
-
+			const ticket = await this.ticketRepo.findOne({ where: { id: ticketId } });
+			if (!ticket) return null;
 			ticket.status = status;
-
 			if (status === ITicketStatus.CLOSED || status === ITicketStatus.ARCHIVED) {
 				ticket.closedById = userId;
 				ticket.closedAt = new Date();
 				ticket.closeReason = reason;
 			}
-
 			return await this.ticketRepo.save(ticket);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error updating ticket status: ${error}`);
@@ -593,11 +446,7 @@ export class TicketRepository {
 	async deleteTicket(ticketId: string): Promise<boolean> {
 		try {
 			const ticket = await this.getTicket(ticketId);
-
-			if (!ticket) {
-				return false;
-			}
-
+			if (!ticket) return false;
 			await this.ticketRepo.remove(ticket as Ticket);
 			return true;
 		} catch (error) {
@@ -615,9 +464,7 @@ export class TicketRepository {
 	 */
 	async getTicketMessage(categoryId: string): Promise<ITicketMessage | null> {
 		try {
-			return await this.ticketMessageRepo.findOne({
-				where: { category: { id: categoryId } },
-			});
+			return await this.ticketMessageRepo.findOne({ where: { category: { id: categoryId } } });
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket message: ${error}`);
 			return null;
@@ -630,27 +477,15 @@ export class TicketRepository {
 	 * @param messageData - Message configuration data
 	 * @returns Configured ticket messages
 	 */
-	async configureTicketMessages(
-		categoryId: string,
-		messageData: {
-			welcomeMessage?: string;
-			closeMessage?: string;
-			includeSupportTeam?: boolean;
-		}
-	): Promise<ITicketMessage | null> {
+	async configureTicketMessages(categoryId: string, messageData: { welcomeMessage?: string; closeMessage?: string; includeSupportTeam?: boolean }): Promise<ITicketMessage | null> {
 		try {
-			const category = await this.ticketCategoryRepo.findOne({
-				where: { id: categoryId },
-				relations: ['ticketMessage'],
-			});
-
+			const category = await this.ticketCategoryRepo.findOne({ where: { id: categoryId }, relations: ['ticketMessage'] });
 			if (!category) {
 				client.logger.error(`[TICKET_REPO] Category not found: ${categoryId}`);
 				return null;
 			}
 
 			let messageConfig = category.ticketMessage;
-
 			if (!messageConfig) {
 				messageConfig = new TicketMessage();
 				messageConfig.category = category;
@@ -658,11 +493,9 @@ export class TicketRepository {
 				messageConfig.closeMessage = `This ticket in the ${category.name} category has been closed.`;
 				messageConfig.includeSupportTeam = true;
 			}
-
 			if (messageData.welcomeMessage !== undefined) messageConfig.welcomeMessage = messageData.welcomeMessage;
 			if (messageData.closeMessage !== undefined) messageConfig.closeMessage = messageData.closeMessage;
 			if (messageData.includeSupportTeam !== undefined) messageConfig.includeSupportTeam = messageData.includeSupportTeam;
-
 			return await this.ticketMessageRepo.save(messageConfig);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error configuring ticket messages: ${error}`);
@@ -681,16 +514,11 @@ export class TicketRepository {
 	async configureTicketButton(guildId: string, buttonData: Partial<ITicketButton>): Promise<ITicketButton | null> {
 		try {
 			const guildConfig = await this.getOrCreateGuildConfig(guildId);
-
-			let buttonConfig = await this.ticketButtonRepo.findOne({
-				where: { guildConfig: { id: guildConfig.id } },
-			});
-
+			let buttonConfig = await this.ticketButtonRepo.findOne({ where: { guildConfig: { id: guildConfig.id } } });
 			if (!buttonConfig) {
 				buttonConfig = new TicketButton();
 				buttonConfig.guildConfig = guildConfig as GuildConfig;
 			}
-
 			if (buttonData.label !== undefined) buttonConfig.label = buttonData.label;
 			if (buttonData.emoji !== undefined) buttonConfig.emoji = buttonData.emoji;
 			if (buttonData.style !== undefined) buttonConfig.style = buttonData.style;
@@ -700,7 +528,6 @@ export class TicketRepository {
 			if (buttonData.embedDescription !== undefined) buttonConfig.embedDescription = buttonData.embedDescription;
 			if (buttonData.embedColor !== undefined) buttonConfig.embedColor = buttonData.embedColor;
 			if (buttonData.logChannelId !== undefined) buttonConfig.logChannelId = buttonData.logChannelId;
-
 			return await this.ticketButtonRepo.save(buttonConfig);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error configuring ticket button: ${error}`);
@@ -715,11 +542,7 @@ export class TicketRepository {
 	 */
 	async getTicketButtonConfig(guildId: string): Promise<ITicketButton | null> {
 		try {
-			const guildConfig = await this.guildConfigRepo.findOne({
-				where: { guildId },
-				relations: ['ticketButton'],
-			});
-
+			const guildConfig = await this.guildConfigRepo.findOne({ where: { guildId }, relations: ['ticketButton'] });
 			return guildConfig?.ticketButton || null;
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting ticket button config: ${error}`);
@@ -735,29 +558,14 @@ export class TicketRepository {
 	 * @param menuData - Select menu configuration data
 	 * @returns Configured select menu
 	 */
-	async configureSelectMenu(
-		guildId: string,
-		menuData: {
-			placeholder?: string;
-			messageId?: string;
-			minValues?: number;
-			maxValues?: number;
-			embedTitle?: string;
-			embedDescription?: string;
-			embedColor?: string;
-		}
-	): Promise<ISelectMenuConfig | null> {
+	async configureSelectMenu(guildId: string, menuData: { placeholder?: string; messageId?: string; minValues?: number; maxValues?: number; embedTitle?: string; embedDescription?: string; embedColor?: string }): Promise<ISelectMenuConfig | null> {
 		try {
 			const guildConfig = await this.getOrCreateGuildConfig(guildId);
-			let menuConfig = await this.selectMenuRepo.findOne({
-				where: { guildConfig: { id: guildConfig.id } },
-			});
-
+			let menuConfig = await this.selectMenuRepo.findOne({ where: { guildConfig: { id: guildConfig.id } } });
 			if (!menuConfig) {
 				menuConfig = new SelectMenuConfig();
 				menuConfig.guildConfig = guildConfig as GuildConfig;
 			}
-
 			if (menuData.placeholder !== undefined) menuConfig.placeholder = menuData.placeholder;
 			if (menuData.messageId !== undefined) menuConfig.messageId = menuData.messageId;
 			if (menuData.minValues !== undefined) menuConfig.minValues = menuData.minValues;
@@ -765,7 +573,6 @@ export class TicketRepository {
 			if (menuData.embedTitle !== undefined) menuConfig.embedTitle = menuData.embedTitle;
 			if (menuData.embedDescription !== undefined) menuConfig.embedDescription = menuData.embedDescription;
 			if (menuData.embedColor !== undefined) menuConfig.embedColor = menuData.embedColor;
-
 			return await this.selectMenuRepo.save(menuConfig);
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error configuring select menu: ${error}`);
@@ -780,11 +587,7 @@ export class TicketRepository {
 	 */
 	async getSelectMenuConfig(guildId: string): Promise<ISelectMenuConfig | null> {
 		try {
-			const guildConfig = await this.guildConfigRepo.findOne({
-				where: { guildId },
-				relations: ['selectMenu'],
-			});
-
+			const guildConfig = await this.guildConfigRepo.findOne({ where: { guildId }, relations: ['selectMenu'] });
 			return guildConfig?.selectMenu || null;
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting select menu config: ${error}`);
@@ -799,17 +602,10 @@ export class TicketRepository {
 	 * @param guildId - Discord guild ID
 	 * @returns Ticket statistics object
 	 */
-	async getGuildTicketStats(guildId: string): Promise<{
-		totalTickets: number;
-		openTickets: number;
-		closedTickets: number;
-		archivedTickets: number;
-		categoryCounts: Record<string, number>;
-	}> {
+	async getGuildTicketStats(guildId: string): Promise<{ totalTickets: number; openTickets: number; closedTickets: number; archivedTickets: number; categoryCounts: Record<string, number> }> {
 		try {
 			const tickets = await this.getGuildTickets(guildId);
 			const categories = await this.getTicketCategories(guildId);
-
 			const stats = {
 				totalTickets: tickets.length,
 				openTickets: tickets.filter((t) => t.status === ITicketStatus.OPEN).length,
@@ -817,11 +613,7 @@ export class TicketRepository {
 				archivedTickets: tickets.filter((t) => t.status === ITicketStatus.ARCHIVED).length,
 				categoryCounts: {} as Record<string, number>,
 			};
-
-			categories.forEach((category) => {
-				stats.categoryCounts[category.name] = 0;
-			});
-
+			categories.forEach((category) => (stats.categoryCounts[category.name] = 0));
 			tickets.forEach((ticket) => {
 				const categoryName = ticket.category.name;
 				if (stats.categoryCounts[categoryName] !== undefined) {
@@ -830,17 +622,10 @@ export class TicketRepository {
 					stats.categoryCounts[categoryName] = 1;
 				}
 			});
-
 			return stats;
 		} catch (error) {
 			client.logger.error(`[TICKET_REPO] Error getting guild ticket stats: ${error}`);
-			return {
-				totalTickets: 0,
-				openTickets: 0,
-				closedTickets: 0,
-				archivedTickets: 0,
-				categoryCounts: {},
-			};
+			return { totalTickets: 0, openTickets: 0, closedTickets: 0, archivedTickets: 0, categoryCounts: {} };
 		}
 	}
 }

@@ -7,7 +7,6 @@ import { OpenAIFunction } from '../../types';
  */
 export const createDynamicTicketTool = (availableCategories: Array<{ id: string; name: string }>): Array<OpenAIFunction> => {
 	const categoryNames = availableCategories.map((cat) => cat.name);
-
 	return [
 		{
 			type: 'function',

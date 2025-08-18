@@ -106,17 +106,9 @@ const ticketCommand: SlashCommand = {
 
 	execute: async (interaction: discord.ChatInputCommandInteraction, client: discord.Client) => {
 		try {
-			if (!(client as any).dataSource) {
-				await interaction.reply({
-					embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('Database connection is not available.').setColor('Red')],
-					flags: discord.MessageFlags.Ephemeral,
-				});
-				return;
-			}
-
+			if (!(client as any).dataSource) return await interaction.reply({ embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('Database connection is not available.').setColor('Red')], flags: discord.MessageFlags.Ephemeral });
 			const subcommand = interaction.options.getSubcommand();
 			const subcommandGroup = interaction.options.getSubcommandGroup();
-
 			if (subcommandGroup === 'config') {
 				await configTicket(interaction, client, subcommand);
 			} else {
@@ -149,26 +141,16 @@ const ticketCommand: SlashCommand = {
 						await transferTicketOwner(interaction, client);
 						break;
 					default:
-						await interaction.reply({
-							embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('Unknown subcommand.').setColor('Red')],
-							flags: discord.MessageFlags.Ephemeral,
-						});
+						await interaction.reply({ embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('Unknown subcommand.').setColor('Red')], flags: discord.MessageFlags.Ephemeral });
 				}
 			}
 		} catch (error) {
 			client.logger.error(`[TICKET_CMD] Error in ticket command: ${error}`);
-
 			try {
 				if (interaction.replied || interaction.deferred) {
-					await interaction.followUp({
-						embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('An error occurred while processing your request.').setColor('Red')],
-						flags: discord.MessageFlags.Ephemeral,
-					});
+					await interaction.followUp({ embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('An error occurred while processing your request.').setColor('Red')], flags: discord.MessageFlags.Ephemeral });
 				} else {
-					await interaction.reply({
-						embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('An error occurred while processing your request.').setColor('Red')],
-						flags: discord.MessageFlags.Ephemeral,
-					});
+					await interaction.reply({ embeds: [new discord.EmbedBuilder().setTitle('❌ Error').setDescription('An error occurred while processing your request.').setColor('Red')], flags: discord.MessageFlags.Ephemeral });
 				}
 			} catch (replyError) {
 				client.logger.error(`[TICKET_CMD] Failed to send error response: ${replyError}`);

@@ -25,9 +25,7 @@ export class Embedding {
 	 * @returns {Promise<FeatureExtractionPipeline>} - The feature extraction pipeline.
 	 */
 	private getPipeline = async (): Promise<FeatureExtractionPipeline> => {
-		if (!this.pipeline) {
-			this.pipeline = await pipeline('feature-extraction', this.model);
-		}
+		if (!this.pipeline) this.pipeline = await pipeline('feature-extraction', this.model);
 		return this.pipeline;
 	};
 
@@ -36,10 +34,7 @@ export class Embedding {
 	 * @returns {Promise<number>} - The detected embedding dimensions
 	 */
 	private detectDimensions = async (): Promise<number> => {
-		if (this.detectedDimensions !== null) {
-			return this.detectedDimensions;
-		}
-
+		if (this.detectedDimensions !== null) return this.detectedDimensions;
 		try {
 			const testEmbedding = await this.create('test', { skipDimensionCache: true });
 			this.detectedDimensions = testEmbedding.length;
@@ -60,22 +55,14 @@ export class Embedding {
 	 */
 	public create = async (text: string, options?: Record<string, any> & { skipDimensionCache?: boolean }): Promise<number[]> => {
 		const extractor = await this.getPipeline();
-		if (!extractor) {
-			throw new Error('Failed to create pipeline');
-		}
+		if (!extractor) throw new Error('Failed to create pipeline');
 
 		let retries = 0;
-
 		while (true) {
 			try {
 				const embeddings = await extractor(text, { pooling: 'mean', normalize: true, ...options });
-
-				if (!embeddings) {
-					throw new Error('No embeddings returned');
-				}
-
+				if (!embeddings) throw new Error('No embeddings returned');
 				let embeddingArray: number[];
-
 				if (embeddings.data) {
 					embeddingArray = Array.from(embeddings.data as Float32Array | number[]);
 				} else if (Array.isArray(embeddings)) {
@@ -83,19 +70,11 @@ export class Embedding {
 				} else {
 					embeddingArray = Array.from(embeddings as any);
 				}
-
-				if (this.detectedDimensions === null && !options?.skipDimensionCache) {
-					this.detectedDimensions = embeddingArray.length;
-				}
-
+				if (this.detectedDimensions === null && !options?.skipDimensionCache) this.detectedDimensions = embeddingArray.length;
 				return embeddingArray;
 			} catch (error: Error | any) {
 				retries++;
-
-				if (retries >= this.maxRetries) {
-					throw new Error(`Failed to generate embeddings after ${this.maxRetries} attempts: ${error.message}`);
-				}
-
+				if (retries >= this.maxRetries) throw new Error(`Failed to generate embeddings after ${this.maxRetries} attempts: ${error.message}`);
 				await new Promise((resolve) => setTimeout(resolve, this.retryDelayMs));
 				client.logger.log(`Retrying embedding generation, attempt ${retries + 1} of ${this.maxRetries}`);
 			}

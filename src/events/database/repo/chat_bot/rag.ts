@@ -34,22 +34,17 @@ export class RagRepository {
 	private detectExistingDimensions = async (): Promise<number | null> => {
 		try {
 			const hasVectorExtension = await this.checkVectorExtensionAvailable();
-			if (!hasVectorExtension) {
-				return null;
-			}
-
+			if (!hasVectorExtension) return null;
 			const sampleChunk = await this.dataSource.query(`
                 SELECT embedding 
                 FROM rag_chunks 
                 WHERE embedding IS NOT NULL 
                 LIMIT 1
             `);
-
 			if (sampleChunk.length > 0 && sampleChunk[0].embedding) {
 				try {
 					const embeddingData = sampleChunk[0].embedding;
 					let dimensions: number;
-
 					if (typeof embeddingData === 'string') {
 						const parsed = JSON.parse(embeddingData);
 						dimensions = Array.isArray(parsed) ? parsed.length : 0;
@@ -58,7 +53,6 @@ export class RagRepository {
 					} else {
 						return null;
 					}
-
 					client.logger.info(`[RAG_REPO] Detected existing embedding dimensions: ${dimensions}`);
 					return dimensions;
 				} catch (parseError) {
@@ -66,7 +60,6 @@ export class RagRepository {
 					return null;
 				}
 			}
-
 			return null;
 		} catch (error) {
 			client.logger.error(`[RAG_REPO] Error detecting existing dimensions: ${error}`);
@@ -84,23 +77,19 @@ export class RagRepository {
 				client.logger.warn('[RAG_REPO] Vector extension not available');
 				return false;
 			}
-
 			let dimensions = embeddingDimensions;
 			if (!dimensions) {
 				dimensions = (await this.detectExistingDimensions()) ?? undefined;
 			}
-
 			if (!dimensions) {
 				client.logger.info('[RAG_REPO] No embedding dimensions provided and none detected from existing data');
 				return false;
 			}
-
 			const columnInfo = await this.dataSource.query(`
                 SELECT column_name, data_type, udt_name
                 FROM information_schema.columns 
                 WHERE table_name = 'rag_chunks' AND column_name = 'embedding'
             `);
-
 			if (columnInfo.length === 0) {
 				await this.dataSource.query(`
                     ALTER TABLE rag_chunks 
@@ -126,12 +115,10 @@ export class RagRepository {
                     )
                     AND a.attname = 'embedding'
                 `);
-
 				if (constraintInfo.length > 0) {
 					const columnType = constraintInfo[0].column_type;
 					const dimensionMatch = columnType.match(/vector\((\d+)\)/);
 					const existingDimensions = dimensionMatch ? parseInt(dimensionMatch[1]) : null;
-
 					if (existingDimensions === dimensions) {
 						client.logger.debug(`[RAG_REPO] Embedding column already has correct vector(${dimensions}) type`);
 						return true;
@@ -140,13 +127,10 @@ export class RagRepository {
 						return false;
 					}
 				}
-
 				client.logger.debug('[RAG_REPO] Embedding column already has vector type');
 				return true;
 			}
-
 			client.logger.info(`[RAG_REPO] Converting embedding column from ${column.udt_name} to vector(${dimensions})`);
-
 			let hasConvertibleData = false;
 			try {
 				const dataCheck = await this.dataSource.query(`
@@ -267,10 +251,7 @@ export class RagRepository {
 
 			if (embeddingDimensions) {
 				const inconsistentEmbedding = processedDocuments.find((doc) => doc.embedding && doc.embedding.length !== embeddingDimensions);
-
-				if (inconsistentEmbedding) {
-					throw new Error(`Inconsistent embedding dimensions found. Expected ${embeddingDimensions}, but found ${inconsistentEmbedding.embedding?.length}`);
-				}
+				if (inconsistentEmbedding) throw new Error(`Inconsistent embedding dimensions found. Expected ${embeddingDimensions}, but found ${inconsistentEmbedding.embedding?.length}`);
 			}
 
 			const vectorColumnReady = embeddingDimensions ? await this.ensureVectorColumn(embeddingDimensions) : false;
@@ -341,14 +322,8 @@ export class RagRepository {
 	 */
 	deleteRagData = async (guildId: string): Promise<boolean> => {
 		try {
-			const documents = await this.documentRepo.find({
-				where: { guildId },
-			});
-
-			if (documents.length === 0) {
-				return false;
-			}
-
+			const documents = await this.documentRepo.find({ where: { guildId } });
+			if (documents.length === 0) return false;
 			await this.documentRepo.remove(documents);
 			return true;
 		} catch (error) {
@@ -362,11 +337,7 @@ export class RagRepository {
 	 */
 	searchSimilarChunks = async (guildId: string, queryEmbedding: number[], limit: number = 3): Promise<RagChunk[]> => {
 		try {
-			const documents = await this.documentRepo.find({
-				where: { guildId },
-				relations: ['chunks'],
-			});
-
+			const documents = await this.documentRepo.find({ where: { guildId }, relations: ['chunks'] });
 			if (documents.length === 0) {
 				client.logger.debug('[RAG_REPO] No documents found for guild');
 				return [];
@@ -374,7 +345,6 @@ export class RagRepository {
 
 			const documentIds = documents.map((doc) => doc.id);
 			const vectorColumnReady = await this.ensureVectorColumn(queryEmbedding.length);
-
 			if (vectorColumnReady) {
 				try {
 					const vectorCount = await this.dataSource.query(
@@ -439,12 +409,7 @@ export class RagRepository {
 			}
 
 			client.logger.debug('[RAG_REPO] Using fallback text-based search method');
-			const fallbackResults = await this.chunkRepo.find({
-				where: { document: { id: In(documentIds) } },
-				relations: ['document'],
-				take: limit,
-				order: { chunkIndex: 'ASC' },
-			});
+			const fallbackResults = await this.chunkRepo.find({ where: { document: { id: In(documentIds) } }, relations: ['document'], take: limit, order: { chunkIndex: 'ASC' } });
 
 			client.logger.debug(`[RAG_REPO] Fallback search returned ${fallbackResults.length} results`);
 			return fallbackResults;
@@ -459,10 +424,7 @@ export class RagRepository {
 	 */
 	getRagDocumentInfo = async (guildId: string): Promise<RagDocument | null> => {
 		try {
-			return await this.documentRepo.findOne({
-				where: { guildId },
-				relations: ['chunks'],
-			});
+			return await this.documentRepo.findOne({ where: { guildId }, relations: ['chunks'] });
 		} catch (error) {
 			client.logger.error(`[RAG_REPO] Error getting RAG document info: ${error}`);
 			return null;

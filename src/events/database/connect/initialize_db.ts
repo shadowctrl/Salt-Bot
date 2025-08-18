@@ -26,10 +26,8 @@ const initializeVectorExtension = async (dataSource: DataSource): Promise<boolea
 			client.logger.info('[DATABASE] Vector extension created successfully');
 
 			const verifyResult = await dataSource.query("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')");
-
 			if (verifyResult[0].exists) {
 				client.logger.info('[DATABASE] Vector extension is active and ready for use');
-
 				try {
 					await dataSource.query("SELECT '[1,2,3]'::vector");
 					client.logger.debug('[DATABASE] Vector type conversion test passed');
@@ -71,7 +69,6 @@ export const initializeDatabase = async (client: discord.Client): Promise<DataSo
 		client.logger.success('[DATABASE] Connected to PostgreSQL database');
 
 		const vectorSupported = await initializeVectorExtension(dataSource);
-
 		if (vectorSupported) {
 			(dataSource.driver as any).supportedDataTypes.push('vector');
 			(dataSource.driver as any).withLengthColumnTypes.push('vector');
@@ -115,16 +112,13 @@ export const initializeDatabase = async (client: discord.Client): Promise<DataSo
 export const initializeEncryption = async (client: discord.Client): Promise<void> => {
 	try {
 		client.logger.debug('[ENCRYPTION_VALIDATION] Starting encryption validation and migration...');
-
 		const keyValidation = EncryptionUtil.validateMasterKey();
-
 		if (!keyValidation.isValid) {
 			client.logger.error(`[ENCRYPTION_VALIDATION] ${keyValidation.message}`);
 			client.logger.error('[ENCRYPTION_VALIDATION] Recommendations:');
 			keyValidation.recommendations.forEach((rec) => {
 				client.logger.error(`[ENCRYPTION_VALIDATION] - ${rec}`);
 			});
-
 			if (process.env.NODE_ENV !== 'development') {
 				client.logger.error('[ENCRYPTION_VALIDATION] Bot cannot start without valid encryption key in production');
 				process.exit(1);
@@ -132,9 +126,7 @@ export const initializeEncryption = async (client: discord.Client): Promise<void
 		} else {
 			if (keyValidation.recommendations.length > 0) {
 				client.logger.warn('[ENCRYPTION_VALIDATION] Encryption key recommendations:');
-				keyValidation.recommendations.forEach((rec) => {
-					client.logger.warn(`[ENCRYPTION_VALIDATION] - ${rec}`);
-				});
+				keyValidation.recommendations.forEach((rec) => client.logger.warn(`[ENCRYPTION_VALIDATION] - ${rec}`));
 			}
 		}
 
@@ -146,10 +138,7 @@ export const initializeEncryption = async (client: discord.Client): Promise<void
 		client.logger.debug(`[ENCRYPTION_VALIDATION] - Encrypted configurations: ${migrationResult.encryptedConfigs}`);
 		client.logger.debug(`[ENCRYPTION_VALIDATION] - Plaintext configurations: ${migrationResult.plaintextConfigs}`);
 
-		if (migrationResult.migrationErrors > 0) {
-			client.logger.error(`[ENCRYPTION_VALIDATION] - Migration errors: ${migrationResult.migrationErrors}`);
-		}
-
+		if (migrationResult.migrationErrors > 0) client.logger.error(`[ENCRYPTION_VALIDATION] - Migration errors: ${migrationResult.migrationErrors}`);
 		if (migrationResult.totalConfigs > 0) {
 			const encryptionRate = (migrationResult.encryptedConfigs / migrationResult.totalConfigs) * 100;
 			client.logger.debug(`[ENCRYPTION_VALIDATION] - Encryption rate: ${encryptionRate.toFixed(1)}%`);
@@ -187,7 +176,6 @@ export const initializeEncryption = async (client: discord.Client): Promise<void
 		client.logger.success('[ENCRYPTION_VALIDATION] Encryption validation completed successfully');
 	} catch (error) {
 		client.logger.error(`[ENCRYPTION_VALIDATION] Error during encryption validation: ${error}`);
-
 		if (process.env.NODE_ENV !== 'development') {
 			client.logger.error('[ENCRYPTION_VALIDATION] Critical error during encryption validation - stopping bot');
 			process.exit(1);

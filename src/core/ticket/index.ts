@@ -45,7 +45,6 @@ export class Ticket {
 		this.permissions = new TicketPermissions();
 		this.utils = new TicketUtils(this.ticketRepo, client);
 		this.transcript = new TicketTranscript(dataSource);
-
 		setInterval(() => this.cleanupExpiredCooldowns(), 300000);
 	}
 
@@ -57,10 +56,7 @@ export class Ticket {
 	 */
 	private checkTicketCooldown(ticketId: string, action: keyof typeof this.COOLDOWN_DURATIONS): { onCooldown: boolean; remainingTime?: number } {
 		const ticketCooldownMap = this.ticketCooldowns.get(ticketId);
-		if (!ticketCooldownMap) {
-			return { onCooldown: false };
-		}
-
+		if (!ticketCooldownMap) return { onCooldown: false };
 		const createTime = ticketCooldownMap.get('CREATE');
 		if (createTime && action !== 'CREATE') {
 			const timeSinceCreate = Date.now() - createTime;
@@ -88,10 +84,7 @@ export class Ticket {
 	 * @param action - Action type
 	 */
 	private setTicketCooldown(ticketId: string, action: keyof typeof this.COOLDOWN_DURATIONS): void {
-		if (!this.ticketCooldowns.has(ticketId)) {
-			this.ticketCooldowns.set(ticketId, new Map());
-		}
-
+		if (!this.ticketCooldowns.has(ticketId)) this.ticketCooldowns.set(ticketId, new Map());
 		const ticketCooldownMap = this.ticketCooldowns.get(ticketId)!;
 		ticketCooldownMap.set(action, Date.now());
 	}
@@ -105,14 +98,9 @@ export class Ticket {
 
 		for (const [ticketId, actionMap] of this.ticketCooldowns.entries()) {
 			for (const [action, timestamp] of actionMap.entries()) {
-				if (now - timestamp > maxCooldownDuration) {
-					actionMap.delete(action);
-				}
+				if (now - timestamp > maxCooldownDuration) actionMap.delete(action);
 			}
-
-			if (actionMap.size === 0) {
-				this.ticketCooldowns.delete(ticketId);
-			}
+			if (actionMap.size === 0) this.ticketCooldowns.delete(ticketId);
 		}
 	}
 
@@ -127,62 +115,31 @@ export class Ticket {
 			if (existingTicket) {
 				const ticketChannel = this.client.channels.cache.get(existingTicket.channelId) as discord.TextChannel;
 				if (ticketChannel) {
-					return {
-						success: false,
-						message: `You already have an open ticket: ${ticketChannel}`,
-						ticket: existingTicket,
-					};
+					return { success: false, message: `You already have an open ticket: ${ticketChannel}`, ticket: existingTicket };
 				} else {
 					await this.ticketRepo.updateTicketStatus(existingTicket.id, ITicketStatus.CLOSED, 'system', 'Ticket channel was deleted');
 				}
 			}
-
 			const category = await this.ticketRepo.getTicketCategory(options.categoryId);
-			if (!category) {
-				return {
-					success: false,
-					message: 'Selected ticket category not found.',
-				};
-			}
-
+			if (!category) return { success: false, message: 'Selected ticket category not found.' };
 			const guild = this.client.guilds.cache.get(options.guildId);
-			if (!guild) {
-				return {
-					success: false,
-					message: 'Guild not found.',
-				};
-			}
-
+			if (!guild) return { success: false, message: 'Guild not found.' };
 			const channelResult = await this.utils.createTicketChannel(guild, category, options.userId);
-			if (!channelResult.success || !channelResult.channel) {
-				return {
-					success: false,
-					message: channelResult.message || 'Failed to create ticket channel.',
-				};
-			}
-
+			if (!channelResult.success || !channelResult.channel) return { success: false, message: channelResult.message || 'Failed to create ticket channel.' };
 			const ticket = await this.ticketRepo.createTicket(options.guildId, options.userId, channelResult.channel.id, options.categoryId);
-
 			const channelName = `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`;
+
 			await channelResult.channel.setName(channelName);
 			await this.utils.setupChannelPermissions(channelResult.channel, category, options.userId);
 			await this.utils.sendWelcomeMessage(channelResult.channel, ticket, category, options.userId);
-			this.setTicketCooldown(ticket.id, 'CREATE');
 
+			this.setTicketCooldown(ticket.id, 'CREATE');
 			this.client.logger.info(`[TICKET] User ${options.userId} created ticket #${ticket.ticketNumber} in category ${category.name}`);
 
-			return {
-				success: true,
-				message: `Ticket #${ticket.ticketNumber} created successfully!`,
-				ticket,
-				channel: channelResult.channel,
-			};
+			return { success: true, message: `Ticket #${ticket.ticketNumber} created successfully!`, ticket, channel: channelResult.channel };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error creating ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while creating the ticket.',
-			};
+			return { success: false, message: 'An error occurred while creating the ticket.' };
 		}
 	};
 
@@ -194,47 +151,21 @@ export class Ticket {
 	public close = async (options: CloseTicketOptions): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(options.channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
-			if (ticket.status !== 'open') {
-				return {
-					success: false,
-					message: 'This ticket is already closed.',
-				};
-			}
-
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
+			if (ticket.status !== 'open') return { success: false, message: 'This ticket is already closed.' };
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(options.userId, ticket, 'close', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to close this ticket.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to close this ticket." };
 			}
-
 			const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLOSE');
-			if (cooldownCheck.onCooldown) {
-				return {
-					success: false,
-					message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.`,
-				};
-			}
+			if (cooldownCheck.onCooldown) return { success: false, message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.` };
 
 			await this.ticketRepo.updateTicketStatus(ticket.id, ITicketStatus.CLOSED, options.userId, options.reason);
-
 			const channel = this.client.channels.cache.get(options.channelId) as discord.TextChannel;
 			if (channel) {
 				await this.utils.sendCloseMessage(channel, ticket, options.userId, options.reason);
 				await this.utils.updateChannelPermissionsForClosure(channel, ticket);
-
 				if (options.generateTranscript !== false) {
 					try {
 						const user = await this.client.users.fetch(options.userId);
@@ -247,20 +178,11 @@ export class Ticket {
 
 			await channel.setName(`closed-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
 			this.setTicketCooldown(ticket.id, 'CLOSE');
-
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} closed by ${options.userId}`);
-
-			return {
-				success: true,
-				message: 'Ticket closed successfully.',
-				ticket,
-			};
+			return { success: true, message: 'Ticket closed successfully.', ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error closing ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while closing the ticket.',
-			};
+			return { success: false, message: 'An error occurred while closing the ticket.' };
 		}
 	};
 
@@ -273,64 +195,30 @@ export class Ticket {
 	public reopen = async (channelId: string, userId: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
-			if (ticket.status === 'open') {
-				return {
-					success: false,
-					message: 'This ticket is already open.',
-				};
-			}
-
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
+			if (ticket.status === 'open') return { success: false, message: 'This ticket is already open.' };
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(userId, ticket, 'close', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to reopen this ticket.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to reopen this ticket." };
 			}
 
 			const cooldownCheck = this.checkTicketCooldown(ticket.id, 'REOPEN');
-			if (cooldownCheck.onCooldown) {
-				return {
-					success: false,
-					message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.`,
-				};
-			}
+			if (cooldownCheck.onCooldown) return { success: false, message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing this action on the ticket.` };
 
 			await this.ticketRepo.updateTicketStatus(ticket.id, ITicketStatus.OPEN);
-
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
 			if (channel) {
 				await this.utils.sendReopenMessage(channel, ticket, userId);
 				await this.utils.updateChannelPermissionsForReopen(channel, ticket);
 			}
-
 			await channel.setName(`ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
 			this.setTicketCooldown(ticket.id, 'REOPEN');
-
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} reopened by ${userId}`);
-
-			return {
-				success: true,
-				message: 'Ticket reopened successfully.',
-				ticket,
-			};
+			return { success: true, message: 'Ticket reopened successfully.', ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error reopening ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while reopening the ticket.',
-			};
+			return { success: false, message: 'An error occurred while reopening the ticket.' };
 		}
 	};
 
@@ -343,80 +231,39 @@ export class Ticket {
 	public claim = async (channelId: string, userId: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(userId, ticket, 'claim', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to claim tickets. Only support team members can claim tickets.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to claim tickets. Only support team members can claim tickets." };
 			}
 
 			const cooldownCheck = this.checkTicketCooldown(ticket.id, 'CLAIM');
-			if (cooldownCheck.onCooldown) {
-				return {
-					success: false,
-					message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another claim action on this ticket.`,
-				};
-			}
+			if (cooldownCheck.onCooldown) return { success: false, message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another claim action on this ticket.` };
 
 			if (ticket.claimedById) {
 				if (ticket.claimedById === userId) {
 					await this.ticketRepo.unclaimTicket(ticket.id);
-
 					const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-					if (channel) {
-						await this.utils.sendUnclaimMessage(channel, ticket, userId);
-					}
-
+					if (channel) await this.utils.sendUnclaimMessage(channel, ticket, userId);
 					this.setTicketCooldown(ticket.id, 'CLAIM');
-
-					return {
-						success: true,
-						message: 'Ticket unclaimed successfully.',
-						ticket,
-					};
+					return { success: true, message: 'Ticket unclaimed successfully.', ticket };
 				} else {
 					const claimer = await this.client.users.fetch(ticket.claimedById).catch(() => null);
-					return {
-						success: false,
-						message: `This ticket is already claimed by ${claimer ? claimer.tag : 'someone else'}.`,
-					};
+					return { success: false, message: `This ticket is already claimed by ${claimer ? claimer.tag : 'someone else'}.` };
 				}
 			}
 
 			await this.ticketRepo.claimTicket(ticket.id, userId);
-
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-			if (channel) {
-				await this.utils.sendClaimMessage(channel, ticket, userId);
-			}
+			if (channel) await this.utils.sendClaimMessage(channel, ticket, userId);
 
 			this.setTicketCooldown(ticket.id, 'CLAIM');
-
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} claimed by ${userId}`);
-
-			return {
-				success: true,
-				message: 'Ticket claimed successfully.',
-				ticket,
-			};
+			return { success: true, message: 'Ticket claimed successfully.', ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error claiming ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while claiming the ticket.',
-			};
+			return { success: false, message: 'An error occurred while claiming the ticket.' };
 		}
 	};
 
@@ -430,42 +277,19 @@ export class Ticket {
 	public archive = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
-			if (ticket.status === 'archived') {
-				return {
-					success: false,
-					message: 'This ticket is already archived.',
-				};
-			}
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
+			if (ticket.status === 'archived') return { success: false, message: 'This ticket is already archived.' };
 
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(userId, ticket, 'archive', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to archive tickets. Only support team members can archive tickets.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to archive tickets. Only support team members can archive tickets." };
 			}
 
 			const cooldownCheck = this.checkTicketCooldown(ticket.id, 'ARCHIVE');
-			if (cooldownCheck.onCooldown) {
-				return {
-					success: false,
-					message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another archive action on this ticket.`,
-				};
-			}
+			if (cooldownCheck.onCooldown) return { success: false, message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another archive action on this ticket.` };
 
 			await this.ticketRepo.updateTicketStatus(ticket.id, ITicketStatus.ARCHIVED, userId, reason || 'Ticket archived');
-
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
 			if (channel) {
 				await this.utils.sendArchiveMessage(channel, ticket, userId);
@@ -473,22 +297,12 @@ export class Ticket {
 			}
 
 			await channel.setName(`archived-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
-
 			this.setTicketCooldown(ticket.id, 'ARCHIVE');
-
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} archived by ${userId}`);
-
-			return {
-				success: true,
-				message: 'Ticket archived successfully.',
-				ticket,
-			};
+			return { success: true, message: 'Ticket archived successfully.', ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error archiving ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while archiving the ticket.',
-			};
+			return { success: false, message: 'An error occurred while archiving the ticket.' };
 		}
 	};
 
@@ -502,35 +316,18 @@ export class Ticket {
 	public delete = async (channelId: string, userId: string, reason?: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
 
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(userId, ticket, 'delete', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You need the 'Manage Channels' permission to delete tickets.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You need the 'Manage Channels' permission to delete tickets." };
 			}
 
 			const cooldownCheck = this.checkTicketCooldown(ticket.id, 'DELETE');
-			if (cooldownCheck.onCooldown) {
-				return {
-					success: false,
-					message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another delete action on this ticket.`,
-				};
-			}
+			if (cooldownCheck.onCooldown) return { success: false, message: `Please wait ${Formatter.msToTime(cooldownCheck.remainingTime!)} before performing another delete action on this ticket.` };
 
 			await this.ticketRepo.updateTicketStatus(ticket.id, ITicketStatus.CLOSED, userId, reason || 'Ticket deleted by staff');
-
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
 			if (channel) {
 				try {
@@ -552,20 +349,11 @@ export class Ticket {
 			}
 
 			this.setTicketCooldown(ticket.id, 'DELETE');
-
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} deleted by ${userId}`);
-
-			return {
-				success: true,
-				message: 'Ticket deleted successfully.',
-				ticket,
-			};
+			return { success: true, message: 'Ticket deleted successfully.', ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error deleting ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while deleting the ticket.',
-			};
+			return { success: false, message: 'An error occurred while deleting the ticket.' };
 		}
 	};
 
@@ -579,77 +367,29 @@ export class Ticket {
 	public addUser = async (channelId: string, targetUserId: string, requesterId: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(requesterId, ticket, 'add_user', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to manage users in this ticket.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to manage users in this ticket." };
 			}
 
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-			if (!channel) {
-				return {
-					success: false,
-					message: 'Channel not found.',
-				};
-			}
-
+			if (!channel) return { success: false, message: 'Channel not found.' };
 			const targetUser = await this.client.users.fetch(targetUserId).catch(() => null);
-			if (!targetUser) {
-				return {
-					success: false,
-					message: 'User not found.',
-				};
-			}
-
-			if (targetUser.bot) {
-				return {
-					success: false,
-					message: 'Cannot add bots to tickets.',
-				};
-			}
+			if (!targetUser) return { success: false, message: 'User not found.' };
+			if (targetUser.bot) return { success: false, message: 'Cannot add bots to tickets.' };
 
 			const permissions = channel.permissionsFor(targetUserId);
-			if (permissions?.has(discord.PermissionFlagsBits.ViewChannel)) {
-				return {
-					success: false,
-					message: `${targetUser.tag} already has access to this ticket.`,
-				};
-			}
-
-			await channel.permissionOverwrites.create(targetUserId, {
-				ViewChannel: true,
-				SendMessages: true,
-				ReadMessageHistory: true,
-			});
-
+			if (permissions?.has(discord.PermissionFlagsBits.ViewChannel)) return { success: false, message: `${targetUser.tag} already has access to this ticket.` };
+			await channel.permissionOverwrites.create(targetUserId, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true });
 			await this.utils.sendUserAddedMessage(channel, ticket, targetUser, requesterId);
 
 			this.client.logger.info(`[TICKET] User ${targetUser.tag} added to ticket #${ticket.ticketNumber} by ${requesterId}`);
-
-			return {
-				success: true,
-				message: `${targetUser.tag} has been added to the ticket.`,
-				ticket,
-			};
+			return { success: true, message: `${targetUser.tag} has been added to the ticket.`, ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error adding user to ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while adding the user to the ticket.',
-			};
+			return { success: false, message: 'An error occurred while adding the user to the ticket.' };
 		}
 	};
 
@@ -663,79 +403,32 @@ export class Ticket {
 	public removeUser = async (channelId: string, targetUserId: string, requesterId: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
-			if (targetUserId === ticket.creatorId) {
-				return {
-					success: false,
-					message: 'Cannot remove the ticket creator from the ticket.',
-				};
-			}
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
+			if (targetUserId === ticket.creatorId) return { success: false, message: 'Cannot remove the ticket creator from the ticket.' };
 
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(requesterId, ticket, 'remove_user', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to manage users in this ticket.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to manage users in this ticket." };
 			}
 
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
-			if (!channel) {
-				return {
-					success: false,
-					message: 'Channel not found.',
-				};
-			}
-
+			if (!channel) return { success: false, message: 'Channel not found.' };
 			const targetUser = await this.client.users.fetch(targetUserId).catch(() => null);
-			if (!targetUser) {
-				return {
-					success: false,
-					message: 'User not found.',
-				};
-			}
-
-			if (targetUser.bot && targetUserId !== this.client.user?.id) {
-				return {
-					success: false,
-					message: 'Cannot remove bots from tickets.',
-				};
-			}
+			if (!targetUser) return { success: false, message: 'User not found.' };
+			if (targetUser.bot && targetUserId !== this.client.user?.id) return { success: false, message: 'Cannot remove bots from tickets.' };
 
 			const permissions = channel.permissionsFor(targetUserId);
-			if (!permissions?.has(discord.PermissionFlagsBits.ViewChannel)) {
-				return {
-					success: false,
-					message: `${targetUser.tag} doesn't have access to this ticket.`,
-				};
-			}
+			if (!permissions?.has(discord.PermissionFlagsBits.ViewChannel)) return { success: false, message: `${targetUser.tag} doesn't have access to this ticket.` };
 
 			await channel.permissionOverwrites.delete(targetUserId);
 			await this.utils.sendUserRemovedMessage(channel, ticket, targetUser, requesterId);
-
 			this.client.logger.info(`[TICKET] User ${targetUser.tag} removed from ticket #${ticket.ticketNumber} by ${requesterId}`);
 
-			return {
-				success: true,
-				message: `${targetUser.tag} has been removed from the ticket.`,
-				ticket,
-			};
+			return { success: true, message: `${targetUser.tag} has been removed from the ticket.`, ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error removing user from ticket: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while removing the user from the ticket.',
-			};
+			return { success: false, message: 'An error occurred while removing the user from the ticket.' };
 		}
 	};
 
@@ -749,50 +442,20 @@ export class Ticket {
 	public transferOwnership = async (channelId: string, newOwnerId: string, requesterId: string): Promise<TicketOperationResult> => {
 		try {
 			const ticket = await this.ticketRepo.getTicketByChannelId(channelId);
-			if (!ticket) {
-				return {
-					success: false,
-					message: 'This is not a valid ticket channel.',
-				};
-			}
-
-			if (newOwnerId === ticket.creatorId) {
-				return {
-					success: false,
-					message: 'User is already the ticket owner.',
-				};
-			}
+			if (!ticket) return { success: false, message: 'This is not a valid ticket channel.' };
+			if (newOwnerId === ticket.creatorId) return { success: false, message: 'User is already the ticket owner.' };
 
 			const guild = this.client.guilds.cache.get(ticket.category.guildConfig.guildId);
 			if (guild) {
 				const permissionCheck = await this.permissions.checkTicketPermission(requesterId, ticket, 'transfer_ownership', guild.id);
-
-				if (!permissionCheck.hasPermission) {
-					return {
-						success: false,
-						message: permissionCheck.reason || "You don't have permission to transfer ticket ownership. You need to be an administrator, the ticket creator, or have the support role.",
-					};
-				}
+				if (!permissionCheck.hasPermission) return { success: false, message: permissionCheck.reason || "You don't have permission to transfer ticket ownership. You need to be an administrator, the ticket creator, or have the support role." };
 			}
 
 			const newOwner = await this.client.users.fetch(newOwnerId).catch(() => null);
-			if (!newOwner) {
-				return {
-					success: false,
-					message: 'User not found.',
-				};
-			}
-
-			if (newOwner.bot) {
-				return {
-					success: false,
-					message: 'Cannot transfer ticket ownership to a bot.',
-				};
-			}
-
+			if (!newOwner) return { success: false, message: 'User not found.' };
+			if (newOwner.bot) return { success: false, message: 'Cannot transfer ticket ownership to a bot.' };
 			const previousOwner = await this.client.users.fetch(ticket.creatorId).catch(() => null);
 			await this.ticketRepo.updateTicketOwner(ticket.id, newOwnerId);
-
 			const channel = this.client.channels.cache.get(channelId) as discord.TextChannel;
 			if (channel) {
 				await this.utils.setupOwnerPermissions(channel, newOwnerId);
@@ -801,18 +464,10 @@ export class Ticket {
 			}
 
 			this.client.logger.info(`[TICKET] Ticket #${ticket.ticketNumber} ownership transferred from ${ticket.creatorId} to ${newOwnerId} by ${requesterId}`);
-
-			return {
-				success: true,
-				message: `Ticket ownership transferred to ${newOwner.tag}.`,
-				ticket,
-			};
+			return { success: true, message: `Ticket ownership transferred to ${newOwner.tag}.`, ticket };
 		} catch (error) {
 			this.client.logger.error(`[TICKET] Error transferring ticket ownership: ${error}`);
-			return {
-				success: false,
-				message: 'An error occurred while transferring ticket ownership.',
-			};
+			return { success: false, message: 'An error occurred while transferring ticket ownership.' };
 		}
 	};
 

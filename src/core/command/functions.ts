@@ -16,14 +16,9 @@ const checkBlockedStatus = async (userId: string): Promise<[boolean, string | nu
 			client.logger.debug(`[CHECK_BLOCKED] DataSource not initialized yet for user ${userId}`);
 			return [false, null];
 		}
-
 		const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
 		const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
-
-		if (isBlocked && recentReason) {
-			return [true, recentReason.reason];
-		}
-
+		if (isBlocked && recentReason) return [true, recentReason.reason];
 		return [isBlocked, null];
 	} catch (error: Error | any) {
 		client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
@@ -41,15 +36,12 @@ const checkBlockedStatus = async (userId: string): Promise<[boolean, string | nu
 const checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
 	try {
 		const premiumHandler = new PremiumHandler((client as any).dataSource);
-
 		const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(userId);
-
 		if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
 			await premiumHandler.revokePremium(userId);
 			client.logger.info(`[CHECK_PREMIUM] User ${userId} premium expired. Revoked.`);
 			return [false, null];
 		}
-
 		return [isPremium, premiumExpire];
 	} catch (error: Error | any) {
 		client.logger.error(`[CHECK_PREMIUM] Error checking premium status: ${error}`);

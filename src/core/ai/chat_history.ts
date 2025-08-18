@@ -56,7 +56,6 @@ class ChatHistory {
 	 */
 	private async addMessage(message: OpenAI.Chat.Completions.ChatCompletionMessageParam): Promise<void> {
 		await this.repository.addMessage(this.guildId, this.userId, message.role, message.content as string);
-
 		await this.repository.trimHistory(this.guildId, this.userId, this.maxHistoryLength);
 	}
 
