@@ -1,41 +1,40 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-
-@Entity("chatbot_configs")
+@Entity('chatbot_configs')
 export class ChatbotConfig {
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
+	@PrimaryGeneratedColumn('uuid')
+	id!: string;
 
-    @Column({ nullable: false })
-    guildId!: string;
+	@Column({ nullable: false })
+	guildId!: string;
 
-    @Column({ nullable: false })
-    channelId!: string;
+	@Column({ nullable: false })
+	channelId!: string;
 
-    @Column({ nullable: false })
-    apiKey!: string;
+	@Column({ nullable: false })
+	apiKey!: string;
 
-    @Column({ default: "https://api.openai.com/v1" })
-    baseUrl!: string;
+	@Column({ default: 'https://api.openai.com/v1' })
+	baseUrl!: string;
 
-    @Column({ default: "Salty" })
-    chatbotName!: string;
+	@Column({ default: 'Salty' })
+	chatbotName!: string;
 
-    @Column({ nullable: false, default: "gpt-4o-mini" })
-    modelName!: string;
+	@Column({ nullable: false, default: 'gpt-4o-mini' })
+	modelName!: string;
 
-    @Column({ type: "text", nullable: true, default: "Friendly" })
-    responseType!: string;
+	@Column({ type: 'text', nullable: true, default: 'Friendly' })
+	responseType!: string;
 
-    @Column({ default: 5 })
-    cooldown!: number;
+	@Column({ default: 5 })
+	cooldown!: number;
 
-    @Column({ default: true })
-    enabled!: boolean;
+	@Column({ default: true })
+	enabled!: boolean;
 
-    @CreateDateColumn()
-    createdAt!: Date;
+	@CreateDateColumn()
+	createdAt!: Date;
 
-    @UpdateDateColumn()
-    updatedAt!: Date;
+	@UpdateDateColumn()
+	updatedAt!: Date;
 }

@@ -1,8 +1,7 @@
-import client from "../../salt";
-import { BlockedUserRepository } from "../../events/database/repo/blocked_users";
+import client from '../../salt';
+import { BlockedUserRepository } from '../../events/database/repo/blocked_users';
 
-import PremiumHandler from "./premium";
-
+import PremiumHandler from './premium';
 
 /**
  * Check if a user is blocked and get the most recent block reason
@@ -12,24 +11,24 @@ import PremiumHandler from "./premium";
  *          reason: the most recent block reason if blocked, null otherwise
  */
 const checkBlockedStatus = async (userId: string): Promise<[boolean, string | null]> => {
-    try {
-        if (!(client as any).dataSource) {
-            client.logger.debug(`[CHECK_BLOCKED] DataSource not initialized yet for user ${userId}`);
-            return [false, null];
-        }
+	try {
+		if (!(client as any).dataSource) {
+			client.logger.debug(`[CHECK_BLOCKED] DataSource not initialized yet for user ${userId}`);
+			return [false, null];
+		}
 
-        const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
-        const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
+		const blockedUserRepo = new BlockedUserRepository((client as any).dataSource);
+		const [isBlocked, recentReason] = await blockedUserRepo.checkBlockStatus(userId);
 
-        if (isBlocked && recentReason) {
-            return [true, recentReason.reason];
-        }
+		if (isBlocked && recentReason) {
+			return [true, recentReason.reason];
+		}
 
-        return [isBlocked, null];
-    } catch (error: Error | any) {
-        client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
-        return [false, null];
-    }
+		return [isBlocked, null];
+	} catch (error: Error | any) {
+		client.logger.error(`[CHECK_BLOCKED] Error checking blocked status: ${error}`);
+		return [false, null];
+	}
 };
 
 /**
@@ -40,22 +39,22 @@ const checkBlockedStatus = async (userId: string): Promise<[boolean, string | nu
  *          premiumExpire: the premium expiration date if premium, null otherwise
  */
 const checkPremiumStatus = async (userId: string): Promise<[boolean, Date | null]> => {
-    try {
-        const premiumHandler = new PremiumHandler((client as any).dataSource);
+	try {
+		const premiumHandler = new PremiumHandler((client as any).dataSource);
 
-        const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(userId);
+		const [isPremium, premiumExpire] = await premiumHandler.checkPremiumStatus(userId);
 
-        if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
-            await premiumHandler.revokePremium(userId);
-            client.logger.info(`[CHECK_PREMIUM] User ${userId} premium expired. Revoked.`);
-            return [false, null];
-        }
+		if (isPremium && premiumExpire && new Date(premiumExpire) < new Date()) {
+			await premiumHandler.revokePremium(userId);
+			client.logger.info(`[CHECK_PREMIUM] User ${userId} premium expired. Revoked.`);
+			return [false, null];
+		}
 
-        return [isPremium, premiumExpire];
-    } catch (error: Error | any) {
-        client.logger.error(`[CHECK_PREMIUM] Error checking premium status: ${error}`);
-        return [false, null];
-    }
+		return [isPremium, premiumExpire];
+	} catch (error: Error | any) {
+		client.logger.error(`[CHECK_PREMIUM] Error checking premium status: ${error}`);
+		return [false, null];
+	}
 };
 
 export { checkBlockedStatus, checkPremiumStatus };

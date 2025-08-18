@@ -1,19 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
-import { IUserData } from "../../../types";
+import { IUserData } from '../../../types';
 
-
-@Entity("user_data")
+@Entity('user_data')
 export class UserData implements IUserData {
-    @PrimaryGeneratedColumn("uuid")
-    id!: string;
+	@PrimaryGeneratedColumn('uuid')
+	id!: string;
 
-    @Column({ nullable: false })
-    userId!: string;
+	@Column({ nullable: false })
+	userId!: string;
 
-    @Column({ default: false })
-    premiumStatus!: boolean;
+	@Column({ default: false })
+	premiumStatus!: boolean;
 
-    @Column({ nullable: true, type: 'timestamp' })
-    premiumExpiresAt!: Date | null;
+	@Column({ nullable: true, type: 'timestamp' })
+	premiumExpiresAt!: Date | null;
 }

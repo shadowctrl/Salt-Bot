@@ -1,38 +1,37 @@
-import discord from "discord.js";
+import discord from 'discord.js';
 
-import CommandLogger from "../core/command/logger";
+import CommandLogger from '../core/command/logger';
 
-import { ILogger } from "./logger";
-import { IConfig } from "./config";
-import { SlashCommand, Command } from "./events";
+import { ILogger } from './logger';
+import { IConfig } from './config';
+import { SlashCommand, Command } from './events';
 
-export * from "./db";
-export * from "./ai";
-export * from "./logger";
-export * from "./ticket";
-export * from "./events";
-export * from "./config";
-
+export * from './db';
+export * from './ai';
+export * from './logger';
+export * from './ticket';
+export * from './events';
+export * from './config';
 
 declare global {
-    namespace NodeJS {
-        interface ProcessEnv {
-            DEBUG_MODE: boolean | string;
-            TOKEN: string;
-            POSTGRES_URI: string;
-            FEEDBACK_WEBHOOK: string;
-            MASTER_ENCRYPTION_KEY: string;
-        }
-    }
+	namespace NodeJS {
+		interface ProcessEnv {
+			DEBUG_MODE: boolean | string;
+			TOKEN: string;
+			POSTGRES_URI: string;
+			FEEDBACK_WEBHOOK: string;
+			MASTER_ENCRYPTION_KEY: string;
+		}
+	}
 }
 
-declare module "discord.js" {
-    export interface Client {
-        slashCommands: discord.Collection<string, SlashCommand>;
-        commands: discord.Collection<string, Command>;
-        cooldowns: discord.Collection<string, number>;
-        logger: ILogger;
-        cmdLogger: CommandLogger;
-        config: IConfig;
-    }
+declare module 'discord.js' {
+	export interface Client {
+		slashCommands: discord.Collection<string, SlashCommand>;
+		commands: discord.Collection<string, Command>;
+		cooldowns: discord.Collection<string, number>;
+		logger: ILogger;
+		cmdLogger: CommandLogger;
+		config: IConfig;
+	}
 }

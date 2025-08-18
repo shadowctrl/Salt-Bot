@@ -4,7 +4,7 @@ metadata:
   name: salt-postgres
   namespace: salt-bot
 spec:
-  serviceName: 'salt-postgres'
+  serviceName: "salt-postgres"
   replicas: 1
   selector:
     matchLabels:
@@ -21,9 +21,9 @@ spec:
             - containerPort: 5434
           env:
             - name: POSTGRES_PORT
-              value: '5434'
+              value: "5434"
             - name: PGPORT
-              value: '5434'
+              value: "5434"
           envFrom:
             - secretRef:
                 name: salt-bot-secrets
