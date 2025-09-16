@@ -4,4 +4,4 @@ metadata:
   name: salt-bot-config
   namespace: salt-bot
 data:
-  DEBUG_MODE: 'false'
+  DEBUG_MODE: "false"

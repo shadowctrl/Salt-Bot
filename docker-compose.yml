@@ -7,7 +7,7 @@ services:
                 condition: service_healthy
         env_file:
             - .env
-        command: ["sh", "-c", "yarn install && yarn build && yarn start"]
+        command: ['sh', '-c', 'yarn install && yarn build && yarn start']
         volumes:
             - ./src:/app/src
             - ./logs:/app/logs
@@ -28,14 +28,17 @@ services:
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB}
         volumes:
+            - ./src:/app/src
+            - ./logs:/app/logs
+            - ./config:/app/config
             - postgres_data:/var/lib/postgresql/data
             - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
         ports:
-            - "5434:5432"
+            - '5434:5432'
         networks:
             - salt-network
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saltbot}"]
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-saltbot}']
             interval: 10s
             timeout: 5s
             retries: 5
