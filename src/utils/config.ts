@@ -43,17 +43,11 @@ export class ConfigManager {
 	private constructor() {
 		const environment = process.env.NODE_ENV || 'prod';
 		const envPath = path.resolve(process.cwd(), `.env.${environment}`);
-		let result;
+		let dotenvConfig: { debug: boolean; quiet: boolean; path?: string } = { debug: typeof process.env.DEBUG_MODE === 'string' && process.env.DEBUG_MODE.toLowerCase() === 'true', quiet: true };
+		if (require('fs').existsSync(envPath)) dotenvConfig = { ...dotenvConfig, path: envPath };
 
-		if (require('fs').existsSync(envPath)) {
-			result = config({ path: envPath, debug: typeof process.env.DEBUG_MODE === 'string' && process.env.DEBUG_MODE.toLowerCase() === 'true', quiet: true });
-		} else {
-			result = config({ debug: typeof process.env.DEBUG_MODE === 'string' && process.env.DEBUG_MODE.toLowerCase() === 'true', quiet: true });
-		}
-
-		if (result.error) {
-			throw new Error(`Failed to load environment variables: ${result.error.message}`);
-		}
+		const result = config(dotenvConfig)
+		if (result.error) throw new Error(`Failed to load environment variables: ${result.error.message}`);
 
 		try {
 			this.config = EnvSchema.parse({
