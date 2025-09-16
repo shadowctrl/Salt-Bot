@@ -46,9 +46,9 @@ export class ConfigManager {
 		let result;
 
 		if (require('fs').existsSync(envPath)) {
-			result = config({ path: envPath });
+			result = config({ path: envPath, debug: typeof process.env.DEBUG_MODE === 'string' && process.env.DEBUG_MODE.toLowerCase() === 'true', quiet: true });
 		} else {
-			result = config();
+			result = config({ debug: typeof process.env.DEBUG_MODE === 'string' && process.env.DEBUG_MODE.toLowerCase() === 'true', quiet: true });
 		}
 
 		if (result.error) {

@@ -24,7 +24,6 @@ export const handleSettings = async (interaction: discord.ChatInputCommandIntera
 							{ name: 'Model', value: existingConfig.modelName, inline: true },
 							{ name: 'Cooldown', value: `${existingConfig.cooldown} seconds`, inline: true },
 							{ name: 'Enabled', value: existingConfig.enabled ? 'Yes' : 'No', inline: true },
-							{ name: 'API Provider', value: existingConfig.baseUrl.includes('openai') ? 'OpenAI' : existingConfig.baseUrl.includes('anthropic') ? 'Anthropic' : existingConfig.baseUrl.includes('groq') ? 'Groq' : 'Custom', inline: true },
 							{ name: 'Response Type', value: existingConfig.responseType || 'Default', inline: false }
 						)
 						.setColor('Blue')

@@ -36,7 +36,7 @@ const handleCommandPrerequisites = async (client: discord.Client, interaction: d
 		if (command.premium) {
 			const [isPremium, _] = await checkPremiumStatus(interaction.user.id);
 			if (!isPremium) {
-				if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) await interaction.reply({ embeds: [new EmbedTemplate(client).error('❌ This command is available to premium users only.')], flags: discord.MessageFlags.Ephemeral });
+				if (interaction.isRepliable() && !interaction.deferred && !interaction.replied) await interaction.reply({ embeds: [new EmbedTemplate(client).error('❌ This command is available to premium users only. Join our support server to upgrade your account (Free for first 30 days)')], flags: discord.MessageFlags.Ephemeral });
 				return false;
 			}
 		}

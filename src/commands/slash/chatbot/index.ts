@@ -16,6 +16,7 @@ import { handleClearHistory } from './clear_history';
 const chatbotCommand: SlashCommand = {
 	cooldown: 10,
 	owner: false,
+	premium: true,
 	userPerms: [discord.PermissionFlagsBits.Administrator],
 	botPerms: [discord.PermissionFlagsBits.Administrator],
 	data: new discord.SlashCommandBuilder()

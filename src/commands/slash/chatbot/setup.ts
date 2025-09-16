@@ -14,12 +14,13 @@ export const handleSetup = async (interaction: discord.ChatInputCommandInteracti
 		const configManager = ConfigManager.getInstance();
 
 		let channel = interaction.options.getChannel('channel') as discord.TextChannel | null;
-		const name = interaction.options.getString('name') || 'AI Assistant';
+		const name = interaction.options.getString('name') || 'Salty';
 		const responseType = interaction.options.getString('response_type') || 'Friendly and helpful assistant';
 		const apiKey = configManager.getDefaultChatbotApiKey();
 		const modelName = configManager.getDefaultChatbotModel();
 		const baseUrl = configManager.getDefaultChatbotBaseUrl();
 
+		//Test Tool integration and API key validity
 		const tools = createDynamicTicketTool([
 			{ id: '1', name: 'Technical Support' },
 			{ id: '2', name: 'Billing Issues' },
@@ -28,7 +29,7 @@ export const handleSetup = async (interaction: discord.ChatInputCommandInteracti
 
 		try {
 			const llm = new LLM(apiKey, baseUrl);
-			await llm.invoke([{ role: 'user', content: "Say 'API connection successful'" }], modelName, { max_tokens: 50, tools: tools, tool_choice: 'auto' });
+			await llm.invoke([{ role: 'user', content: "Say 'API connection successful'" }], modelName, { max_completion_tokens: 50, tools: tools, tool_choice: 'auto' });
 		} catch (error) {
 			client.logger.error(`[CHATBOT_SETUP] API connection failed with predefined credentials: ${error}`);
 			return await interaction.editReply({ embeds: [new EmbedTemplate(client).error('Failed to connect to the chatbot API.').setDescription('The bot owner needs to check the API configuration. Please contact an administrator.')] });
@@ -91,7 +92,7 @@ export const handleSetup = async (interaction: discord.ChatInputCommandInteracti
 					.success('Chatbot set up successfully!')
 					.setDescription(`The chatbot has been ${createdNewChannel ? 'created' : 'configured'} in ${channel}. Users can now chat with the bot in that channel.\n\nUse \`/chatbot settings\` to update the name or personality, or \`/chatbot delete\` to remove it.`)
 					.addFields({ name: 'Name', value: name, inline: true }, { name: 'Model', value: modelName, inline: true }, { name: 'Cooldown', value: '5 seconds', inline: true }, { name: 'Response Type', value: responseType, inline: false })
-					.setFooter({ text: 'Use `/chatbot help` for more information!', iconURL: client.user?.displayAvatarURL() }),
+					.setFooter({ text: 'API credentials are managed by the bot owner. Join support to request changes.', iconURL: client.user?.displayAvatarURL() })
 			],
 		});
 	} catch (error) {

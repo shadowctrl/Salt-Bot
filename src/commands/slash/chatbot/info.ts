@@ -25,10 +25,9 @@ export const handleInfo = async (interaction: discord.ChatInputCommandInteractio
 				{ name: 'Model', value: existingConfig.modelName, inline: true },
 				{ name: 'Enabled', value: existingConfig.enabled ? 'Yes' : 'No', inline: true },
 				{ name: 'Cooldown', value: `${existingConfig.cooldown} seconds`, inline: true },
-				{ name: 'API', value: existingConfig.baseUrl, inline: true },
-				{ name: 'API Key', value: '••••••••' + existingConfig.apiKey.slice(-4), inline: true },
 				{ name: 'Created', value: `<t:${createdTimestamp}:R>`, inline: true }
 			)
+			.setFooter({ text: 'API credentials are managed by the bot owner. Join support to request changes.', iconURL: client.user?.displayAvatarURL() })
 			.setColor('Blue')
 			.setTimestamp();
 

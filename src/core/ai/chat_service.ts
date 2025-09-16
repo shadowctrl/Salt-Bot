@@ -82,12 +82,12 @@ export class ChatbotService {
 	 */
 	private buildSystemPrompt = (config: ChatbotConfig, ragContext: string | null, includeTools: boolean = false): string => {
 		let systemPrompt = `You are ${config.chatbotName}, an AI assistant in a Discord server. `;
-		if (config.responseType && config.responseType.trim().length > 0) systemPrompt += `Your personality and response style: ${config.responseType}. `;
+		if (config.responseType && config.responseType.trim().length > 0) systemPrompt += `Your personality, response style and additional details: """${config.responseType}""". `;
 
 		systemPrompt += `
 Guidelines:
 - Be helpful, informative, and engaging
-- Keep responses concise but thorough
+- Keep responses concise but thorough and no more than 2000 characters.
 - Use Discord-friendly formatting using Discord's markdown (Bold, Italics, Underline, Headers, Subtext, Masked links, Lists, Code Blocks, Spoilers and Block Quotes only). Include emojis in your response if needed
 - If you don't know something, say so honestly
 - If the user's question or query is not clear, ask for clarification and questions to better understand the user's needs.
@@ -187,7 +187,7 @@ When using this context:
 				const toolMessages = [{ role: 'system' as const, content: toolSystemPrompt }, ...filteredHistory, { role: 'user' as const, content: userMessage }];
 				const tools = createDynamicTicketTool(categories);
 
-				const toolResponse = await llm.invoke(toolMessages, config.modelName, { temperature: 0.3, tools: tools, tool_choice: 'auto' });
+				const toolResponse = await llm.invoke(toolMessages, config.modelName, { tools: tools, tool_choice: 'auto' });
 				const toolCalls = toolResponse.choices[0]?.message?.tool_calls;
 
 				if (toolCalls && toolCalls.length > 0) {
@@ -226,7 +226,7 @@ When using this context:
 			const history = await chatHistory.getHistory();
 			const filteredHistory = history.filter((msg) => msg.role !== 'system');
 			const normalMessages = [{ role: 'system' as const, content: normalSystemPrompt }, ...filteredHistory, { role: 'user' as const, content: userMessage }];
-			const response = await llm.invoke(normalMessages, config.modelName, { temperature: 0.7 });
+			const response = await llm.invoke(normalMessages, config.modelName);
 			const assistantMessage = response.choices[0]?.message?.content;
 
 			if (!assistantMessage) {
