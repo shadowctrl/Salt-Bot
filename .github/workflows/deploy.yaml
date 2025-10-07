@@ -82,7 +82,7 @@ jobs:
           kind: ConfigMap
           metadata:
             name: salt-bot-config-files
-            namespace: salt-bot
+            namespace: murali
           data:
             config.yml: |
           $CONFIG_CONTENT
@@ -140,8 +140,6 @@ jobs:
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/namespace.yaml
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/network-policy.yaml
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/salt-bot-pvc.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/salt-bot-pv.yaml
-            sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/psql-pv.yaml
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/psql-pvc.yaml
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/configmap.yaml
             sudo kubectl apply -f /home/${{ secrets.K3S_SERVER_USERNAME }}/k3s/salt-bot/configmap-files.yaml
